@@ -1,0 +1,27 @@
+global class UpdateData implements Database.Batchable<SObject>, Database.Stateful{
+    
+    global Database.QueryLocator start(Database.BatchableContext BC){
+        system.debug('##start UpdateData');
+        String query = 'select Id, Update_For_Ranking__c from Commission__c where Update_For_Ranking__c=false limit 10000';
+        System.debug(query);
+        return Database.getQueryLocator(query);
+    }
+    
+    global void execute(Database.BatchableContext BC, List<Commission__c> scope){
+        try{
+            //List<Opportunity> scope2 = (List<Opportunity>)scope;
+            system.debug('##execute UpdateData');
+            for(Commission__c c : scope){
+                c.Update_For_Ranking__c = true;
+            }
+            update scope;
+            System.debug('Update data fin');
+        }catch(Exception e){
+            System.debug('Exception: '+ e.getMessage());
+        }
+    }
+    
+    global void finish(Database.BatchableContext BC){
+        system.debug('##finish UpdateData');
+    }
+}
