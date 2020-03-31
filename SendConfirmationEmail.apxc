@@ -1,0 +1,300 @@
+global class SendConfirmationEmail {
+    
+    //SEND Seller Contact
+    webService static void emailConfirmationSellerPdf(ID oppId, String typeVFP){
+        //Getting opp
+        Opportunity opp = [SELECT Id, Name, Seller__c, Seller__r.Name, Trader_for_Seller__r.Confirmation_Email__c FROM Opportunity WHERE Id = :oppId];
+        PageReference pdfPage;
+        String auxFromEmail = '';
+        if(typeVFP == 'LC'){
+			pdfPage = Page.LC_ConfirmationVFP;
+            auxFromEmail = 'confirms@linkcrude.com';
+        }else{
+            pdfPage = Page.LF_ConfirmationVFP;
+            auxFromEmail = 'ib.confirms@linkfutures.com';
+        }
+        pdfPage.getParameters().put('id',oppId);
+        pdfPage.getParameters().put('type','seller');
+        Blob b;
+        if(Test.isRunningTest()){
+            b = blob.valueOf('Unit.Test');
+        } else {
+            b = pdfPage.getContentAsPdf();
+        }
+        //Create Attachment Object to attach with Email
+        Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
+        efa.setFileName(opp.Name+'.pdf');
+        efa.setBody(b);
+        
+        //Seller Contact
+        List<OpportunityContactRole> sellerContact = new List<OpportunityContactRole>();
+       	List<Contact> sellectContactList = [SELECT Id, AccountId FROM Contact WHERE AccountId = :opp.Seller__c];
+        /*if(sellectContactList.size()>0){
+            sellerContact = [SELECT Id, Contact.Name, Contact.Email, Contact.Fax, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingPostalCode, Contact.Confirmation_Email__c 
+                         FROM OpportunityContactRole WHERE ContactId = :sellectContactList.get(0).Id AND OpportunityId = :opp.Id AND (Contact.Title__c = 'Confirmation To' OR Contact.Title__c = 'Trader')];
+        }*/
+        sellerContact = [SELECT Id, Contact.Name, Contact.Email, Contact.Fax, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingPostalCode, Contact.Confirmation_Email__c 
+                         FROM OpportunityContactRole WHERE OpportunityId = :opp.Id AND Role = 'Confirm for Seller'];
+        
+        if(sellerContact.size()>0){
+            if(sellerContact.get(0).Contact.Confirmation_Email__c!=null && sellerContact.get(0).Contact.Confirmation_Email__c!=''){
+                // Define the email
+                Messaging.Singleemailmessage email= new Messaging.Singleemailmessage();
+                OrgWideEmailAddress[] owea = [select Id from OrgWideEmailAddress where Address =: auxFromEmail];
+                if ( owea.size() > 0 ) {
+                	email.setOrgWideEmailAddressId(owea.get(0).Id);
+                    System.debug('OrgWideEmailAddressId: ' + owea.get(0).Id);
+                } else {
+                    email.setSenderDisplayName('Link Resources LLC');
+                    email.setReplyTo(auxFromEmail);
+                    System.debug('ReplyTo');
+                }
+                email.setWhatId(opp.Id); //Save history activity in opp
+                email.setSubject('PDF of Opportunity - '+opp.Name);
+                //email.setToAddresses( new List<String>{'msialer@cloudcreations.com'} );
+                if(opp.Trader_for_Seller__r.Confirmation_Email__c!=null && opp.Trader_for_Seller__r.Confirmation_Email__c!='') email.setToAddresses( new List<String>{sellerContact.get(0).Contact.Confirmation_Email__c, opp.Trader_for_Seller__r.Confirmation_Email__c});
+                else email.setToAddresses( new List<String>{sellerContact.get(0).Contact.Confirmation_Email__c} );
+                email.setHtmlBody('Hi '+opp.Seller__r.Name+',<br/><br/> '
+                                  +'Please find the attached Confirmation.'
+                                  +'<br/><br/>'+'Thanks,'+'<br/>'
+                                  +UserInfo.getName()+'<br/>'
+                                  +UserInfo.getOrganizationName());
+                email.setFileAttachments(new Messaging.EmailFileAttachment[] {efa});
+                try{
+                    Messaging.SendEmailResult [] result = Messaging.sendEmail(new Messaging.SingleEmailMessage[] {email});
+                }catch(System.Exception e){
+                    System.debug('error: ' + e.getMessage());
+                }
+            }
+        }
+    }
+    
+    //SEND Buyer Contact
+    webService static void emailConfirmationBuyerPdf(ID oppId, String typeVFP){
+        //Getting opp
+        Opportunity opp = [SELECT Id, Name, AccountId, Account.Name, Trader_for_Buyer__r.Confirmation_Email__c FROM Opportunity WHERE Id = :oppId];
+        PageReference pdfPage;
+        String auxFromEmail = '';
+        if(typeVFP == 'LC'){
+			pdfPage = Page.LC_ConfirmationVFP;
+            auxFromEmail = 'confirms@linkcrude.com';
+        }else{
+            pdfPage = Page.LF_ConfirmationVFP;
+            auxFromEmail = 'ib.confirms@linkfutures.com';
+        }
+        pdfPage.getParameters().put('id',oppId);
+        pdfPage.getParameters().put('type','buyer');
+        Blob b;
+        if(Test.isRunningTest()){
+            b = blob.valueOf('Unit.Test');
+        } else {
+            b = pdfPage.getContentAsPdf();
+        }
+        //Create Attachment Object to attach with Email
+        Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
+        efa.setFileName(opp.Name+'.pdf');
+        efa.setBody(b);
+        
+        //Seller Contact
+        List<OpportunityContactRole> buyerContact = new List<OpportunityContactRole>();
+       	List<Contact> buyerContactList = [SELECT Id, AccountId FROM Contact WHERE AccountId = :opp.AccountId];
+        /*if(buyerContactList.size()>0){
+            buyerContact = [SELECT Id, Contact.Name, Contact.Email, Contact.Fax, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingPostalCode, Contact.Confirmation_Email__c  
+                         FROM OpportunityContactRole WHERE ContactId = :buyerContactList.get(0).Id AND OpportunityId = :opp.Id AND (Contact.Title__c = 'Confirmation To' OR Contact.Title__c = 'Trader')];
+        }*/
+        buyerContact = [SELECT Id, Contact.Name, Contact.Email, Contact.Fax, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingPostalCode, Contact.Confirmation_Email__c 
+                         FROM OpportunityContactRole WHERE OpportunityId = :opp.Id AND Role = 'Confirm for Buyer'];
+        
+        if(buyerContact.size()>0){
+            if(buyerContact.get(0).Contact.Confirmation_Email__c!=null && buyerContact.get(0).Contact.Confirmation_Email__c!=''){
+                // Define the email
+                Messaging.Singleemailmessage email= new Messaging.Singleemailmessage();
+                OrgWideEmailAddress[] owea = [select Id from OrgWideEmailAddress where Address =: auxFromEmail];
+                if ( owea.size() > 0 ) {
+                	email.setOrgWideEmailAddressId(owea.get(0).Id);
+                    System.debug('OrgWideEmailAddressId: ' + owea.get(0).Id);
+                } else {
+                    email.setSenderDisplayName('Link Resources LLC');
+                    email.setReplyTo(auxFromEmail);
+                    System.debug('ReplyTo');
+                }
+                email.setWhatId(opp.Id);
+                email.setSubject('PDF of Opportunity - '+opp.Name);
+                //email.setToAddresses( new List<String>{'msialer@cloudcreations.com'} );
+                if(opp.Trader_for_Buyer__r.Confirmation_Email__c!=null && opp.Trader_for_Buyer__r.Confirmation_Email__c!='') email.setToAddresses( new List<String>{buyerContact.get(0).Contact.Confirmation_Email__c, opp.Trader_for_Buyer__r.Confirmation_Email__c} );
+                else email.setToAddresses( new List<String>{buyerContact.get(0).Contact.Confirmation_Email__c} );
+                email.setHtmlBody('Hi '+opp.Account.Name+',<br/><br/> '
+                                  +'Please find the attached Confirmation.'
+                                  +'<br/><br/>'+'Thanks,'+'<br/>'
+                                  +UserInfo.getName()+'<br/>'
+                                  +UserInfo.getOrganizationName());
+                email.setFileAttachments(new Messaging.EmailFileAttachment[] {efa});
+                try{
+                    Messaging.SendEmailResult [] result = Messaging.sendEmail(new Messaging.SingleEmailMessage[] {email});
+                }catch(System.Exception e){
+                    System.debug('error: ' + e.getMessage());
+                }
+            }
+        }
+    }
+    
+    //SEND Seller Contact
+    @AuraEnabled
+    public static String emailConfirmationSellerPdfLightning(ID oppId, String typeVFP){
+        //Getting opp
+        Opportunity opp = [SELECT Id, Name, Seller__c, Seller__r.Name, Trader_for_Seller__r.Confirmation_Email__c FROM Opportunity WHERE Id = :oppId];
+        System.debug('hh: ' + opp.Trader_for_Seller__r.Confirmation_Email__c);
+        PageReference pdfPage;
+        String auxFromEmail = '';
+        if(typeVFP == 'LC'){
+			pdfPage = Page.LC_ConfirmationVFP;
+            auxFromEmail = 'confirms@linkcrude.com';
+        }else{
+            pdfPage = Page.LF_ConfirmationVFP;
+            auxFromEmail = 'ib.confirms@linkfutures.com';
+        }
+        pdfPage.getParameters().put('id',oppId);
+        pdfPage.getParameters().put('type','seller');
+        Blob b;
+        if(Test.isRunningTest()){
+            b = blob.valueOf('Unit.Test');
+        } else {
+            b = pdfPage.getContentAsPdf();
+        }
+        //Create Attachment Object to attach with Email
+        Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
+        efa.setFileName(opp.Name+'.pdf');
+        efa.setBody(b);
+        
+        //Seller Contact
+        List<OpportunityContactRole> sellerContact = new List<OpportunityContactRole>();
+       	List<Contact> sellectContactList = [SELECT Id, AccountId FROM Contact WHERE AccountId = :opp.Seller__c];
+        /*if(sellectContactList.size()>0){
+            sellerContact = [SELECT Id, Contact.Name, Contact.Email, Contact.Fax, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingPostalCode, Contact.Confirmation_Email__c 
+                         FROM OpportunityContactRole WHERE ContactId = :sellectContactList.get(0).Id AND OpportunityId = :opp.Id AND (Contact.Title__c = 'Confirmation To' OR Contact.Title__c = 'Trader')];
+        }*/
+        sellerContact = [SELECT Id, Contact.Id, Contact.Name, Contact.Email, Contact.Fax, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingPostalCode, Contact.Confirmation_Email__c 
+                         FROM OpportunityContactRole WHERE OpportunityId = :opp.Id AND Role = 'Confirm for Seller'];
+        
+        if(sellerContact.size()>0){
+            if(sellerContact.get(0).Contact.Confirmation_Email__c!=null && sellerContact.get(0).Contact.Confirmation_Email__c!=''){
+                // Define the email
+                Messaging.Singleemailmessage email= new Messaging.Singleemailmessage();
+                OrgWideEmailAddress[] owea = [select Id from OrgWideEmailAddress where Address =: auxFromEmail];
+                if ( owea.size() > 0 ) {
+                	email.setOrgWideEmailAddressId(owea.get(0).Id);
+                    System.debug('OrgWideEmailAddressId: ' + owea.get(0).Id);
+                } else {
+                    email.setSenderDisplayName('Link Resources LLC');
+                    email.setReplyTo(auxFromEmail);
+                    System.debug('ReplyTo');
+                }
+                //email.setTargetObjectId(sellerContact.get(0).Contact.Id);
+                //email.setSaveAsActivity(true);
+                email.setWhatId(opp.Id);
+                email.setSubject('PDF of Opportunity - '+opp.Name);
+                //email.setToAddresses( new List<String>{'msialer@cloudcreations.com'} );
+                if(opp.Trader_for_Seller__r.Confirmation_Email__c!=null && opp.Trader_for_Seller__r.Confirmation_Email__c!='') email.setToAddresses( new List<String>{sellerContact.get(0).Contact.Confirmation_Email__c, opp.Trader_for_Seller__r.Confirmation_Email__c} );
+                else email.setToAddresses( new List<String>{sellerContact.get(0).Contact.Confirmation_Email__c} );
+                email.setHtmlBody('Hi '+opp.Seller__r.Name+',<br/><br/> '
+                                  +'Please find the attached Confirmation.'
+                                  +'<br/><br/>'+'Thanks,'+'<br/>'
+                                  +UserInfo.getName()+'<br/>'
+                                  +UserInfo.getOrganizationName());
+                email.setFileAttachments(new Messaging.EmailFileAttachment[] {efa});
+                try{
+                    Messaging.SendEmailResult [] result = Messaging.sendEmail(new Messaging.SingleEmailMessage[] {email});
+                }catch(System.Exception e){
+                    System.debug('error: ' + e.getMessage());
+                    return 'Error: '+e.getMessage();
+                }
+            }else{
+                return 'Error: Seller does not have email.';
+            }
+        }else{
+            return 'Error: There is not a related contact.';
+        }
+        
+        return 'Ok';
+    }
+    
+    //SEND Buyer Contact
+    @AuraEnabled
+    public static String emailConfirmationBuyerPdfLightning(ID oppId, String typeVFP){
+        //Getting opp
+        Opportunity opp = [SELECT Id, Name, AccountId, Account.Name, Trader_for_Buyer__r.Confirmation_Email__c FROM Opportunity WHERE Id = :oppId];
+        System.debug('hh: ' + opp.Trader_for_Buyer__r.Confirmation_Email__c);
+        PageReference pdfPage;
+        String auxFromEmail = '';
+        if(typeVFP == 'LC'){
+			pdfPage = Page.LC_ConfirmationVFP;
+            auxFromEmail = 'confirms@linkcrude.com';
+        }else{
+            pdfPage = Page.LF_ConfirmationVFP;
+            auxFromEmail = 'ib.confirms@linkfutures.com';
+        }
+        pdfPage.getParameters().put('id',oppId);
+        pdfPage.getParameters().put('type','buyer');
+        Blob b;
+        if(Test.isRunningTest()){
+            b = blob.valueOf('Unit.Test');
+        } else {
+            b = pdfPage.getContentAsPdf();
+        }
+        //Create Attachment Object to attach with Email
+        Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
+        efa.setFileName(opp.Name+'.pdf');
+        efa.setBody(b);
+        
+        //Seller Contact
+        List<OpportunityContactRole> buyerContact = new List<OpportunityContactRole>();
+       	List<Contact> buyerContactList = [SELECT Id, AccountId FROM Contact WHERE AccountId = :opp.AccountId];
+        /*if(buyerContactList.size()>0){
+            buyerContact = [SELECT Id, Contact.Name, Contact.Email, Contact.Fax, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingPostalCode, Contact.Confirmation_Email__c 
+                         FROM OpportunityContactRole WHERE ContactId = :buyerContactList.get(0).Id AND OpportunityId = :opp.Id AND (Contact.Title__c = 'Confirmation To' OR Contact.Title__c = 'Trader')];
+        }*/
+        buyerContact = [SELECT Id, Contact.Id, Contact.Name, Contact.Email, Contact.Fax, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingPostalCode, Contact.Confirmation_Email__c 
+                         FROM OpportunityContactRole WHERE OpportunityId = :opp.Id AND Role = 'Confirm for Buyer'];
+        
+        if(buyerContact.size()>0){
+            if(buyerContact.get(0).Contact.Confirmation_Email__c!=null && buyerContact.get(0).Contact.Confirmation_Email__c!=''){
+                // Define the email
+                Messaging.Singleemailmessage email= new Messaging.Singleemailmessage();
+                OrgWideEmailAddress[] owea = [select Id from OrgWideEmailAddress where Address =: auxFromEmail];
+                if ( owea.size() > 0 ) {
+                	email.setOrgWideEmailAddressId(owea.get(0).Id);
+                    System.debug('OrgWideEmailAddressId: ' + owea.get(0).Id);
+                } else {
+                    email.setSenderDisplayName('Link Resources LLC');
+                    email.setReplyTo(auxFromEmail);
+                    System.debug('ReplyTo');
+                }
+                //email.setTargetObjectId(buyerContact.get(0).Contact.Id);
+                //email.setSaveAsActivity(true);
+                email.setWhatId(opp.Id);
+                email.setSubject('PDF of Opportunity - '+opp.Name);
+                //email.setToAddresses( new List<String>{'msialer@cloudcreations.com'} );
+                if(opp.Trader_for_Buyer__r.Confirmation_Email__c!=null && opp.Trader_for_Buyer__r.Confirmation_Email__c!='') email.setToAddresses( new List<String>{buyerContact.get(0).Contact.Confirmation_Email__c, opp.Trader_for_Buyer__r.Confirmation_Email__c} );
+                else email.setToAddresses( new List<String>{buyerContact.get(0).Contact.Confirmation_Email__c} );
+                email.setHtmlBody('Hi '+opp.Account.Name+',<br/><br/> '
+                                  +'Please find the attached Confirmation.'
+                                  +'<br/><br/>'+'Thanks,'+'<br/>'
+                                  +UserInfo.getName()+'<br/>'
+                                  +UserInfo.getOrganizationName());
+                email.setFileAttachments(new Messaging.EmailFileAttachment[] {efa});
+                try{
+                    Messaging.SendEmailResult [] result = Messaging.sendEmail(new Messaging.SingleEmailMessage[] {email});
+                }catch(System.Exception e){
+                    System.debug('error: ' + e.getMessage());
+                    return 'Error: '+e.getMessage();
+                }
+            }else{
+                return 'Error: Buyer does not have email.';
+            }
+        }else{
+            return 'Error: There is not a related contact.';
+        }
+        
+        return 'Ok';
+    } 
+}
