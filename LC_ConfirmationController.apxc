@@ -1,0 +1,182 @@
+public class LC_ConfirmationController {
+
+    public Opportunity opp {get;set;}
+    public OpportunityContactRole sellerContact {get;Set;}
+    public OpportunityContactRole buyerContact {get;set;}
+    public OpportunityContactRole sellerContactAttn {get;Set;}
+    public OpportunityContactRole buyerContactAttn {get;set;}
+    public List<OpportunityLineItem> olis {get;Set;}
+    public String oppId {get;set;}
+    public String closeDate {get;set;}
+    public String delivery {get;set;}
+    public DateTime today {get;set;}
+    public String formatedToday {get;set;}
+    public String formatedDate {get;set;}
+    public String newFormatedDate {get;set;}
+    public String type_z {get;set;}
+    public Integer monthsBetweenDates {get;set;}
+
+    public LC_ConfirmationController(ApexPages.StandardController controller) {
+        Opportunity oppx = (Opportunity) controller.getRecord();
+        oppId = oppx.Id;
+        type_z = apexpages.currentpage().getparameters().get('type');
+        showFields();
+    }
+    
+    public void showFields(){
+        opp = [SELECT Id, Seller__r.Name, Seller__c, Account.Name, AccountId, CloseDate, Name, Type, Account.BillingStreet, Account.BillingCity, Account.BillingState, 
+               Account.BillingPostalCode, Pipeline_link__c, Volume_BBL_Day__c, Volume_Method__c, Location__c, Delivery__c, Cost_Per_Unit__c, Cost_Per_Unit_Formula_Verbiage__c,
+               Contract_Terms_Verbiage__c, Commission_Terms_Verbiage__c, Payment_Terms_Verbiage__c, Exchange_ID__c, Buyer_Will_Write__c, Seller_Will_Write__c,
+               Volume_BBL_Day_New__c, Total_Volume_BBL_New__c, Trader_for_Buyer__c, Trader_for_Seller__c, Delivery_Date_Text__c, Transaction__c, Start_Date__c, End_Date__c,
+               Price_Type__c, Master_Opportunity__c, Master_Opportunity__r.Name, Master_Agreement__c, Revised__c, Cancellation_Verbiage__c, Crude_oil_specifications_Verbiage__c,
+               Receipt_Delivery_Window_Terms_Verbiage__c, Receipt_Delivery_Terms_Verbiage__c, Title_and_Risk_Transfer_Verbiage__c, Measurement_Terms_Verbiage__c,
+               Allowed_Laytime_Terms_Verbiage__c, Demurrage_Rate_Terms_Verbiage__c, Public_Terminal_Terms_Verbiage__c, GTC_s_Terms_Verbiage__c,Special_Provisions_Terms_Verbiage__c,
+               Confirmation_Buyer__c, Confirmation_Seller__c, Void__c, 
+               Seller__r.ShippingStreet, Seller__r.ShippingCity, Seller__r.ShippingState, Seller__r.ShippingPostalCode,
+               Account.ShippingStreet, Account.ShippingCity, Account.ShippingState, Account.ShippingPostalCode, Additional_Terms_Verbiage__c
+               FROM Opportunity WHERE Id = :oppId];
+        
+        if(opp.Master_Opportunity__c == null){
+            opp.Name = opp.Name.replace(' MASTER','').replace(' VOID','');
+            if(opp.Name.contains('-R')){ opp.Name = opp.Name.subString(0,opp.Name.length() - 3) + (type_z == 'buyer' ? 'B' : 'S') + opp.Name.subString(opp.Name.length() - 3,opp.Name.length() - 2) + '-R';
+            }else{
+                if(!opp.Name.subString(opp.Name.length()-1,opp.Name.length()).isNumeric()){
+                    opp.Name = opp.Name.subString(0,opp.Name.length() - 1) + (type_z == 'buyer' ? 'B' : 'S') + opp.Name.subString(opp.Name.length() - 1);
+                }else{ opp.Name = opp.Name + (type_z == 'buyer' ? 'B' : 'S');}
+            }
+            opp.Name = opp.Name + (opp.Transaction__c == 'Master (Strip Master)' ? ' MASTER' : '') + (opp.Void__c == true ? ' VOID' : '');
+        }else{
+            String parentName = opp.Master_Opportunity__r.Name.replace(' MASTER','').replace(' VOID','');
+            if(opp.Name.indexOf('.') >= 0){
+                if(opp.Name.contains('-R')){
+                    opp.Name = opp.Name.replace('-R','');
+                    parentName = parentName.replace('-R','');
+                    if(!parentName.subString(parentName.length()-1,parentName.length()).isNumeric()){
+                        opp.Name = parentName.subString(0,parentName.length() - 1) + (type_z == 'buyer' ? 'B' : 'S') + parentName.subString(parentName.length() - 1) + opp.Name.subString(opp.Name.indexOf('.'),opp.Name.length()) + '-R';
+                    }else{ opp.Name = parentName + (type_z == 'buyer' ? 'B' : 'S') + opp.Name.subString(opp.Name.indexOf('.'),opp.Name.length()) + '-R'; }
+                }else{
+                    if(!parentName.subString(parentName.length()-1,parentName.length()).isNumeric()){
+                        opp.Name = parentName.subString(0,parentName.length() - 1) + (type_z == 'buyer' ? 'B' : 'S') + parentName.subString(parentName.length() - 1) + opp.Name.subString(opp.Name.indexOf('.'),opp.Name.length());
+                    }else{ opp.Name = parentName + (type_z == 'buyer' ? 'B' : 'S') + opp.Name.subString(opp.Name.indexOf('.'),opp.Name.length()); } 
+                }
+            }else{
+                if(!parentName.subString(parentName.length()-1,parentName.length()).isNumeric()){
+                    opp.Name = parentName.subString(0,parentName.length() - 1) + (type_z == 'buyer' ? 'B' : 'S') + parentName.subString(parentName.length() - 1) + ' - EXCHANGE';
+                }else{ opp.Name = parentName + (type_z == 'buyer' ? 'B' : 'S')  + ' - EXCHANGE'; }
+            }
+        }
+        monthsBetweenDates = 0;
+        if(opp.Transaction__c == 'Master (Strip Master)' && opp.Start_Date__c != null && opp.End_Date__c != null){
+            monthsBetweenDates = opp.Start_Date__c.monthsBetween(opp.End_Date__c) + 1;
+        }
+        //Commission
+        if(opp.Commission_Terms_Verbiage__c != null){
+            List<Commission__c> commissionList = [Select Id, Buyer_Rate__c, Buyer_Commission__c, Seller_Rate__c, Seller_Commission__c, Transaction_No__r.Transaction__c From Commission__c WHERE Transaction_No__c =: oppId];
+            Decimal commissionActual;
+            if(commissionList.size()>0){
+                /*if(commissionList.get(0).Transaction_No__r.Transaction__c == 'Master (Strip Master)'){
+                    List<Commission__c> commissionChildList = [Select Id, Buyer_Commission__c, Seller_Commission__c, Transaction_No__r.Transaction__c From Commission__c WHERE Transaction_No__r.Master_Opportunity__c =: oppId];
+                    system.debug(commissionChildList);
+                    if(commissionChildList.size() > 0){
+                        if(type_z=='buyer') commissionActual = commissionChildList.get(0).Buyer_Commission__c; else if(type_z=='seller') commissionActual = commissionChildList.get(0).Seller_Commission__c;
+                    }
+                }else{*/
+                    if(type_z=='buyer') commissionActual = commissionList.get(0).Buyer_Rate__c; else if(type_z=='seller') commissionActual = commissionList.get(0).Seller_Rate__c;
+               //}
+            }
+            
+            if(commissionActual!=null && commissionActual == 0)
+                opp.Commission_Terms_Verbiage__c = 'No commission is due';
+            else{
+                if(commissionActual!=null) opp.Commission_Terms_Verbiage__c = opp.Commission_Terms_Verbiage__c.replace('[COMMISSIONRATEPERUNIT]', '$' + String.valueOf(commissionActual));
+                if(type_z=='buyer'){opp.Commission_Terms_Verbiage__c = (opp.Commission_Terms_Verbiage__c != null ? opp.Commission_Terms_Verbiage__c.replace('[BUYERORSELLER]', (opp.AccountId != null ? opp.Account.Name.toUpperCase() : '[BUYERORSELLER]')) : null);
+                } else if(type_z=='seller'){opp.Commission_Terms_Verbiage__c = (opp.Commission_Terms_Verbiage__c != null ? opp.Commission_Terms_Verbiage__c.replace('[BUYERORSELLER]', (opp.Seller__c != null ? opp.Seller__r.Name.toUpperCase() : '[BUYERORSELLER]')) : null);}
+            }
+        }
+        
+        if(opp.Trader_for_Seller__c != null){
+            Contact con = [SELECT Id, Name, FirstName, LastName, Email, Fax, MailingStreet, MailingCity, MailingState, MailingPostalCode, Account.Name, Send_By__c FROM Contact WHERE Id=:opp.Trader_for_Seller__c];            
+            OpportunityContactRole ocrx = new OpportunityContactRole(Contact = con, Opportunity = opp);
+            sellerContact = ocrx;
+        }
+        if(opp.Confirmation_Seller__c != null){
+            Contact conc = [SELECT Id, Name, FirstName, LastName, Email, Fax, MailingStreet, MailingCity, MailingState, MailingPostalCode, Account.Name, Send_By__c FROM Contact WHERE Id=:opp.Confirmation_Seller__c];            
+            OpportunityContactRole ocrxc = new OpportunityContactRole(Contact = conc, Opportunity = opp);
+            sellerContactAttn = ocrxc;
+        }
+        if(opp.Seller_Will_Write__c && opp.Seller__c != null){ if(opp.Contract_Terms_Verbiage__c!=null) opp.Contract_Terms_Verbiage__c = opp.Contract_Terms_Verbiage__c.replace('[WHOWILLWRITECONTRACT]', opp.Seller__r.Name);}
+
+        if(opp.Trader_for_Buyer__c != null){
+            Contact con2 = [SELECT Id, Name, FirstName, LastName, Email, Fax, MailingStreet, MailingCity, MailingState, MailingPostalCode, Account.Name, Send_By__c FROM Contact WHERE Id=:opp.Trader_for_Buyer__c];            
+            OpportunityContactRole ocrx2 = new OpportunityContactRole(Contact = con2, Opportunity = opp);
+            buyerContact = ocrx2;
+        }
+        if(opp.Confirmation_Buyer__c != null){
+            Contact con2c = [SELECT Id, Name, FirstName, LastName, Email, Fax, MailingStreet, MailingCity, MailingState, MailingPostalCode, Account.Name, Send_By__c FROM Contact WHERE Id=:opp.Confirmation_Buyer__c];            
+            OpportunityContactRole ocrx2c = new OpportunityContactRole(Contact = con2c, Opportunity = opp);
+            buyerContactAttn = ocrx2c;
+        }
+        if(opp.Buyer_Will_Write__c && opp.AccountId != null){ if(opp.Contract_Terms_Verbiage__c!=null) opp.Contract_Terms_Verbiage__c = opp.Contract_Terms_Verbiage__c.replace('[WHOWILLWRITECONTRACT]', opp.Account.Name); }
+        
+        olis = [SELECT Id, OpportunityId, Product2.Name FROM OpportunityLineItem WHERE OpportunityId = :opp.Id];
+        
+        closeDate = (opp.CloseDate != null ? opp.CloseDate.format() : null);
+        //delivery = (opp.Delivery__c != null ? opp.Delivery__c.format() : null);
+        
+        Map<Integer,String> monthMap = new Map<Integer,String>();
+        monthMap.put(1,'January');
+        monthMap.put(2,'February');
+        monthMap.put(3,'March');
+        monthMap.put(4,'April');
+        monthMap.put(5,'May');
+        monthMap.put(6,'June');
+        monthMap.put(7,'July');
+        monthMap.put(8,'August');
+        monthMap.put(9,'September');
+        monthMap.put(10,'October');
+        monthMap.put(11,'November');
+        monthMap.put(12,'December');
+        if(opp.Transaction__c == 'Master (Strip Master)' && opp.Start_Date__c != null && opp.End_Date__c != null){
+            Integer countMonths = 0;
+            for(Date d = opp.Start_Date__c; d < opp.End_Date__c; d = d.addMonths(1)){
+                countMonths++;
+            }
+            delivery = monthMap.get(opp.Start_Date__c.month()) + ' ' + opp.Start_Date__c.year() + ' THROUGH ' + monthMap.get(opp.End_Date__c.month()) + ' ' + opp.End_Date__c.year() + ' (' + String.valueOf(countMonths) +' MONTHS)';
+            /*Map<Integer,List<String>> deliveryMap = new Map<Integer,List<String>>();
+            List<String> deliveryList = new List<String>();
+            Boolean complete = true;
+            Date dateAux = Date.newInstance(opp.Start_Date__c.year(),opp.Start_Date__c.month(),1);
+            while(complete){
+                if(deliveryMap.get(dateAux.year()) != null){
+                    deliveryList = deliveryMap.get(dateAux.year());
+                    deliveryList.add(monthMap.get(dateAux.month()));
+                    deliveryMap.put(dateAux.year(),deliveryList.clone());
+                }else{
+                    deliveryList = new List<String>();
+                    deliveryList.add(monthMap.get(dateAux.month()));
+                    deliveryMap.put(dateAux.year(),deliveryList.clone());
+                }
+                if(dateAux.month() == opp.End_Date__c.month() && dateAux.year() == opp.End_Date__c.year()) complete = false;
+                dateAux = dateAux.addMonths(1);
+            }
+            delivery = '';
+            for(Integer y : deliveryMap.keySet()){
+                for(String m : deliveryMap.get(y)){
+                    delivery = delivery + m + ', ';
+                }
+                delivery = delivery.substring(0,delivery.length() - 2) + ' ' + y + ' - ';
+            }
+            delivery = delivery.substring(0,delivery.length() - 3);
+            system.debug(delivery);*/
+        }else{
+            delivery = (opp.Delivery_Date_Text__c != null ? opp.Delivery_Date_Text__c : (opp.Delivery__c != null ? monthMap.get(opp.Delivery__c.month()) + ' ' + String.valueOf(opp.Delivery__c.year()) : ''));
+        }
+        today = System.now();
+        
+        formatedToday = today.format();
+        String[] pieces = formatedToday.split('/');
+        formatedDate = today.format('EEEEEEEEE')+', '+today.format('MMM')+' '+pieces[1]+', '+pieces[2];
+        String[] formatedDatePieces = formatedDate.split(' ');
+        newFormatedDate = formatedDatePieces[0]+' '+formatedDatePieces[1]+' '+formatedDatePieces[2]+' '+formatedDatePieces[3];
+    }	
+}
