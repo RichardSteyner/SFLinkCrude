@@ -1,0 +1,218 @@
+global class CheckingContactRolesBatch implements Database.Batchable<sObject>, Database.Stateful {
+
+    global List<Opportunity> start(Database.BatchableContext bc) {
+        System.debug('#####start CheckingContactRolesBatch');
+        return [SELECT Id, Name, StageName FROM Opportunity];
+    }
+    
+    global void execute(Database.BatchableContext bc, List<Opportunity> scope){
+        System.debug('#####execute CheckingContactRolesBatch');
+        Set<String> oppIds = new Set<String>();
+        Set<String> oppWithComm = new Set<String>();
+        List<Commission__c> lstComm = new List<Commission__c>();
+        
+        for(Opportunity opp : scope){
+            oppIds.add(opp.Id);
+            oppWithComm.add(opp.Id);
+        }
+        
+        Map<String, Commission__c> mapCommission = new Map<String, Commission__c>();
+        
+        for(Commission__c com : [SELECT Id, Name, Transaction_No__c, Buyer_Side_Broker_1__c, Buyer_Side_Broker_2__c, Buyer_Side_Broker_3__c, Buyer_Side_Broker_4__c,
+                                 Seller_Side_Broker_1__c, Seller_Side_Broker_2__c, Seller_Side_Broker_3__c, Seller_Side_Broker_4__c, Buyer_Side_Commission_1__c,
+                                 Buyer_Side_Commission_2__c, Buyer_Side_Commission_3__c, Buyer_Side_Commission_Split_4__c, Seller_Side_Commission_1__c,
+                                 Seller_Side_Commission_2__c, Seller_Side_Commission_3__c, Seller_Side_Commission_Split_4__c, Flag_To_Update__c FROM Commission__c WHERE Transaction_No__c IN :oppWithComm]){
+            mapCommission.put(com.Transaction_No__c, com);
+        }
+        
+        System.debug('mapCommission: ' + mapCommission);
+        
+        Map<String, List<OpportunityContactRole>> mapOppCRBuyers = new Map<String, List<OpportunityContactRole>>();
+        Map<String, List<OpportunityContactRole>> mapOppCRSellers = new Map<String, List<OpportunityContactRole>>();
+        
+        for(Opportunity oppx : [SELECT ID, NAME, (SELECT ID, OPPORTUNITYID, CONTACTID FROM OPPORTUNITYCONTACTROLES WHERE ROLE = 'Buyer' AND Contact.Title = 'Trader') FROM OPPORTUNITY WHERE Id IN :oppIds]){
+            mapOppCRBuyers.put(oppx.Id, oppx.OpportunityContactRoles);
+        }
+        
+        for(Opportunity oppx : [SELECT ID, NAME, (SELECT ID, OPPORTUNITYID, CONTACTID FROM OPPORTUNITYCONTACTROLES WHERE ROLE = 'Seller' AND Contact.Title = 'Trader') FROM OPPORTUNITY WHERE Id IN :oppIds]){
+            mapOppCRSellers.put(oppx.Id, oppx.OpportunityContactRoles);
+        }
+        
+        for(Opportunity opp : scope){
+            //List<Commission__c> lstCommx = [SELECT Id, Name FROM Commission__c WHERE Transaction_No__c = :opp.Id];
+            if(mapCommission.get(opp.Id)!=null){
+                if(opp.StageName=='Closed Won' && mapCommission.get(opp.Id).Flag_To_Update__c){
+                    System.debug('opp: ' + opp);
+                    Commission__c com = new Commission__c();
+                    com = mapCommission.get(opp.Id);
+                    
+                    List<OpportunityContactRole> lstOppCRBuyers = new List<OpportunityContactRole>();
+                    if(mapOppCRBuyers.get(opp.Id)!=null) lstOppCRBuyers = mapOppCRBuyers.get(opp.Id);
+                    if(lstOppCRBuyers.size()==1){
+                        com.Buyer_Side_Broker_1__c = lstOppCRBuyers.get(0).ContactId;
+                    } else if(lstOppCRBuyers.size()==2){
+                        com.Buyer_Side_Broker_1__c = lstOppCRBuyers.get(0).ContactId;
+                        com.Buyer_Side_Broker_2__c = lstOppCRBuyers.get(1).ContactId;
+                    } else if(lstOppCRBuyers.size()==3){
+                        com.Buyer_Side_Broker_1__c = lstOppCRBuyers.get(0).ContactId;
+                        com.Buyer_Side_Broker_2__c = lstOppCRBuyers.get(1).ContactId;
+                        com.Buyer_Side_Broker_3__c = lstOppCRBuyers.get(2).ContactId;
+                    } else if(lstOppCRBuyers.size()==4){
+                        com.Buyer_Side_Broker_1__c = lstOppCRBuyers.get(0).ContactId;
+                        com.Buyer_Side_Broker_2__c = lstOppCRBuyers.get(1).ContactId;
+                        com.Buyer_Side_Broker_3__c = lstOppCRBuyers.get(2).ContactId;
+                        com.Buyer_Side_Broker_4__c = lstOppCRBuyers.get(3).ContactId;
+                    }
+                    
+                    List<OpportunityContactRole> lstOppCRSellers = new List<OpportunityContactRole>();
+                    if(mapOppCRSellers.get(opp.Id)!=null) lstOppCRSellers = mapOppCRSellers.get(opp.Id);
+                    if(lstOppCRSellers.size()==1){
+                        com.Seller_Side_Broker_1__c = lstOppCRSellers.get(0).ContactId;
+                    } else if(lstOppCRSellers.size()==2){
+                        com.Seller_Side_Broker_1__c = lstOppCRSellers.get(0).ContactId;
+                        com.Seller_Side_Broker_2__c = lstOppCRSellers.get(1).ContactId;
+                    } else if(lstOppCRSellers.size()==3){
+                        com.Seller_Side_Broker_1__c = lstOppCRSellers.get(0).ContactId;
+                        com.Seller_Side_Broker_2__c = lstOppCRSellers.get(1).ContactId;
+                        com.Seller_Side_Broker_3__c = lstOppCRSellers.get(2).ContactId;
+                    } else if(lstOppCRSellers.size()==4){
+                        com.Seller_Side_Broker_1__c = lstOppCRSellers.get(0).ContactId;
+                        com.Seller_Side_Broker_2__c = lstOppCRSellers.get(1).ContactId;
+                        com.Seller_Side_Broker_3__c = lstOppCRSellers.get(2).ContactId;
+                        com.Seller_Side_Broker_4__c = lstOppCRSellers.get(3).ContactId;
+                    }
+                    
+                    //Buyer
+                    boolean buyerFlag1=false;
+                    boolean buyerFlag2=false;
+                    boolean buyerFlag3=false;
+                    boolean buyerFlag4=false;
+                    
+                    //Seller
+                    boolean sellerFlag1=false;
+                    boolean sellerFlag2=false;
+                    boolean sellerFlag3=false;
+                    boolean sellerFlag4=false;
+                    
+                    Decimal bpercentagePerSplit1=0.00;
+                    Decimal bpercentagePerSplit2=0.00;
+                    Decimal bpercentagePerSplit3=0.00;
+                    Decimal bpercentagePerSplit4=0.00;
+                    
+                    Decimal spercentagePerSplit1=0.00;
+                    Decimal spercentagePerSplit2=0.00;
+                    Decimal spercentagePerSplit3=0.00;
+                    Decimal spercentagePerSplit4=0.00;
+                    
+                    if(com.Buyer_Side_Broker_1__c!=null) buyerFlag1=true;
+                    if(com.Buyer_Side_Broker_2__c!=null) buyerFlag2=true;
+                    if(com.Buyer_Side_Broker_3__c!=null) buyerFlag3=true;
+                    if(com.Buyer_Side_Broker_4__c!=null) buyerFlag4=true;
+                    
+                    if(com.Seller_Side_Broker_1__c!=null) sellerFlag1=true;
+                    if(com.Seller_Side_Broker_2__c!=null) sellerFlag2=true;
+                    if(com.Seller_Side_Broker_3__c!=null) sellerFlag3=true;
+                    if(com.Seller_Side_Broker_4__c!=null) sellerFlag4=true;
+                    
+                    if(buyerFlag1 && buyerFlag2==false && buyerFlag3==false && buyerFlag4==false){
+                        bpercentagePerSplit1=100;
+                    } else if(buyerFlag2 && buyerFlag1==false && buyerFlag3==false && buyerFlag4==false){
+                        bpercentagePerSplit2=100;
+                    } else if(buyerFlag3 && buyerFlag1==false && buyerFlag2==false && buyerFlag4==false){
+                        bpercentagePerSplit3=100;
+                    } else if(buyerFlag4 && buyerFlag1==false && buyerFlag2==false && buyerFlag3==false){
+                        bpercentagePerSplit4=100;
+                    } else if(buyerFlag1 && buyerFlag2 && buyerFlag4==false && buyerFlag3==false){
+                        bpercentagePerSplit1=50;
+                        bpercentagePerSplit2=50;
+                    } else if(buyerFlag1 && buyerFlag3 && buyerFlag2==false && buyerFlag4==false){
+                        bpercentagePerSplit1=50;                    bpercentagePerSplit3=50;            
+                    } else if(buyerFlag1 && buyerFlag4 && buyerFlag2==false && buyerFlag3==false){
+                        bpercentagePerSplit1=50;                    bpercentagePerSplit4=50;   
+                    } else if(buyerFlag2 && buyerFlag3 && buyerFlag1==false && buyerFlag4==false){
+                        bpercentagePerSplit2=50;                    bpercentagePerSplit3=50;   
+                    } else if(buyerFlag2 && buyerFlag4 && buyerFlag1==false && buyerFlag3==false){
+                        bpercentagePerSplit2=50;                    bpercentagePerSplit4=50;
+                    } else if(buyerFlag3 && buyerFlag4 && buyerFlag1==false && buyerFlag2==false){
+                        bpercentagePerSplit3=50;                    bpercentagePerSplit4=50;
+                    } else if(buyerFlag1 && buyerFlag2 && buyerFlag3 && buyerFlag4==false){
+                        bpercentagePerSplit1=33.33;
+                        bpercentagePerSplit2=33.33;
+                        bpercentagePerSplit3=33.33;
+                    } else if(buyerFlag1 && buyerFlag2 && buyerFlag4 && buyerFlag3==false){
+                        bpercentagePerSplit1=33.33;                    bpercentagePerSplit2=33.33;                    bpercentagePerSplit4=33.33;
+                    } else if(buyerFlag1 && buyerFlag3 && buyerFlag4 && buyerFlag2==false){
+                        bpercentagePerSplit1=33.33;                    bpercentagePerSplit3=33.33;                    bpercentagePerSplit4=33.33;
+                    } else if(buyerFlag2 && buyerFlag3 && buyerFlag4 && buyerFlag1==false){
+                        bpercentagePerSplit2=33.33;                    bpercentagePerSplit3=33.33;                    bpercentagePerSplit4=33.33;
+                    } else if(buyerFlag1 && buyerFlag2 && buyerFlag3 && buyerFlag4){
+                        bpercentagePerSplit1=25;
+                        bpercentagePerSplit2=25;
+                        bpercentagePerSplit3=25;
+                        bpercentagePerSplit4=25;
+                    }
+                    
+                    com.Buyer_Side_Commission_1__c=bpercentagePerSplit1;
+                    com.Buyer_Side_Commission_2__c=bpercentagePerSplit2;
+                    com.Buyer_Side_Commission_3__c=bpercentagePerSplit3;
+                    com.Buyer_Side_Commission_Split_4__c=bpercentagePerSplit4;
+                    
+                    if(sellerFlag1 && sellerFlag2==false && sellerFlag3==false && sellerFlag4==false){
+                        spercentagePerSplit1=100;
+                    } else if(sellerFlag2 && sellerFlag1==false && sellerFlag3==false && sellerFlag4==false){
+                        spercentagePerSplit2=100;
+                    } else if(sellerFlag3 && sellerFlag1==false && sellerFlag2==false && sellerFlag4==false){
+                        spercentagePerSplit3=100;
+                    } else if(sellerFlag4 && sellerFlag1==false && sellerFlag2==false && sellerFlag3==false){
+                        spercentagePerSplit4=100;
+                    } else if(sellerFlag1 && sellerFlag2 && sellerFlag4==false && sellerFlag3==false){
+                        spercentagePerSplit1=50;
+                        spercentagePerSplit2=50;
+                    } else if(sellerFlag1 && sellerFlag3 && sellerFlag2==false && sellerFlag4==false){
+                        spercentagePerSplit1=50;                    spercentagePerSplit3=50;            
+                    } else if(sellerFlag1 && sellerFlag4 && sellerFlag2==false && sellerFlag3==false){
+                        spercentagePerSplit1=50;                    spercentagePerSplit4=50;   
+                    } else if(sellerFlag2 && sellerFlag3 && sellerFlag1==false && sellerFlag4==false){
+                        spercentagePerSplit2=50;                    spercentagePerSplit3=50;   
+                    } else if(sellerFlag2 && sellerFlag4 && sellerFlag1==false && sellerFlag3==false){
+                        spercentagePerSplit2=50;                    spercentagePerSplit4=50;
+                    } else if(sellerFlag3 && sellerFlag4 && sellerFlag1==false && sellerFlag2==false){
+                        spercentagePerSplit3=50;                    spercentagePerSplit4=50;
+                    } else if(sellerFlag1 && sellerFlag2 && sellerFlag3 && sellerFlag4==false){
+                        spercentagePerSplit1=33.33;
+                        spercentagePerSplit2=33.33;
+                        spercentagePerSplit3=33.33;
+                    } else if(sellerFlag1 && sellerFlag2 && sellerFlag4 && sellerFlag3==false){
+                        spercentagePerSplit1=33.33;                    spercentagePerSplit2=33.33;                    spercentagePerSplit4=33.33;
+                    } else if(sellerFlag1 && sellerFlag3 && sellerFlag4 && sellerFlag2==false){
+                        spercentagePerSplit1=33.33;                    spercentagePerSplit3=33.33;                    spercentagePerSplit4=33.33;
+                    } else if(sellerFlag2 && sellerFlag3 && sellerFlag4 && sellerFlag1==false){
+                        spercentagePerSplit2=33.33;                    spercentagePerSplit3=33.33;                    spercentagePerSplit4=33.33;
+                    } else if(sellerFlag1 && sellerFlag2 && sellerFlag3 && sellerFlag4){
+                        spercentagePerSplit1=25;
+                        spercentagePerSplit2=25;
+                        spercentagePerSplit3=25;
+                        spercentagePerSplit4=25;
+                    }
+                    
+                    com.Seller_Side_Commission_1__c=spercentagePerSplit1;
+                    com.Seller_Side_Commission_2__c=spercentagePerSplit2;
+                    com.Seller_Side_Commission_3__c=spercentagePerSplit3;
+                    com.Seller_Side_Commission_Split_4__c=spercentagePerSplit4;
+                    
+                    System.debug('com: ' + com);
+                    
+                    lstComm.add(com);
+                }
+            }
+        }
+        
+        ApexUtil.isUpdateComm=true;
+        if(lstComm.size()>0) update lstComm;
+        ApexUtil.isUpdateComm=false;
+    }
+    
+    global void finish(Database.BatchableContext bc){
+        System.debug('#####finish CheckingContactRolesBatch');
+    }
+}
