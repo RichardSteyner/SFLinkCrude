@@ -1,0 +1,81 @@
+global class AccountMergeBatch implements Database.Batchable<AggregateResult>{
+    global Boolean enter {get;set;}
+    global Set<Id> setIdAcc {get;set;}
+    global String field {get; set;}
+    
+    global AccountMergeBatch(String fieldB){
+        system.debug('##construct AccountMergeBatch');
+        enter = false;
+        setIdAcc = new Set<Id>();
+        field = fieldB;
+        String query = 'Select Id From Account WHERE Namekey__c<>null' + (field.equalsIgnoreCase('Namekey__c') ? ' and Namekey__c LIKE \'F%\'' : ' and ' + field + '<>null') + ' and Check_Merge__c=false LIMIT 50000';
+        for(Account acc : Database.query(query)){
+            setIdAcc.add(acc.Id);
+        }
+        system.debug(setIdAcc);
+        
+        if(setIdAcc.size()>0){
+            enter = true;
+        }else{ enter = false; }
+    }
+    
+    global Iterable<AggregateResult> start(Database.batchableContext info){
+        system.debug('##start AccountMergeBatch');
+        system.debug('##setIdAcc: '+setIdAcc);
+		return new AggregateResultMergeIterable(setIdAcc, field);
+    }
+    
+    global void execute(Database.BatchableContext BC, List<Sobject> scope){
+        system.debug('##execute AccountMergeBatch');
+        List<String> lstSoNumber = new List<String>();
+        system.debug('##scope:'+scope);
+        for(Sobject so : scope){
+			AggregateResult ar = (AggregateResult) so;
+          	String soNumber = String.valueOf(ar.get(field));
+            system.debug(soNumber);
+            if(Integer.valueOf(ar.get('cantidad'))<=2) lstSoNumber.add(soNumber);
+            if(field.equalsIgnoreCase('Namekey__c')) lstSoNumber.add(soNumber.substring(1,soNumber.length()));
+        }
+        system.debug(lstSoNumber);
+        if(lstSoNumber.size()>0){
+            Map<Integer,Account> mapAccount = new Map<Integer,Account>();
+            Integer cont = 0;
+            String query = 'Select Id From Account WHERE ' + field + ' IN: lstSoNumber ORDER BY CreatedDate ASC LIMIT 2';
+            for(Account acc : Database.query(query)){
+                cont++;
+                mapAccount.put(cont,acc);
+            }
+            system.debug(mapAccount);
+            
+            if(mapAccount.size()==2){
+                Account masterAcct = mapAccount.get(1);
+                Account mergeAcct = mapAccount.get(2);
+                Set<String> setID = new Set<String>();
+                
+                for(AccountContactRelation acc : [select ContactId from AccountContactRelation where AccountId=:masterAcct.Id])
+                    setID.add(acc.ContactId);
+                
+                List<AccountContactRelation> relation2 = [select Id, AccountId from AccountContactRelation where AccountId=:mergeAcct.Id and ContactId in:setID  and IsDirect=false];
+                
+                if(relation2.size()>0) delete relation2;
+                
+                try {
+                    masterAcct.Check_Merge__c = true;
+                    merge masterAcct mergeAcct;
+                } catch (DmlException e) {
+                    System.debug('An unexpected error has occurred: ' + e.getMessage()); 
+                    System.abortJob(BC.getJobId());
+                }
+            }else{
+                Account accTemp;
+                List<Account> lstAccUpdate = new List<Account>();
+                for(Integer key : mapAccount.keySet()){ accTemp = new Account(Id = mapAccount.get(key).Id,Check_Merge__c = true); lstAccUpdate.add(accTemp); }
+                if(lstAccUpdate.size()>0) update lstAccUpdate;
+            }
+        }
+    }
+    
+    global void finish(Database.BatchableContext BC){
+        system.debug('##finish AccountMergeBatch');
+    }
+}
