@@ -1,0 +1,263 @@
+public class StatementController {
+    private final Statement__c statement;
+    public List<Payment__c> payments {get;set;}
+    public List<Adjustment__c> adjustments {get;set;}
+    public String dayOfWeek {get;set;}
+    public List<Contact> attns {get;set;}
+    public List<Invoice__c> invoices {get;set;}
+    public Map<String,List<Opportunity>> transactionMap {get;set;}
+    public Map<String,Decimal> invoiceBalanceDueMap {get;set;}
+    public Map<String,String> accountTypeMap {get;set;}
+    public Map<String,Contact> attnInvoiceMap {get;set;}
+    public Map<String,OpportunityContactRole> traderInvoiceMap {get;set;}
+    public Map<String,Commission__c> commissionMap {get;set;}
+    public Decimal totalPayments {get;set;}
+    public Decimal totalInvoices {get;set;}
+    public Decimal totalAdjustments {get;set;}
+    public String recordTypeName {get;set;}
+    public Decimal beginingBalance {get;set;}
+    
+    public StatementController(ApexPages.StandardController stdController) {
+        Statement__c st = (Statement__c)stdController.getRecord();
+        statement = [Select Id, Closing_Date__c, Account__c, Account__r.Include_invoice__c, Include_invoices__c, RecordTypeId, RecordType.Name, Transaction_Date__c, Ending_Balance__c From Statement__c WHERE Id=:st.Id];
+        recordTypeName = statement.RecordType.Name;
+        Init();
+        
+        Map<String,Statement__c> statementPreviousMap = new Map<String,Statement__c>();
+        Date transDateFirst;
+        Date closingDateLast;
+        Integer k = 1;
+        Set<String> statementsPreviousIds = new Set<String>();
+        List<Statement__c> stPreviousList = new List<Statement__c>();
+        for(Statement__c stp : [SELECT Id, Closing_Date__c, Account__c, Account__r.Include_invoice__c, Include_invoices__c, RecordType.Name, Transaction_Date__c, Ending_Balance__c FROM Statement__c WHERE Account__c =: statement.Account__c AND RecordTypeId =: statement.RecordTypeId AND Id <>: statement.Id AND Transaction_Date__c <: statement.Transaction_Date__c AND StatementKey__c = null ORDER BY Transaction_Date__c ASC]){
+            stPreviousList.add(stp);
+            statementPreviousMap.put(stp.Transaction_Date__c.month() + '-' + stp.Transaction_Date__c.year(), stp);
+            statementsPreviousIds.add(stp.Id);
+            if(k == 10 ) transDateFirst = stp.Transaction_Date__c;
+            closingDateLast = stp.Closing_Date__c;
+            k++;
+        }
+        if(statementPreviousMap.size() > 0){
+            beginingBalance = 0;
+            Map<String,Decimal> paymentHistoryMap = new Map<String,Decimal>();
+            for(Payment__c pay : [Select Id, Date_Received__c, Check__c, Amount__c, How_Paid__c From Payment__c WHERE From__c=:statement.Account__c AND Date_Received__c >=: transDateFirst AND Date_Received__c <=: closingDateLast AND Type__c =: recordTypeName AND Payment_Parent__c=null]){
+                if(paymentHistoryMap.get(pay.Date_Received__c.month() + '-' + pay.Date_Received__c.year()) != null){
+                    paymentHistoryMap.put(pay.Date_Received__c.month() + '-' + pay.Date_Received__c.year(), paymentHistoryMap.get(pay.Date_Received__c.month() + '-' + pay.Date_Received__c.year()) + (pay.Amount__c != null ? pay.Amount__c : 0));
+                }else{
+                    paymentHistoryMap.put(pay.Date_Received__c.month() + '-' + pay.Date_Received__c.year(), (pay.Amount__c != null ? pay.Amount__c : 0));
+                }
+            }
+            Map<String,Decimal> adjustmentHistoryMap = new Map<String,Decimal>();
+            for(Adjustment__c adj : [Select Id, Adj_Date__c, Debit__c, Credit__c, Comment__c, Apply_to_Statement__r.Transaction_Date__c From Adjustment__c WHERE Apply_to_Statement__c IN: statementsPreviousIds]){ 
+                if(adjustmentHistoryMap.get(adj.Apply_to_Statement__r.Transaction_Date__c.month() + '-' + adj.Apply_to_Statement__r.Transaction_Date__c.year()) != null){
+                    adjustmentHistoryMap.put(adj.Apply_to_Statement__r.Transaction_Date__c.month() + '-' + adj.Apply_to_Statement__r.Transaction_Date__c.year(), adjustmentHistoryMap.get(adj.Apply_to_Statement__r.Transaction_Date__c.month() + '-' + adj.Apply_to_Statement__r.Transaction_Date__c.year()) + (adj.Debit__c != null ? adj.Debit__c : 0) - (adj.Credit__c != null ? adj.Credit__c : 0));
+                }else{
+                    adjustmentHistoryMap.put(adj.Apply_to_Statement__r.Transaction_Date__c.month() + '-' + adj.Apply_to_Statement__r.Transaction_Date__c.year(), (adj.Debit__c != null ? adj.Debit__c : 0) - (adj.Credit__c != null ? adj.Credit__c : 0));
+                }
+            }
+            Map<String,Decimal> invoiceHistoryMap = new Map<String,Decimal>();
+            for(Statement_Line_Item__c sti : [Select Id, Invoice__c, Invoice__r.Balance_Due__c, Statement__c, Statement__r.Transaction_Date__c From Statement_Line_Item__c WHERE Statement__c IN: statementsPreviousIds]){
+                if(sti.Invoice__c != null){
+                    if(invoiceHistoryMap.get(sti.Statement__r.Transaction_Date__c.month() + '-' + sti.Statement__r.Transaction_Date__c.year()) != null){
+                        invoiceHistoryMap.put(sti.Statement__r.Transaction_Date__c.month() + '-' + sti.Statement__r.Transaction_Date__c.year(), invoiceHistoryMap.get(sti.Statement__r.Transaction_Date__c.month() + '-' + sti.Statement__r.Transaction_Date__c.year()) + (sti.Invoice__r.Balance_Due__c != null ? sti.Invoice__r.Balance_Due__c : 0));
+                    }else{
+                        invoiceHistoryMap.put(sti.Statement__r.Transaction_Date__c.month() + '-' + sti.Statement__r.Transaction_Date__c.year(), (sti.Invoice__r.Balance_Due__c != null ? sti.Invoice__r.Balance_Due__c : 0));
+                    }
+                }
+            }
+            k = 1;
+            Decimal endingBalance = 0;
+            Decimal endingBalanceLast = 0;
+            for(Statement__c stp : stPreviousList){
+                system.debug(stp.Transaction_Date__c.month() + '-' + stp.Transaction_Date__c.year());
+                system.debug(paymentHistoryMap.get(stp.Transaction_Date__c.month() + '-' + stp.Transaction_Date__c.year()));
+                system.debug(invoiceHistoryMap.get(stp.Transaction_Date__c.month() + '-' + stp.Transaction_Date__c.year()));
+                system.debug(adjustmentHistoryMap.get(stp.Transaction_Date__c.month() + '-' + stp.Transaction_Date__c.year()));
+                endingBalance = (k == 1 ? 0 : endingBalanceLast) - (paymentHistoryMap.get(stp.Transaction_Date__c.month() + '-' + stp.Transaction_Date__c.year()) != null ? paymentHistoryMap.get(stp.Transaction_Date__c.month() + '-' + stp.Transaction_Date__c.year()) : 0) + 
+                    (invoiceHistoryMap.get(stp.Transaction_Date__c.month() + '-' + stp.Transaction_Date__c.year()) != null ? invoiceHistoryMap.get(stp.Transaction_Date__c.month() + '-' + stp.Transaction_Date__c.year()) : 0) - 
+                    (adjustmentHistoryMap.get(stp.Transaction_Date__c.month() + '-' + stp.Transaction_Date__c.year()) != null ? adjustmentHistoryMap.get(stp.Transaction_Date__c.month() + '-' + stp.Transaction_Date__c.year()) : 0) ;
+                endingBalanceLast = endingBalance;
+                k++;
+            }
+            system.debug(endingBalance);
+            beginingBalance = endingBalance;
+        }else{
+            system.debug('Enter6');
+            beginingBalance = 0;
+        }
+        system.debug(beginingBalance);
+        
+        Set<Id> invIds = new Set<Id>();
+        Set<Id> tranIds = new Set<Id>();
+        Set<Id> transWithoutInvoice = new Set<Id>();
+        for(Statement_Line_Item__c sli : [Select Id, Invoice__c, Invoice__r.Transaction_Number__c, Link_Ref__c From Statement_Line_Item__c WHERE Statement__c=:statement.Id]){
+            if(sli.Invoice__c != null) invIds.add(sli.Invoice__c);
+            if(sli.Invoice__c != null && sli.Invoice__r.Transaction_Number__c != null) tranIds.add(sli.Invoice__r.Transaction_Number__c);
+            if(sli.Link_Ref__c != null && sli.Invoice__c == null) transWithoutInvoice.add(sli.Link_Ref__c);
+        }
+        
+        Map<String,String> oppProductMap = new Map<String,String>();
+        for(Opportunity oppx : [SELECT Id,(SELECT Id, Product2.Name, UnitPrice FROM OpportunityLineItems) FROM Opportunity WHERE Id IN: tranIds]){
+            if(oppx.OpportunityLineItems!=null){
+                for(OpportunityLineItem oli : oppx.OpportunityLineItems){ oppProductMap.put(oppx.Id,oli.Product2.Name);
+                }
+            }
+        }
+        
+        Set<String> accInvoiceIds = new Set<String>();
+        Map<String,String> oppInvoiceMap = new Map<String,String>();
+        Set<String> contactIds = new Set<String>();
+        Map<String,Invoice__c> invoiceTypeMap = new Map<String,Invoice__c>();
+        for(Invoice__c invAux : [Select Id, Account__c, Account__r.Name, Account__r.BillingStreet, Account__r.Website, Account__r.BillingCity, Account__r.BillingState, Account__r.BillingPostalCode, 
+                                 Transaction_Number__c, Transaction_Number__r.Name, Closing_Date__c, Transaction_Number__r.Pipeline_link__c, Transaction_Number__r.Product_Name__c, Transaction_Number__r.Delivery__c,
+                                 Transaction_Number__r.Location__c, Transaction_Number__r.Volume_BBL_Day_New__c, Transaction_Number__r.Price_Type__c, Transaction_Number__r.Product_Price__c,
+                                 Transaction_Number__r.Cost_Per_Unit_Formula_Verbiage__c, Transaction_Number__r.Cost_Per_Unit__c, Transaction_Number__r.Payment_Terms_Verbiage__c, Role__c,
+                                 Transaction_Number__r.AccountId, Transaction_Number__r.Seller__c,Transaction_Number__r.Trader_for_Buyer__r.Name, Transaction_Number__r.Trader_for_Seller__r.Name,
+                                 Transaction_Number__r.Trader_for_Buyer__r.Fax, Transaction_Number__r.Trader_for_Seller__r.Fax, Transaction_Number__r.Trader_for_Buyer__r.Email, Transaction_Number__r.Trader_for_Seller__r.Email,
+                                 Transaction_Number__r.Seller__r.Name, Transaction_Number__r.Account.Name, Balance_Due__c
+                                 From Invoice__c WHERE Id IN: invIds]){
+                                     if(oppProductMap.get(invAux.Transaction_Number__c) != null) invAux.Transaction_Number__r.Product_Name__c = oppProductMap.get(invAux.Transaction_Number__c);
+                                     if(statement.Include_invoices__c == 'Yes') invoices.add(invAux);
+                                     accInvoiceIds.add(invAux.Transaction_Number__r.AccountId);
+                                     accInvoiceIds.add(invAux.Transaction_Number__r.Seller__c);
+                                     invoiceTypeMap.put(invAux.Id,invAux);
+                                     oppInvoiceMap.put(invAux.Transaction_Number__c,invAux.Id);
+                                 }
+        if(statement.Include_invoices__c == 'Yes'){
+            
+            //List<Contact> attnInvoiceList = [Select Id, Name, FirstName, LastName, AccountId, MailingStreet, MailingCity, MailingState, MailingCountry, MailingPostalCode From Contact WHERE AccountId IN: accInvoiceIds AND Role__c includes ('Invoice')];
+            for(Contact conAux : [Select Id, Name, FirstName, LastName, AccountId, MailingStreet, MailingCity, MailingState, MailingCountry, MailingPostalCode, Fax, Email, Role__c From Contact WHERE AccountId IN: accInvoiceIds]){
+                if(/*conAux.Role__c!=null && conAux.Role__c.contains('Invoice') &&*/attnInvoiceMap.get(conAux.AccountId)==null){ attnInvoiceMap.put(conAux.AccountId,conAux); contactIds.add(conAux.Id);}
+            }
+            /*for(OpportunityContactRole conRoleAux : [Select Id, OpportunityId, Contact.Name, Contact.FirstName, Contact.LastName, Contact.AccountId, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingCountry, Contact.MailingPostalCode, Contact.Fax, Contact.Email 
+From OpportunityContactRole WHERE ContactId IN: contactIds AND OpportunityId IN: oppInvoiceMap.keySet() AND (Contact.Title__c = 'Trader' OR Contact.Title__c = 'Broker')]){
+traderInvoiceMap.put(conRoleAux.Contact.AccountId,conRoleAux);
+}*/
+            for(String accInvoiceAux : accInvoiceIds){ if(attnInvoiceMap.get(accInvoiceAux) == null){ attnInvoiceMap.put(accInvoiceAux,new Contact());}
+                //if(traderInvoiceMap.get(accInvoiceAux) == null) traderInvoiceMap.put(accInvoiceAux,new OpportunityContactRole());
+            }
+            system.debug(traderInvoiceMap);
+        }
+        
+        /*for(Adjustment__c adj : [Select Id, Debit__c, Credit__c, Comment__c  From Adjustment__c WHERE Apply_to_Statement__c =: statement.Id]){
+totalAdjustments = totalAdjustments + (adj.Debit__c != null ? adj.Debit__c : 0) - (adj.Credit__c != null ? adj.Credit__c : 0);
+}*/
+        
+        for(Commission__c comAux : [Select Id, Buyer_Commission__c, Seller_Commission__c, Transaction_No__c From Commission__c WHERE Transaction_No__c IN: oppInvoiceMap.keySet()]){
+            commissionMap.put(comAux.Transaction_No__c,comAux);
+        }
+        for(String oppInvoiceAux : oppInvoiceMap.keySet()){
+            if(commissionMap.get(oppInvoiceAux) == null) commissionMap.put(oppInvoiceAux,new Commission__c());
+        }
+        
+        if(statement.Closing_Date__c != null){
+            //payments = [Select Id, Date_Received__c, Check__c, Amount__c From Payment__c WHERE CALENDAR_MONTH(Date_Received__c) =: statement.Closing_Date__c.month()];
+            /*for(Invoice__c inv : [Select Id, Balance_Due__c From Invoice__c WHERE Id IN: invIds]){
+totalInvoices = totalInvoices + (inv.Balance_Due__c != null ? inv.Balance_Due__c : 0);
+}*/
+            
+            if(statement.Transaction_Date__c != null){
+                for(Payment__c pay : [Select Id, Date_Received__c, Check__c, Amount__c, How_Paid__c From Payment__c WHERE From__c=:statement.Account__c AND Date_Received__c >=: statement.Transaction_Date__c AND Date_Received__c <=: statement.Closing_Date__c AND Type__c =: recordTypeName AND Payment_Parent__c=null]){  totalPayments = totalPayments + (pay.Amount__c != null ? pay.Amount__c : 0); payments.add(pay);
+                }
+            }
+        }
+        
+        for(Adjustment__c adj : [Select Id, Adj_Date__c, Debit__c, Credit__c, Comment__c From Adjustment__c WHERE Apply_to_Statement__c =:  statement.Id]){ totalAdjustments = totalAdjustments + (adj.Debit__c != null ? adj.Debit__c : 0) - (adj.Credit__c != null ? adj.Credit__c : 0); adjustments.add(adj);
+        }
+        
+        if(statement.Account__c != null){
+            attns = [Select Id, Name, FirstName, LastName, AccountId, MailingStreet, MailingCity, MailingState, MailingCountry, MailingPostalCode From Contact WHERE AccountId =: statement.Account__c AND Role__c includes ('Invoice')];
+            //if(contacts.size()>0) attn = contacts.get(0);
+            Set<Id> attnIds = new Set<Id>();
+            Map<String,Contact> contactMap = new Map<String,Contact>();
+            for(Contact conAux : attns){
+                attnIds.add(conAux.Id);
+                contactMap.put(conAux.Id,conAux);
+            }
+            
+            Map<String,List<String>> transMap = new Map<String,List<String>>();
+            List<String> ocrListAux;
+            String recordTypeName = '%'+statement.RecordType.Name+'%';
+            for(OpportunityContactRole ocrAux : [Select Id, ContactId, OpportunityId, Role From OpportunityContactRole WHERE ContactId IN: attnIds AND Role like '%Invoice%' AND Opportunity.RecordType.Name Like: recordTypeName]){
+                if(transMap.get(ocrAux.OpportunityId) != null){ ocrListAux = transMap.get(ocrAux.OpportunityId); ocrListAux.add(ocrAux.ContactId);  transMap.put(ocrAux.OpportunityId,ocrListAux.clone());
+                }else{  ocrListAux = new List<String>(); ocrListAux.add(ocrAux.ContactId); transMap.put(ocrAux.OpportunityId,ocrListAux.clone());
+                }
+            }
+            
+            List<Opportunity> transListAux;
+            Set<Id> transIdsAux = new Set<Id>();
+            Boolean addTrans;
+            for(Opportunity tranAux : [Select Id, Name, AccountId, Seller__c, CloseDate, Type, Volume_Method__c, Volume_BBL_Day_New__c, Total_Volume_BBL_New__c, Cost_Per_Unit_formula__c, Volume_Tolerance__c, Exchange_ID__c From Opportunity WHERE (Id IN: oppInvoiceMap.keySet() AND Id IN: transMap.keySet()) OR Id IN: transWithoutInvoice]){
+                if(transMap.get(tranAux.Id) != null){
+                    for(String s : transMap.get(tranAux.Id)){
+                        if(transactionMap.get(s) != null){
+                            transListAux = transactionMap.get(s);
+                            addTrans = true;
+                            for(Opportunity tranAux1 : transListAux){ if(tranAux1.Id == tranAux.Id) addTrans = false; }
+                            if(addTrans){  transListAux.add(tranAux); transIdsAux.add(tranAux.Id); }
+                            if(tranAux.AccountId != null && tranAux.AccountId == contactMap.get(s).AccountId) accountTypeMap.put(tranAux.AccountId,'Buyer');
+                            if(tranAux.Seller__c != null && tranAux.Seller__c == contactMap.get(s).AccountId) accountTypeMap.put(tranAux.Seller__c,'Seller');
+                            transactionMap.put(s,transListAux.clone());
+                        }else{
+                            transListAux = new List<Opportunity>(); transListAux.add(tranAux); transIdsAux.add(tranAux.Id);
+                            if(tranAux.AccountId != null && tranAux.AccountId == contactMap.get(s).AccountId) accountTypeMap.put(tranAux.AccountId,'Buyer');
+                            if(tranAux.Seller__c != null && tranAux.Seller__c == contactMap.get(s).AccountId) accountTypeMap.put(tranAux.Seller__c,'Seller');
+                            transactionMap.put(s,transListAux.clone());
+                        }
+                    }
+                }
+            }
+            
+            String sTemp;
+            for(Invoice__c inv : [Select Id, Account__c, Transaction_Number__c, Balance_Due__c From Invoice__c WHERE Transaction_Number__c IN: transIdsAux]){
+                sTemp = String.valueOf(inv.Transaction_Number__c) + String.valueOf(inv.Account__c); invoiceBalanceDueMap.put(sTemp,inv.Balance_Due__c);
+            }
+            
+            for(Opportunity oppAux : [Select Id, AccountId, Seller__c From Opportunity WHERE Id IN: transIdsAux]){
+                sTemp = String.valueOf(oppAux.Id) + String.valueOf(oppAux.AccountId);
+                if(invoiceBalanceDueMap.get(sTemp) == null) invoiceBalanceDueMap.put(sTemp,0);
+                sTemp = String.valueOf(oppAux.Id) + String.valueOf(oppAux.Seller__c);
+                if(invoiceBalanceDueMap.get(sTemp) == null) invoiceBalanceDueMap.put(sTemp,0);
+            }
+            
+            for(Contact conAux : attns){
+                if(transactionMap.get(conAux.Id) == null) transactionMap.put(conAux.Id,new List<Opportunity>());
+                if(conAux.AccountId != null){
+                    if(accountTypeMap.get(conAux.AccountId) == null) accountTypeMap.put(conAux.AccountId,'');
+                }
+            }
+        }
+    }
+    
+    public void Init(){
+        payments = new List<Payment__c>();
+        adjustments = new List<Adjustment__c>();
+        attns = new List<Contact>();
+        invoices = new List<Invoice__c>();
+        transactionMap = new Map<String,List<Opportunity>>();
+        accountTypeMap = new Map<String,String>();
+        invoiceBalanceDueMap = new Map<String,Decimal>();
+        attnInvoiceMap = new Map<String,Contact>();
+        traderInvoiceMap = new Map<String,OpportunityContactRole>();
+        commissionMap = new Map<String,Commission__c>();
+        Datetime dt = DateTime.newInstance(Date.today(), Time.newInstance(0, 0, 0, 0));
+        dayOfWeek = dt.format('EEEE');
+        totalPayments = 0;
+        totalInvoices = 0;
+        totalAdjustments = 0;
+        beginingBalance = 0;
+    }
+    
+    public void updateStatement(){
+        statement.Beginning_Balance__c = beginingBalance;
+        Decimal transTotal = 0;
+        for(String k1 : invoiceBalanceDueMap.keySet()){
+            transTotal = transTotal + invoiceBalanceDueMap.get(k1);
+        }
+        statement.Transactions__c = transTotal;
+        statement.Adjustments__c = totalAdjustments;
+        statement.Payments_Received__c = totalPayments;
+        statement.Ending_Balance__c = statement.Beginning_Balance__c - statement.Payments_Received__c + statement.Transactions__c - statement.Adjustments__c;
+        update statement;
+    }
+}
