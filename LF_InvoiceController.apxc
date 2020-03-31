@@ -1,0 +1,214 @@
+public class LF_InvoiceController {
+
+    public Invoice__c inv {get;set;}
+    public List<Invoice_Line_Item__c> ilis {get;Set;}
+    public List<Opportunity> lstOpportunities {get;Set;}
+    public OpportunityContactRole sellerContact {get;Set;}
+    public OpportunityContactRole buyerContact {get;set;}
+    public Commission__c comm {get;set;}
+    public Contact attn {get;Set;}
+    public Opportunity opp {get;Set;}
+    public String invId {get;set;}
+    public Decimal totalAmount {get;set;}
+    public Decimal totalDebits {get;set;}
+    public Decimal totalCredits {get;set;}
+    public String invoiceDate {get;set;}
+    public String closingDate {get;set;}
+    public String deliveryDate {get;set;}
+    public String dueDate {get;set;}
+    public String type_z {get;set;}
+    public Invoice_Line_Item__c ili{get;Set;}
+
+    public LF_InvoiceController(ApexPages.StandardController controller) {
+        Invoice__c invx = (Invoice__c) controller.getRecord();
+        invId = invx.Id;
+        totalDebits = 0;
+        totalAmount = 0;
+        totalCredits = 0;
+        lstOpportunities = new List<Opportunity>();
+        if(apexpages.currentpage().getparameters().get('type') != null) type_z = apexpages.currentpage().getparameters().get('type').toUpperCase();
+        showFields();
+    }
+    
+    public void showFields(){
+        inv = [SELECT Id, Name, Account__r.Name, Transaction_Number__r.Name, Transaction_Number__c, Account__c, Closing_Date__c, Invoice_Date__c, Due_Date__c, Account__r.BillingStreet, Account__r.BillingCity, Account__r.BillingState, 
+               Account__r.BillingPostalCode, Account__r.Website, 
+               Role__c,Transaction_Number__r.Trader_for_Buyer__r.Name, Transaction_Number__r.Trader_for_Seller__r.Name,
+               Transaction_Number__r.Trader_for_Buyer__r.Fax, Transaction_Number__r.Trader_for_Seller__r.Fax, Transaction_Number__r.Trader_for_Buyer__r.Email, Transaction_Number__r.Trader_for_Seller__r.Email,
+               Transaction_Number__r.Seller__r.Name, Transaction_Number__r.Account.Name, Balance_Due__c, Transaction_Number__r.Price_Type__c, Transaction_Number__r.Product_Price__c
+               FROM Invoice__c WHERE Id = :invId];
+        
+        opp = [SELECT Id, Account.Name, Seller__r.Name, Seller__c, Seller__r.BillingStreet, Seller__r.BillingCity, Seller__r.BillingState, Seller__r.BillingPostalCode, AccountId, CloseDate, Name, Account.BillingStreet, Account.BillingCity, Account.BillingState, 
+               Account.BillingPostalCode, Pipeline_link__c, Description, Commission__c, Product_Price__c, Volume_BBL_Day__c, Total_Volume_BBL__c, Volume_Method__c, Location__c, Delivery__c, Cost_Per_Unit__c, 
+               Contract_Terms_Verbiage__c, Commission_Terms_Verbiage__c, Cost_Per_Unit_Formula_Verbiage__c, Account_Name__c, Seller_Name__c, Product_Name__c, Type, Payment_Terms_Verbiage__c, Exchange_ID__c, CloseDate_text__c, 
+               Price_Type__c, Total_Volume_BBL_New__c, Volume_BBL_Day_New__c, Master_Opportunity__c, Master_Opportunity__r.Name
+               FROM Opportunity WHERE Id = :inv.Transaction_Number__c];
+        
+        if(opp.Master_Opportunity__c == null){
+            if(!opp.Name.subString(opp.Name.length()-1,opp.Name.length()).isNumeric()){
+                opp.Name = opp.Name.subString(0,opp.Name.length() - 1) + (type_z == 'buyer' ? 'B' : 'S') + opp.Name.subString(opp.Name.length() - 1);
+            }else{
+                opp.Name = opp.Name + (type_z == 'buyer' ? 'B' : 'S');
+            }
+        }else{
+            if(opp.Name.indexOf('.') >= 0){
+                if(!opp.Master_Opportunity__r.Name.subString(opp.Master_Opportunity__r.Name.length()-1,opp.Master_Opportunity__r.Name.length()).isNumeric()){
+                    opp.Name = opp.Master_Opportunity__r.Name.subString(0,opp.Master_Opportunity__r.Name.length() - 1) + (type_z == 'buyer' ? 'B' : 'S') + opp.Master_Opportunity__r.Name.subString(opp.Master_Opportunity__r.Name.length() - 1) + opp.Name.subString(opp.Name.indexOf('.'),opp.Name.length());
+                }else{
+                    opp.Name = opp.Master_Opportunity__r.Name + (type_z == 'buyer' ? 'B' : 'S') + opp.Name.subString(opp.Name.indexOf('.'),opp.Name.length());
+                }
+            }else{
+                if(!opp.Master_Opportunity__r.Name.subString(opp.Master_Opportunity__r.Name.length()-1,opp.Master_Opportunity__r.Name.length()).isNumeric()){
+                    opp.Name = opp.Master_Opportunity__r.Name.subString(0,opp.Master_Opportunity__r.Name.length() - 1) + (type_z == 'buyer' ? 'B' : 'S') + opp.Master_Opportunity__r.Name.subString(opp.Master_Opportunity__r.Name.length() - 1) + ' - EXCHANGE';
+                }else{
+                    opp.Name = opp.Master_Opportunity__r.Name + (type_z == 'buyer' ? 'B' : 'S')  + ' - EXCHANGE';
+                }
+            }
+        }
+        
+        comm = [SELECT Id, Buyer_Commission__c, Seller_Commission__c FROM Commission__C WHERE Transaction_No__c = :opp.Id];
+        
+        List<Contact> sellectContactList = [SELECT Id, AccountId, FirstName, LastName, Email, Fax, MailingStreet, MailingCity, MailingState, MailingPostalCode FROM Contact WHERE AccountId = :opp.Seller__c];
+        String sellerContactId = null;
+        if(sellectContactList.size()>0){
+            sellerContactId = sellectContactList.get(0).Id;
+            
+            
+            List<OpportunityContactRole> lstOcr = new List<OpportunityContactRole>();
+            
+            for(OpportunityContactRole ocr : [SELECT Id, Contact.Name, Contact.Email, Contact.Fax, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingPostalCode 
+                                              FROM OpportunityContactRole WHERE ContactId = :sellerContactId AND OpportunityId = :opp.Id AND (Contact.Title__c = 'Trader' OR Contact.Title__c = 'Broker')]){
+                                                  lstOcr.add(ocr);
+                                              }
+            
+            if(lstOcr.size()>0){
+                sellerContact = lstOcr.get(0);
+            } else {
+                Contact con = new Contact(FirstName = sellectContactList.get(0).FirstName,
+                                          LastName = sellectContactList.get(0).LastName,
+                                          Email = sellectContactList.get(0).Email,
+                                          Fax = sellectContactList.get(0).Fax,
+                                          MailingStreet = sellectContactList.get(0).MailingStreet,
+                                          MailingCity = sellectContactList.get(0).MailingCity,
+                                          MailingState = sellectContactList.get(0).MailingState,
+                                          MailingPostalCode = sellectContactList.get(0).MailingPostalCode);
+                
+                OpportunityContactRole ocrx = new OpportunityContactRole(Contact = con, Opportunity = opp);
+                System.debug('ocrx: ' + ocrx);
+                sellerContact = ocrx;
+            }
+            
+            System.debug('sellerContact: ' + sellerContact);
+        }
+        
+        List<Contact> buyerContactList = [SELECT Id, AccountId, FirstName, LastName, Email, Fax, MailingStreet, MailingCity, MailingState, MailingPostalCode FROM Contact WHERE AccountId = :opp.AccountId];
+        String buyerContactId = null;
+        if(buyerContactList.size()>0){
+            buyerContactId = buyerContactList.get(0).Id;
+            System.debug('buyerContactId: ' + buyerContactId);
+            
+            List<OpportunityContactRole> lstOcr = new List<OpportunityContactRole>();
+            
+            for(OpportunityContactRole ocr : [SELECT Id, Contact.Name, Contact.Email, Contact.Fax, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingPostalCode 
+                                              FROM OpportunityContactRole WHERE ContactId = :buyerContactId AND OpportunityId = :opp.Id AND (Contact.Title__c = 'Trader' OR Contact.Title__c = 'Broker')]){
+                                                  lstOcr.add(ocr);
+                                              }
+            
+            if(lstOcr.size()>0){
+                buyerContact = lstOcr.get(0);
+            } else {
+                Contact con = new Contact(FirstName = buyerContactList.get(0).FirstName,
+                                          LastName = buyerContactList.get(0).LastName,
+                                          Email = buyerContactList.get(0).Email,
+                                          Fax = buyerContactList.get(0).Fax,
+                                          MailingStreet = buyerContactList.get(0).MailingStreet,
+                                          MailingCity = buyerContactList.get(0).MailingCity,
+                                          MailingState = buyerContactList.get(0).MailingState,
+                                          MailingPostalCode = buyerContactList.get(0).MailingPostalCode);
+                
+                OpportunityContactRole ocrx = new OpportunityContactRole(Contact = con, Opportunity = opp);
+                System.debug('ocrx: ' + ocrx);
+                buyerContact = ocrx;
+            }
+            
+            System.debug('buyerContact: ' + buyerContact);
+        }
+        
+        attn = [SELECT Id, AccountId, Name, MailingStreet, MailingCity, MailingState, MailingPostalCode, Fax, Email FROM Contact WHERE AccountId = :inv.Account__c LIMIT 1];
+        
+        Map<String, Decimal> mapCommissions = new Map<String, Decimal>();
+        
+        for(Commission__c com : [SELECT Id, Name, Buyer_Commission__c, Seller_Commission__c, Transaction_No__c FROM Commission__c WHERE Transaction_No__c = :inv.Transaction_Number__c]){
+            if(type_z=='BUYER') mapCommissions.put(com.Transaction_No__c, com.Buyer_Commission__c); else if(type_z=='SELLER') mapCommissions.put(com.Transaction_No__c, com.Seller_Commission__c);
+        }
+        
+        //FOR CRUDE VFP
+        for(Opportunity oppx : [SELECT Id, Account.Name, Seller__r.Name, Seller__c, Seller__r.BillingStreet, Seller__r.BillingCity, Seller__r.BillingState, Seller__r.BillingPostalCode, AccountId, CloseDate, Name, Account.BillingStreet, Account.BillingCity, Account.BillingState, 
+               					Account.BillingPostalCode, Pipeline_link__c, Description, Commission__c, Product_Price__c, Volume_BBL_Day__c, Total_Volume_BBL__c, Volume_Method__c, Location__c, Delivery__c, Cost_Per_Unit__c, 
+               					Contract_Terms_Verbiage__c, Commission_Terms_Verbiage__c, Account_Name__c, Seller_Name__c, Product_Name__c, Type, Payment_Terms_Verbiage__c, Exchange_ID__c, CloseDate_text__c,
+                                Total_Volume_BBL_New__c, Volume_BBL_Day_New__c,
+                               (SELECT Id, Contact.Name FROM OpportunityContactRoles WHERE OpportunityId = :inv.Transaction_Number__c AND isPrimary=true),
+                               (SELECT Id, Product2.Name, UnitPrice FROM OpportunityLineItems WHERE OpportunityId = :inv.Transaction_Number__c ORDER BY CreatedDate DESC LIMIT 1)
+                               FROM Opportunity WHERE Id =:inv.Transaction_Number__c]){
+                                   if(mapCommissions.get(oppx.Id)!=null) opp.Commission__c = mapCommissions.get(oppx.Id);
+                                   if(oppx.OpportunityLineItems!=null){
+                                       for(OpportunityLineItem oli : oppx.OpportunityLineItems){
+                                           opp.Product_Name__c = oli.Product2.Name;
+                                           opp.Product_Price__c = oli.UnitPrice;
+                                       }
+                                   }
+                               }
+        
+        //FOR FUTURE VFP
+        for(Opportunity opp : [SELECT Id, Name, Pipeline_link__c, Description, Commission__c, Product_Price__c, Volume_BBL_Day__c, Total_Volume_BBL__c, Volume_Method__c, Location__c, Delivery__c, Cost_Per_Unit__c, 
+                               Contract_Terms_Verbiage__c, Commission_Terms_Verbiage__c, Account_Name__c, Seller_Name__c, Product_Name__c, Type, Payment_Terms_Verbiage__c, Exchange_ID__c, CloseDate, StageName, CloseDate_text__c,
+                               Total_Volume_BBL_New__c, Volume_BBL_Day_New__c,
+                               (SELECT Id, Contact.Name FROM OpportunityContactRoles WHERE OpportunityId = :inv.Transaction_Number__c AND isPrimary=true),
+                               (SELECT Id, Product2.Name, UnitPrice FROM OpportunityLineItems WHERE OpportunityId = :inv.Transaction_Number__c ORDER BY CreatedDate DESC LIMIT 1)
+                               FROM Opportunity WHERE Id =:inv.Transaction_Number__c]){
+                                   //System.debug('opp: ' + opp);
+                                   if(mapCommissions.get(opp.Id)!=null) opp.Debits__c = mapCommissions.get(opp.Id);
+                                   if(mapCommissions.get(opp.Id)!=null) totalDebits += opp.Debits__c;
+                                   if(mapCommissions.get(opp.Id)!=null) opp.Commission__c = mapCommissions.get(opp.Id);
+                                   //credits missing
+                                   totalAmount = totalCredits + totalDebits;
+                                   opp.CloseDate_text__c = opp.CloseDate.format();
+                                   if(opp.OpportunityContactRoles!=null){
+                                       for(OpportunityContactRole ocr : opp.OpportunityContactRoles){
+                                           //if(opp.Location__c!=null && opp.Total_Volume_BBL__c!=null) opp.Description = opp.Type + '/' + ocr.Contact.Name + ', ' + opp.Account_Name__c + ': ' + opp.Total_Volume_BBL__c + ' Total Barrels of ';
+                                           if(opp.Location__c!=null && opp.Total_Volume_BBL_New__c!=null) opp.Description = opp.Type + '/' + ocr.Contact.Name + ', ' + opp.Account_Name__c + ': ' + opp.Total_Volume_BBL_New__c + ' Total Barrels of ';
+                                       }
+                                   }
+                                   if(opp.OpportunityLineItems!=null){
+                                       for(OpportunityLineItem oli : opp.OpportunityLineItems){
+                                           opp.Product_Name__c = oli.Product2.Name;
+                                           opp.Product_Price__c = oli.UnitPrice;
+                                           if(opp.Cost_Per_Unit__c!=null) opp.Description += oli.Product2.Name + ' at ' + opp.Cost_Per_Unit__c;
+                                       }
+                                   }
+                                   lstOpportunities.add(opp);
+                               }
+        
+        /*ilis = [SELECT Id, Link_Ref__r.Name, Invoice__c, Trx_Date__c, Date_of_Movement_del__c, Location_del__c, Volume_del__c, Price_del__c, Terms_del__c, Commission_del__c, Trx_Date_Text__c, Exchange_ID__c, Seller_del__c, Buyer_del__c, Description__c, Pipeline_del__c, Debits__c, Credit_Payments__c FROM Invoice_Line_Item__c WHERE Invoice__c = :inv.Id];
+        
+        if(ilis.size()>0){
+            ili = ilis.get(0);
+        }
+        
+        for(Invoice_Line_Item__c ilix : ilis){
+            if(ilix.Trx_Date_Text__c!=null) ilix.Trx_Date_Text__c = ilix.Trx_Date__c.format();
+            if(ilix.Debits__c!=null) totalDebits += ilix.Debits__c;
+            if(ilix.Credit_Payments__c!=null) totalCredits += ilix.Credit_Payments__c;
+        }*/
+        
+        if(opp.Delivery__c!=null) deliveryDate = opp.Delivery__c.format();
+        if(inv.Closing_Date__c!=null){
+            closingDate = inv.Closing_Date__c.format();
+            //invoiceDate = inv.Invoice_Date__c.format();
+            invoiceDate = closingDate;
+            Date newDueDate = Date.newInstance(inv.Closing_Date__c.year(), inv.Closing_Date__c.month()+2, inv.Closing_Date__c.day());
+            dueDate = newDueDate.format();
+        }
+    }
+    
+}
