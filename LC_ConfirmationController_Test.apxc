@@ -1,0 +1,114 @@
+@isTest
+public class LC_ConfirmationController_Test {
+    
+    public static testmethod void test01(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Account buyer1 = new Account(Name='Test Buyer');
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller');
+        insert seller1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id);
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id);
+        insert con2;
+        
+        Opportunity opp = new Opportunity(Name='test',CloseDate=system.today(),StageName='Proposal', Transaction__c = 'Master (Strip Master)', Start_Date__c = system.today(), End_Date__c = system.today().addMonths(3), AccountId=buyer1.Id, Seller__c=seller1.Id,Trader_for_Seller__c=con1.Id,Trader_for_Buyer__c=con2.Id);
+        insert opp;
+        
+        Test.startTest();
+        Apexpages.StandardController sc = new Apexpages.StandardController(opp);
+        LC_ConfirmationController contr = new LC_ConfirmationController(sc);
+        Test.stopTest();
+    }
+    
+    public static testmethod void test02(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Account buyer1 = new Account(Name='Test Buyer');
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller');
+        insert seller1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id);
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id);
+        insert con2;
+        
+        Opportunity opp = new Opportunity(Name='test',Revised__c=true,CloseDate=system.today(),StageName='Closed Won', Transaction__c = 'Master (Strip Master)', Start_Date__c = system.today(), End_Date__c = system.today().addMonths(3), AccountId=buyer1.Id, Seller__c=seller1.Id,Trader_for_Seller__c=con1.Id,Trader_for_Buyer__c=con2.Id);
+        insert opp;
+        opp.Confirmation_Seller__c = con2.Id;
+        opp.Confirmation_Buyer__c = con1.Id;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Product2 pro = new Product2(Name='Test',isActive=true);
+        insert pro;
+        
+        PricebookEntry pbe = new PricebookEntry(Product2Id=pro.Id,isActive=true,Pricebook2Id=Test.getStandardPricebookId(),UnitPrice=10);
+        insert pbe;
+        
+        OpportunityLineItem oli = new OpportunityLineItem(OpportunityId=opp.Id,PricebookEntryId=pbe.Id,UnitPrice=10,Quantity=1);
+        insert oli;
+        
+        update opp;
+        
+        Test.startTest();
+        List<Opportunity> oppChilds = [SELECT Id FROM Opportunity WHERE Master_Opportunity__c =: opp.Id];
+        Apexpages.StandardController sc = new Apexpages.StandardController(opp);
+        LC_ConfirmationController contr = new LC_ConfirmationController(sc);
+        Test.stopTest();
+    }
+    
+    public static testmethod void test03(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Account buyer1 = new Account(Name='Test Buyer');
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller');
+        insert seller1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id);
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id);
+        insert con2;
+        
+        Opportunity opp = new Opportunity(Name='test',CloseDate=system.today(),StageName='Closed Won', Transaction__c = 'Master (Strip Master)', Start_Date__c = system.today(), End_Date__c = system.today().addMonths(3), AccountId=buyer1.Id, Seller__c=seller1.Id,Trader_for_Seller__c=con1.Id,Trader_for_Buyer__c=con2.Id);
+        insert opp;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Product2 pro = new Product2(Name='Test',isActive=true);
+        insert pro;
+        
+        PricebookEntry pbe = new PricebookEntry(Product2Id=pro.Id,isActive=true,Pricebook2Id=Test.getStandardPricebookId(),UnitPrice=10);
+        insert pbe;
+        
+        OpportunityLineItem oli = new OpportunityLineItem(OpportunityId=opp.Id,PricebookEntryId=pbe.Id,UnitPrice=10,Quantity=1);
+        insert oli;
+        
+        update opp;
+        
+        Test.startTest();
+        List<Opportunity> oppChilds = [SELECT Id FROM Opportunity WHERE Master_Opportunity__c =: opp.Id];
+        Apexpages.StandardController sc = new Apexpages.StandardController(opp);
+        LC_ConfirmationController contr = new LC_ConfirmationController(sc);
+        Test.stopTest();
+    }
+}
