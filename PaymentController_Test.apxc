@@ -1,0 +1,87 @@
+@isTest
+public class PaymentController_Test {
+    
+    public static testmethod void test01(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05);
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05);
+        insert seller1;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        Opportunity opp = new Opportunity(RecordTypeId=recordTypeId,Name='test10',CloseDate=system.today().addMonths(-1),StageName='Closed Won', AccountId=buyer1.Id, Seller__c=seller1.Id, Delivery__c = system.today().addMonths(-1), Volume_Method__c = 'BPD', Volume_BBL_Day_New__c = 20, Price_Type__c = 'Formula Price', Cost_Per_Unit_formula__c = 'Conoco Posting');
+        insert opp;
+
+        Invoice__c inv = [Select Id, Account__c From Invoice__c WHERE Account__c=:seller1.Id LIMIT 1];
+        Payment__c pay = new Payment__c(From__c=seller1.Id,Transaction__c=opp.Id, Amount__c = 900, Distribuited_Amount__c= 10, Type__c = 'Link Futures');
+        insert pay;
+        
+        Test.startTest();
+        Apexpages.StandardController sc = new Apexpages.StandardController(pay);
+        PaymentController controller = new PaymentController(sc);
+        controller.changeAmount();
+        controller.cancel();
+        controller.search = 'Test';
+        controller.searchInvs();
+        controller.last12Months = true;
+        controller.lastMonthsCheck();
+        controller.selectAll = true;
+        controller.selectAllApex();
+        controller.saveCloseAction();
+        Test.stopTest();
+    }
+    
+    public static testmethod void test02(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05);
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05);
+        insert seller1;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        Opportunity opp = new Opportunity(RecordTypeId=recordTypeId,Name='test10',CloseDate=system.today().addMonths(-1),StageName='Closed Won', AccountId=buyer1.Id, Seller__c=seller1.Id, Delivery__c = system.today().addMonths(-1), Volume_Method__c = 'BPD', Volume_BBL_Day_New__c = 20, Price_Type__c = 'Formula Price', Cost_Per_Unit_formula__c = 'Conoco Posting');
+        insert opp;
+        
+        String recordTypeId2 = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures' and sObjectType='Statement__c'].Id;
+        Statement__c statement  = new Statement__c(Name='Test statement', Account__c=buyer1.Id, RecordTypeId=recordTypeId2);
+        insert statement;
+
+        Invoice__c inv = [Select Id, Account__c From Invoice__c WHERE Account__c=:seller1.Id LIMIT 1];
+        Payment__c pay = new Payment__c(From__c=seller1.Id,Transaction__c=opp.Id, Amount__c = 900, Distribuited_Amount__c= 10, Type__c = 'Link Futures', Statement__c=statement.Id);
+        insert pay;
+        
+        Test.startTest();
+        Apexpages.StandardController sc = new Apexpages.StandardController(pay);
+        PaymentController controller = new PaymentController(sc);
+        controller.changeAmount();
+        controller.changeAmount2();
+        controller.saveAction();
+        controller.saveCloseAction();
+        controller.cancel();
+        controller.search = 'Test';
+        controller.searchInvs();
+        controller.last12Months = false;
+        controller.lastMonthsCheck();
+        controller.selectAll = false;
+        controller.selectAllApex();
+        Test.stopTest();
+    }
+}
