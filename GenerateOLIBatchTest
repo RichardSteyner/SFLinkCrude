@@ -1,0 +1,120 @@
+@isTest
+public class GenerateOLIBatchTest {
+    
+    public static testmethod void test01(){
+        Pricebook2 p = new Pricebook2();
+        p.IsActive=true;
+        p.Name='pri';
+        insert p;
+        Product2 prod = new Product2();
+        prod.Name='Test';
+        prod.IsActive=true;
+        insert prod;
+        Opportunity opp = new Opportunity();
+        opp.Name = 'TEst';
+        opp.StageName = 'Close Won';
+        opp.CloseDate = Date.newInstance(2019, 11, 20);
+        opp.transactionkey__c = '120';
+        opp.ProductOLI__c='Test';
+        opp.UnitPriceOLI__c=120;
+        opp.QuantityOLI__c=6;
+        insert opp;
+        Test.startTest();
+        Database.executeBatch(new GenerateOLIBatch(60),1);
+        Test.stopTest();
+    }
+    
+    public static testmethod void test02(){
+        Id pricebookId = Test.getStandardPricebookId();
+        Product2 prod = new Product2();
+        prod.Name='Test';
+        prod.IsActive=true;
+        insert prod;
+        Opportunity opp = new Opportunity();
+        opp.Name = 'TEst';
+        opp.StageName = 'Close Won';
+        opp.CloseDate = Date.newInstance(2019, 11, 20);
+        opp.transactionkey__c = '120';
+        opp.ProductOLI__c='Test';
+        opp.UnitPriceOLI__c=120;
+        opp.QuantityOLI__c=6;
+        opp.Pricebook2Id=pricebookId;
+        insert opp;
+        Test.startTest();
+        Database.executeBatch(new GenerateOLIBatch(60),1);
+        Test.stopTest();
+    }
+    
+    public static testmethod void test03(){
+        Pricebook2 p = new Pricebook2();
+        p.IsActive=true;
+        p.Name='pri';
+        insert p;
+        Product2 prod = new Product2();
+        prod.Name='Test';
+        prod.IsActive=true;
+        insert prod;
+        PricebookEntry pe = new PricebookEntry(Pricebook2Id= Test.getStandardPricebookId(),
+                                                Product2Id=prod.Id,
+                                                UnitPrice=10,
+                                                IsActive=true);
+        
+        PricebookEntry pe2 = new PricebookEntry(Pricebook2Id=p.Id,
+                                                Product2Id=prod.Id,
+                                                UnitPrice=10,
+                                                IsActive=true);
+        insert pe;
+        insert pe2;
+        Opportunity opp = new Opportunity();
+        opp.Name = 'TEst';
+        opp.StageName = 'Close Won';
+        opp.CloseDate = Date.newInstance(2019, 11, 20);
+        opp.transactionkey__c = '120';
+        opp.ProductOLI__c='Test';
+        opp.UnitPriceOLI__c=120;
+        opp.QuantityOLI__c=6;
+        opp.Pricebook2Id=Test.getStandardPricebookId();
+        insert opp;
+        Test.startTest();
+        Database.executeBatch(new GenerateOLIBatch(60),1);
+        Test.stopTest();
+    }
+    
+    
+    
+    public static testmethod void test04(){
+        Pricebook2 p = new Pricebook2();
+        p.IsActive=true;
+        p.Name='pri';
+        insert p;
+        Product2 prod = new Product2();
+        prod.Name='Test';
+        prod.IsActive=true;
+        insert prod;
+        PricebookEntry pe = new PricebookEntry(Pricebook2Id= Test.getStandardPricebookId(),
+                                                Product2Id=prod.Id,
+                                                UnitPrice=10,
+                                                IsActive=true);
+        
+        PricebookEntry pe2 = new PricebookEntry(Pricebook2Id=p.Id,
+                                                Product2Id=prod.Id,
+                                                UnitPrice=10,
+                                                IsActive=true);
+        insert pe;
+        insert pe2;
+        Opportunity opp = new Opportunity();
+        opp.Name = 'TEst';
+        opp.StageName = 'Close Won';
+        opp.CloseDate = Date.newInstance(2019, 11, 20);
+        opp.transactionkey__c = '120';
+        opp.ProductOLI__c='Test';
+        opp.UnitPriceOLI__c=120;
+        opp.QuantityOLI__c=6;
+        opp.Pricebook2Id=p.Id;
+        insert opp;
+        Test.startTest();
+        Database.executeBatch(new GenerateOLIBatch(60),1);
+        Test.stopTest();
+    }
+
+}
