@@ -1,0 +1,19 @@
+@isTest
+public class GenerateAdditionalTerms_Test {
+    
+    public static testmethod void test01(){
+        Opportunity opp = new Opportunity();
+        opp.Name = 'TEst';
+        opp.StageName = 'Close Won';
+        opp.CloseDate = Date.newInstance(2019, 11, 20);
+        opp.transactionkey__c = '120';
+        opp.ProductOLI__c='Test';
+        opp.UnitPriceOLI__c=120;
+        opp.QuantityOLI__c=6;
+        insert opp;
+        Test.startTest();
+        Database.executeBatch(new GenerateAdditionalTerms(60),1);
+        Test.stopTest();
+    }
+
+}
