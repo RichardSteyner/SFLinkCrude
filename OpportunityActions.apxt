@@ -1,0 +1,18 @@
+trigger OpportunityActions on Opportunity (before insert, before update, after insert, after update) {
+
+    System.debug('Executing OpportunityActions:: Enabled  => '+ ApexUtil.OpportunityTrigger_Is_Enabled + ' | isBefore => ' + Trigger.isBefore + ' | isAfter  => ' + Trigger.isAfter);
+    if (ApexUtil.OpportunityTrigger_Is_Enabled) {
+        if (Trigger.isBefore) {
+            if (Trigger.isInsert || Trigger.isUpdate) {
+                OpportunityTriggerHandler.beforeInsertUpdateActions(Trigger.new, Trigger.oldMap);
+            }
+        }
+        else if(Trigger.isAfter){
+            if (Trigger.isInsert || Trigger.isUpdate) {
+               OpportunityTriggerHandler.afterInsertUpdateActions(Trigger.new, Trigger.oldMap);
+            }
+            ApexUtil.OpportunityTrigger_Is_Enabled = false;
+        }
+
+    }
+}
