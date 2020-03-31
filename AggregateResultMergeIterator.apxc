@@ -1,0 +1,20 @@
+global class AggregateResultMergeIterator implements Iterator<AggregateResult> {
+   	AggregateResult [] results {get;set;}
+   	Integer index {get; set;}    
+         
+   	global AggregateResultMergeIterator(Set<Id> setIdAccBatch, String field) {
+      	index = 0;
+	  	// Fire query here to load the results
+      	String query = 'Select ' + field + ', COUNT(Id) cantidad From Account WHERE Id IN: setIdAccBatch and Namekey__c<>null' + (field.equalsIgnoreCase('Namekey__c') ? '' : ' and ' + field + '<>null') + ' and Check_Merge__c=false GROUP BY ' + field;
+      	results = Database.query(query);            
+		system.debug('###results: '+results);
+   	}
+   
+   	global boolean hasNext(){ 
+      	return results != null && !results.isEmpty() && index < results.size(); 
+   	}   
+   
+   	global AggregateResult next(){        
+      	return results[index++];            
+   	}    
+}
