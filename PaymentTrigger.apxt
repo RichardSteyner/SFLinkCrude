@@ -1,0 +1,97 @@
+trigger PaymentTrigger on Payment__c (before insert, before update, after insert, after update, after delete){
+    
+    if(ApexUtil.PaymentTrigger_Is_Enabled){
+        if(trigger.isBefore){
+            for(Payment__c pay : trigger.new){
+                pay.Undistributed_Amount__c = 0;
+            }
+        }else{
+            Set<Id> paymentParentIds = new Set<Id>();
+            Set<Id> paymentInvoiceIds = new Set<Id>();
+            Set<Id> paymentGenerateIds = new Set<Id>();//Set Generate field
+            if(trigger.isInsert){
+                for(Payment__c pay : trigger.new){
+                    if(pay.Payment_Parent__c != null) paymentParentIds.add(pay.Payment_Parent__c); else { paymentParentIds.add(pay.Id); paymentGenerateIds.add(pay.Id); }
+                    if(pay.Invoice__c != null) paymentInvoiceIds.add(pay.Invoice__c);
+                }
+            }else if(trigger.isUpdate){
+                for(Payment__c pay : trigger.new){
+                    if(pay.Invoice__c != null) paymentInvoiceIds.add(pay.Invoice__c);
+                    if(pay.Payment_Parent__c != null){
+                        if(pay.Payment_Parent__c != trigger.oldMap.get(pay.Id).Payment_Parent__c){
+                            paymentParentIds.add(pay.Payment_Parent__c);
+                            if(trigger.oldMap.get(pay.Id).Payment_Parent__c != null) paymentParentIds.add(trigger.oldMap.get(pay.Id).Payment_Parent__c);
+                        }
+                        if(pay.Distribuited_Amount__c != trigger.oldMap.get(pay.Id).Distribuited_Amount__c){
+                            paymentParentIds.add(pay.Payment_Parent__c);
+                        }
+                    }else{
+                        paymentParentIds.add(pay.Id);
+                    }
+                }
+            }else if(trigger.isDelete){
+                for(Payment__c pay : trigger.old){
+                    if(pay.Payment_Parent__c != null) paymentParentIds.add(pay.Payment_Parent__c);
+                    if(pay.Invoice__c != null) paymentInvoiceIds.add(pay.Invoice__c);
+                }
+            }
+            
+            Map<String,Decimal> childPaymentMap = new Map<String,Decimal>();
+            for(Payment__c child : [Select Id, Payment_Parent__c, Distribuited_Amount__c From Payment__c WHERE Payment_Parent__c IN: paymentParentIds]){
+                if(childPaymentMap.get(child.Payment_Parent__c) != null){
+                    childPaymentMap.put(child.Payment_Parent__c,childPaymentMap.get(child.Payment_Parent__c) + (child.Distribuited_Amount__c != null ? child.Distribuited_Amount__c : 0));
+                }else{
+                    childPaymentMap.put(child.Payment_Parent__c,(child.Distribuited_Amount__c != null ? child.Distribuited_Amount__c : 0));
+                }
+            }
+            
+            List<Payment__c> paymentUpdateList = new List<Payment__c>();
+            for(Payment__c parent : [Select Id, Amount__c From Payment__c WHERE Id IN: paymentParentIds and Amount__c<>null]){
+                parent.Undistributed_Amount__c = parent.Amount__c - (childPaymentMap.get(parent.Id) != null ? childPaymentMap.get(parent.Id) : 0);
+                if(paymentGenerateIds.contains(parent.Id)){//Set Generate field
+                 	parent.Generate__c = 'Payment';
+                    paymentGenerateIds.remove(parent.Id);
+                }
+                    
+                paymentUpdateList.add(parent);
+            }
+            
+            for(Id auxId : paymentGenerateIds){//Set Generate field
+                paymentUpdateList.add(new Payment__c(Id=auxId, Generate__c = 'Payment'));
+            }
+            
+
+            Map<String,Decimal> invoiceMap = new Map<String,Decimal>();
+            for(Payment__c child2 : [Select Id, Invoice__c, Distribuited_Amount__c, Amount__c, Payment_Parent__c From Payment__c WHERE Invoice__c IN: paymentInvoiceIds]){
+                if(child2.Payment_Parent__c != null){
+                    if(invoiceMap.get(child2.Invoice__c) != null){
+                        invoiceMap.put(child2.Invoice__c,invoiceMap.get(child2.Invoice__c) + (child2.Distribuited_Amount__c != null ? child2.Distribuited_Amount__c : 0));
+                    }else{
+                        invoiceMap.put(child2.Invoice__c,(child2.Distribuited_Amount__c != null ? child2.Distribuited_Amount__c : 0));
+                    }
+                }else{
+                    if(invoiceMap.get(child2.Invoice__c) != null){
+                        invoiceMap.put(child2.Invoice__c,invoiceMap.get(child2.Invoice__c) + (child2.Amount__c != null ? child2.Amount__c : 0));
+                    }else{
+                        invoiceMap.put(child2.Invoice__c,(child2.Amount__c != null ? child2.Amount__c : 0));
+                    }
+                }
+            }
+            
+            List<Invoice__c> invoiceUpdateList = new List<Invoice__c>();
+            for(Invoice__c inv : [Select Id From Invoice__c WHERE Id IN: paymentInvoiceIds]){
+                inv.Total_Payments__c = (invoiceMap.get(inv.Id) != null ? invoiceMap.get(inv.Id) : 0);
+                invoiceUpdateList.add(inv);
+            }
+            
+            if(invoiceUpdateList.size()>0){
+                update invoiceUpdateList;
+            }
+            
+            if(paymentUpdateList.size()>0){
+                ApexUtil.PaymentTrigger_Is_Enabled = false;
+                update paymentUpdateList;
+            }
+        }
+    }
+}
