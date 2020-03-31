@@ -1,0 +1,28 @@
+@isTest
+public class RingCentralTaskToChatter_Test {
+    @isTest
+    public static void test01(){
+        Account acc = new Account();
+        acc.Name = 'Test Account';
+        insert acc;
+
+        Task task = new Task();
+        task.OwnerId = UserInfo.getUserId();
+        task.Subject = 'Test Subject Outbound';
+        task.Priority = 'Test Priority';
+        task.CallDurationInSeconds = 25;
+        task.CallDisposition = 'In Progress';
+        task.CallType = 'Outbound';
+        task.CallObject = '23406418016-0056A000001KrE6QAK-62179821016';
+        task.Description = 'Test Description';
+        task.WhatId = acc.Id;
+
+        Test.startTest();
+        insert task;
+        
+        task.Subject = 'Test Subject SMS';
+        update task;
+        Test.stopTest();
+
+    }
+}
