@@ -1,0 +1,30 @@
+@isTest
+public class LockRecords_Test {
+    
+    public static testmethod void test01(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        Opportunity opp = new Opportunity(RecordTypeId=recordTypeId,Name='Test Account',CloseDate=system.today(),StageName='Proposal');
+        insert opp;
+        
+        Account acc = new Account(Name='Test Acc');
+        insert acc;
+        Statement__c st = new Statement__c(Account__c=acc.Id,Name='Test',Opportunity__c=opp.Id);
+        insert st;
+        
+        Test.startTest();
+        List<String> idList = new List<String>();
+        LockRecords.transactionLockLightning(opp.Id,true);
+        idList.add(opp.Id);
+        LockRecords.transactionsLockLightning(idList,true);
+        LockRecords.statementLockLightning(st.Id,true);
+        idList.clear();
+        idList.add(st.Id);
+        LockRecords.statementsLockLightning(idList,true);
+        Test.stopTest();
+    }
+}
