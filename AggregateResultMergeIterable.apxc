@@ -1,0 +1,13 @@
+global class AggregateResultMergeIterable implements Iterable<AggregateResult> {
+    global Set<Id> setIdAcc {get;set;}
+    global String field {get;set;}
+    
+    global AggregateResultMergeIterable(Set<Id> setIdAccBatch, String fieldBatch){
+        setIdAcc = setIdAccBatch;
+        field = fieldBatch;
+    }
+    
+   global Iterator<AggregateResult> Iterator(){
+      return new AggregateResultMergeIterator(setIdAcc, field);
+   }
+}
