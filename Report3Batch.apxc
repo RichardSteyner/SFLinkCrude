@@ -1,0 +1,108 @@
+global class Report3Batch implements Database.Batchable<sObject>, Database.Stateful{
+    public Id reportId;
+    public Integer yearReport;
+    public String recordTypeId;
+    public Boolean excludedBrokers; 
+    public String reportType;
+    
+    global Report3Batch(Id vreportId, Integer vyearReport, String vrecordTypeId, Boolean vexcludedBrokers, String vreportType){
+        reportId = vreportId;
+        yearReport = vyearReport;
+        recordTypeId = vrecordTypeId;
+        excludedBrokers = vexcludedBrokers;
+        reportType = vreportType;
+    }
+    
+    global Database.QueryLocator start(Database.BatchableContext BC){
+        system.debug('##start Report3Batch');
+        String query = 'Select Id, Account__c, Transaction_Number__c From Invoice__c WHERE CALENDAR_YEAR(Invoice_Date__c) = ' + yearReport + ' AND Transaction_Number__r.RecordTypeId = \'' + recordTypeId + '\'';
+        return Database.getQueryLocator(query);
+    }
+    
+    global void execute(Database.BatchableContext BC, List<Invoice__c> scope){
+        system.debug('##execute Report3Batch');
+        Set<String> transactionSet = new Set<String>();
+        for(Invoice__c inv : scope){
+            if(inv.Transaction_Number__c != null) transactionSet.add(inv.Transaction_Number__c);
+        }
+        
+        Set<String> commissionIdSet = new Set<String>();
+        for(Commission__c co : [SELECT Id FROM Commission__c WHERE Transaction_No__c IN: transactionSet]) commissionIdSet.add(co.Id);
+        
+        Map<String,Decimal> brokerMap = new Map<String,Decimal>();
+        if(reportType == 'Future'){
+            if(excludedBrokers){
+                for(AggregateResult ag : [SELECT Broker__c, SUM(Amount__c) sum FROM Commission_Payments__c WHERE Commission__c IN: commissionIdSet AND Broker__r.Broker_Deactivated__c = false GROUP BY Broker__c]) brokerMap.put((String)ag.get('Broker__c'),(Decimal)ag.get('sum'));
+            }else{
+                for(AggregateResult ag : [SELECT Broker__c, SUM(Amount__c) sum FROM Commission_Payments__c WHERE Commission__c IN: commissionIdSet GROUP BY Broker__c]) brokerMap.put((String)ag.get('Broker__c'),(Decimal)ag.get('sum'));
+            }
+        }else{
+            for(Commission__c c : [Select Id, Buyer_Side_Broker_1__c, Buyer_Side_Broker_2__c, Buyer_Side_Broker_3__c, Buyer_Side_Broker_4__c, Seller_Side_Broker_1__c, Seller_Side_Broker_2__c, Seller_Side_Broker_3__c, Seller_Side_Broker_4__c,
+                                   Buyer_1_Paid__c, Buyer_2_Paid__c, Buyer_3_Paid__c, Buyer_4_Paid__c, Seller_1_Paid__c, Seller_2_Paid__c, Seller_3_Paid__c, Seller_4_Paid__c,
+                                   Buyer_Side_Broker_1__r.Broker_Deactivated__c,Buyer_Side_Broker_2__r.Broker_Deactivated__c,Buyer_Side_Broker_3__r.Broker_Deactivated__c,Buyer_Side_Broker_4__r.Broker_Deactivated__c,
+                               	   Seller_Side_Broker_1__r.Broker_Deactivated__c,Seller_Side_Broker_2__r.Broker_Deactivated__c,Seller_Side_Broker_3__r.Broker_Deactivated__c,Seller_Side_Broker_4__r.Broker_Deactivated__c
+                                   From Commission__c WHERE Id IN: commissionIdSet]){
+                if(c.Buyer_Side_Broker_1__c != null && c.Buyer_1_Paid__c != null && (c.Buyer_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                    if(brokerMap.get(c.Buyer_Side_Broker_1__c) != null){ brokerMap.put(c.Buyer_Side_Broker_1__c,brokerMap.get(c.Buyer_Side_Broker_1__c) + c.Buyer_1_Paid__c);
+                    }else{ brokerMap.put(c.Buyer_Side_Broker_1__c,c.Buyer_1_Paid__c); }
+                }
+                if(c.Buyer_Side_Broker_2__c != null && c.Buyer_2_Paid__c != null && (c.Buyer_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                    if(brokerMap.get(c.Buyer_Side_Broker_2__c) != null){ brokerMap.put(c.Buyer_Side_Broker_2__c,brokerMap.get(c.Buyer_Side_Broker_2__c) + c.Buyer_2_Paid__c);
+                    }else{ brokerMap.put(c.Buyer_Side_Broker_2__c,c.Buyer_2_Paid__c); }
+                }
+                if(c.Buyer_Side_Broker_3__c != null && c.Buyer_3_Paid__c != null && (c.Buyer_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                    if(brokerMap.get(c.Buyer_Side_Broker_3__c) != null){ brokerMap.put(c.Buyer_Side_Broker_3__c,brokerMap.get(c.Buyer_Side_Broker_3__c) + c.Buyer_3_Paid__c);
+                    }else{ brokerMap.put(c.Buyer_Side_Broker_3__c,c.Buyer_3_Paid__c); }
+                }
+                if(c.Buyer_Side_Broker_4__c != null && c.Buyer_4_Paid__c != null && (c.Buyer_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                    if(brokerMap.get(c.Buyer_Side_Broker_4__c) != null){ brokerMap.put(c.Buyer_Side_Broker_4__c,brokerMap.get(c.Buyer_Side_Broker_4__c) + c.Buyer_4_Paid__c);
+                    }else{ brokerMap.put(c.Buyer_Side_Broker_4__c,c.Buyer_4_Paid__c); }
+                }
+                if(c.Seller_Side_Broker_1__c != null && c.Seller_1_Paid__c != null && (c.Seller_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                    if(brokerMap.get(c.Seller_Side_Broker_1__c) != null){ brokerMap.put(c.Seller_Side_Broker_1__c,brokerMap.get(c.Seller_Side_Broker_1__c) + c.Seller_1_Paid__c);
+                    }else{ brokerMap.put(c.Seller_Side_Broker_1__c,c.Seller_1_Paid__c); }
+                }    
+                if(c.Seller_Side_Broker_2__c != null && c.Seller_2_Paid__c != null && (c.Seller_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                    if(brokerMap.get(c.Seller_Side_Broker_2__c) != null){ brokerMap.put(c.Seller_Side_Broker_2__c,brokerMap.get(c.Seller_Side_Broker_2__c) + c.Seller_2_Paid__c);
+                    }else{ brokerMap.put(c.Seller_Side_Broker_2__c,c.Seller_2_Paid__c); }
+                }
+                if(c.Seller_Side_Broker_3__c != null && c.Seller_3_Paid__c != null && (c.Seller_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                    if(brokerMap.get(c.Seller_Side_Broker_3__c) != null){ brokerMap.put(c.Seller_Side_Broker_3__c,brokerMap.get(c.Seller_Side_Broker_3__c) + c.Seller_3_Paid__c);
+                    }else{ brokerMap.put(c.Seller_Side_Broker_3__c,c.Seller_3_Paid__c); }
+                }
+                if(c.Seller_Side_Broker_4__c != null && c.Seller_4_Paid__c != null && (c.Seller_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                    if(brokerMap.get(c.Seller_Side_Broker_4__c) != null){ brokerMap.put(c.Seller_Side_Broker_4__c,brokerMap.get(c.Seller_Side_Broker_4__c) + c.Seller_4_Paid__c);
+                    }else{ brokerMap.put(c.Seller_Side_Broker_4__c,c.Seller_4_Paid__c); }
+                }
+            }
+        }
+        
+        Map<String,Report_Data__c> reportDataMap = new Map<String,Report_Data__c>();
+        for(Report_Data__c rp : [SELECT Id, Broker__c, Amount__c, Report__c From Report_Data__c WHERE Broker__c IN: brokerMap.keySet() AND Report__c=:reportId]){
+            reportDataMap.put(rp.Broker__c,rp);
+        }
+        
+		List<Report_Data__c> reportDataList = new List<Report_Data__c>();
+        Report_Data__c reportData;
+        String address;
+        for(Contact c : [SELECT Id, Name, MailingStreet, MailingState, MailingCity, MailingPostalCode, MailingCountry From Contact WHERE Id IN: brokerMap.keySet()]){
+            if(brokerMap.get(c.Id) > 0){
+                if(reportDataMap.get(c.Id) != null){
+                    reportDataMap.get(c.id).Amount__c = reportDataMap.get(c.Id).Amount__c + brokerMap.get(c.Id);
+                }else{
+                    reportData = new Report_Data__c();
+                    reportData.Report__c = reportId;
+                    reportData.Broker__c = c.Id;
+                    reportData.Amount__c = brokerMap.get(c.Id);
+                    reportDataMap.put(c.Id,reportData);
+                }
+            }
+        }
+        
+        upsert reportDataMap.values();
+    }
+    
+    global void finish(Database.BatchableContext BC){
+        system.debug('##finish Report3Batch');
+    }
+}
