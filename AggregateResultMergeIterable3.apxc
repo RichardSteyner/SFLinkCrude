@@ -1,0 +1,11 @@
+global class AggregateResultMergeIterable3 implements Iterable<AggregateResult> {
+    global Set<Id> setIdCon {get;set;}
+    
+    global AggregateResultMergeIterable3(Set<Id> setIdConBatch){
+        setIdCon = setIdConBatch;
+    }
+    
+   global Iterator<AggregateResult> Iterator(){
+      return new AggregateResultMergeIterator3(setIdCon);
+   }
+}
