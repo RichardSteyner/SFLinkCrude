@@ -1,0 +1,14 @@
+@isTest
+public class ContactMergeBatch_Test {
+    
+    public static testmethod void test01(){
+        Contact con = new Contact(LastName='Test Master',Namekey__c='10');
+        insert con;
+        Contact conMerge = new Contact(LastName='Test Merge',Namekey__c='F10');
+        insert conMerge;
+        Test.startTest();
+        Database.executeBatch(new ContactMergeBatch(),1);
+        Test.stopTest();
+        system.assertEquals(1,[Select Id From Contact].size());
+    }
+}
