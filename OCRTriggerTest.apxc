@@ -1,0 +1,21 @@
+@isTest
+public class OCRTriggerTest {
+    
+    public static testmethod void test01(){
+        Opportunity opp = new Opportunity();
+        opp.Name = 'Test';
+        opp.StageName = 'Close Won';
+        opp.CloseDate = Date.newInstance(2019, 11, 20);
+        insert opp;
+        Contact c = new Contact();
+        c.LastName='Test';
+        insert c;
+        OpportunityContactRole ocr = new OpportunityContactRole();
+        ocr.ContactId=c.Id;
+        ocr.OpportunityId=opp.Id;
+        ocr.KeyId__c='001';
+        ocr.Role='Confirm for Seller';
+        insert ocr;
+    }
+
+}
