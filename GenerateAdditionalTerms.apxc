@@ -1,0 +1,31 @@
+global class GenerateAdditionalTerms implements Database.Batchable<sObject>, Database.Stateful{
+    Integer l;
+    
+    global GenerateAdditionalTerms(Integer l){
+        this.l=l;
+    }
+    
+    global Database.QueryLocator start(Database.BatchableContext BC){
+        system.debug('##start GenerateAdditionalTerms');
+        String query = 'Select Id, Additional_Terms_Generate__c From Opportunity WHERE Additional_Terms_Generate__c=false ' + (l==0?'':'limit ' + l);
+        return Database.getQueryLocator(query);
+    }
+    
+    global void execute(Database.BatchableContext BC, List<Opportunity> scope){
+        try{
+            system.debug('##execute GenerateAdditionalTerms');
+            for(Opportunity opp : scope){
+                opp.Additional_Terms_Verbiage__c = '“OTHER TERMS AND CONDITIONS SHALL BE IN ACCORDANCE WITH NORMAL INDUSTRY PRACTICE.”';
+                opp.Additional_Terms_Generate__c=true;
+            }
+            ApexUtil.OpportunityTrigger_Is_Enabled = false;
+            update scope;
+        }catch(Exception e){
+            System.debug('Exception: '+ e.getMessage());
+        }
+    }
+    
+    global void finish(Database.BatchableContext BC){
+        system.debug('##finish GenerateAdditionalTerms');
+    }
+}
