@@ -1,0 +1,6 @@
+global class CheckingContactRolesBatchScheduler implements Schedulable {
+    global void execute(SchedulableContext sc) {
+        CheckingContactRolesBatch b = new CheckingContactRolesBatch(); 
+        database.executebatch(b, 50);
+    }
+}
