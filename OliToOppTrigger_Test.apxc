@@ -1,0 +1,33 @@
+@isTest
+public class OliToOppTrigger_Test {
+    
+    public static testmethod void test01(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+		Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        Product2 pro = new Product2(Name='Test Product',isActive=true);
+        insert pro;
+        PricebookEntry pbe = new PricebookEntry(Product2Id=pro.Id, Pricebook2Id=Test.getStandardPricebookId(),UnitPrice=0,isActive=true);
+        insert pbe;
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05);
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05);
+        insert seller1;
+        Opportunity opp = new Opportunity(Name='test',CloseDate=system.today(),StageName='Proposal',AccountId=buyer1.Id, Seller__c=seller1.Id);
+        insert opp;
+        
+        Test.startTest();
+        OpportunityLineItem oli = new OpportunityLineItem(OpportunityId=opp.Id,PricebookEntryId=pbe.Id,UnitPrice=10,Quantity=1);
+        insert oli;
+        Test.stopTest();
+        
+        Opportunity oppAssert = [Select Id, Cost_Per_Unit__c From Opportunity WHERE Id=:opp.Id];
+        system.assertEquals('10.00', oppAssert.Cost_Per_Unit__c);
+    }
+}
