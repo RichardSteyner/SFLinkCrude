@@ -1,0 +1,280 @@
+@isTest
+public class OpportunityActions_Test {
+    
+    public static testmethod void test01(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05);
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05);
+        insert seller1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id,Role__c = 'Invoice;Confirmation');
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id,Role__c = 'Invoice;Confirmation');
+        insert con2;
+
+		Product2 pro = new Product2(Name='Test',isActive=true);
+        insert pro;       
+        
+        PricebookEntry pbe1 = new PricebookEntry(Product2Id=pro.Id,isActive=true,UnitPrice=10,Pricebook2Id=Test.getStandardPricebookId());
+        insert pbe1;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        Test.startTest();
+        Opportunity opp = new Opportunity(RecordTypeId=recordTypeId,Name='test',CloseDate=system.today(),StageName='Closed Won', AccountId=buyer1.Id, Seller__c=seller1.Id, Delivery__c = system.today(), Volume_Method__c = 'BPD', Volume_BBL_Day_New__c = 20, Price_Type__c = 'Formula Price', Cost_Per_Unit_formula__c = 'Conoco Posting');
+        insert opp;
+        OpportunityLineItem oli = new OpportunityLineItem(OpportunityId=opp.Id,PricebookEntryId=pbe1.Id,UnitPrice=10,Quantity=1);
+        insert oli;
+        Test.stopTest();
+    }
+    
+    public static testmethod void test02(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05);
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05);
+        insert seller1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id,Role__c = 'Invoice;Confirmation');
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id,Role__c = 'Invoice;Confirmation');
+        insert con2;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Crude Opportunities'].Id;
+        
+        Product2 pro = new Product2(Name='Test',isActive=true);
+        insert pro;       
+        
+        PricebookEntry pbe1 = new PricebookEntry(Product2Id=pro.Id,isActive=true,UnitPrice=10,Pricebook2Id=Test.getStandardPricebookId());
+        insert pbe1;
+        
+        Opportunity opp = new Opportunity(RecordTypeId=recordTypeId,Name='test',CloseDate=system.today(),StageName='Closed Won', AccountId=buyer1.Id, Seller__c=seller1.Id, Region__c = 'US Domestic', Buyer_Broker_1_approval__c = true, Seller_Broker_1_approval__c = true, Delivery__c = system.today(), Volume_Method__c = 'Total Quantity', Total_Volume_BBL_New__c = 200,Price_Type__c = 'Formula Price', Cost_Per_Unit_formula__c = 'CMA + ARGUS ROLL VERBIAGE');
+        insert opp;
+        
+        OpportunityLineItem oli = new OpportunityLineItem(OpportunityId=opp.Id,PricebookEntryId=pbe1.Id,UnitPrice=10,Quantity=1);
+        insert oli;
+        
+        ApexUtil.OpportunityTrigger_Is_Enabled = true;
+        Test.startTest();
+        update opp;
+        Test.stopTest();
+    }
+    
+    public static testmethod void test03(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05);
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05);
+        insert seller1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id,Role__c = 'Invoice;Confirmation');
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id,Role__c = 'Invoice;Confirmation');
+        insert con2;
+        
+        Product2 pro = new Product2(Name='Test',isActive=true);
+        insert pro;       
+        
+        PricebookEntry pbe1 = new PricebookEntry(Product2Id=pro.Id,isActive=true,UnitPrice=10,Pricebook2Id=Test.getStandardPricebookId());
+        insert pbe1;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Crude Opportunities'].Id;
+        
+        Opportunity opp = new Opportunity(Transaction__c = 'Master (Strip Master)',RecordTypeId=recordTypeId,Name='test',CloseDate=system.today(),Start_Date__c=system.today(),End_Date__c=system.today().addMonths(3),StageName='Closed Won', AccountId=buyer1.Id, Seller__c=seller1.Id, Delivery__c = system.today(), Volume_Method__c = 'Total Quantity', Total_Volume_BBL_New__c = 200,Price_Type__c = 'Formula Price', Cost_Per_Unit_formula__c = 'CMA + ARGUS ROLL VERBIAGE');
+        insert opp;
+        Test.startTest();
+        OpportunityLineItem oli = new OpportunityLineItem(OpportunityId=opp.Id,PricebookEntryId=pbe1.Id,UnitPrice=10,Quantity=1);
+        insert oli;
+        Test.stopTest();
+    }
+    
+    public static testmethod void test04(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05);
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05);
+        insert seller1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id,Role__c = 'Invoice;Confirmation');
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id,Role__c = 'Invoice;Confirmation');
+        insert con2;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Crude Opportunities'].Id;
+        
+        Product2 pro = new Product2(Name='Test',isActive=true);
+        insert pro;       
+        
+        PricebookEntry pbe1 = new PricebookEntry(Product2Id=pro.Id,isActive=true,UnitPrice=10,Pricebook2Id=Test.getStandardPricebookId());
+        insert pbe1;
+        
+        Opportunity opp = new Opportunity(RecordTypeId=recordTypeId,Name='test',CloseDate=system.today(),StageName='Closed Won', Seller__c=seller1.Id, Region__c = 'US Domestic', Buyer_Broker_1_approval__c = true, Seller_Broker_1_approval__c = true, Delivery__c = system.today(), Volume_Method__c = 'Total Quantity', Total_Volume_BBL_New__c = 200,Price_Type__c = 'Formula Price', Cost_Per_Unit_formula__c = 'CMA + ARGUS ROLL VERBIAGE');
+        insert opp;
+        
+        OpportunityLineItem oli = new OpportunityLineItem(OpportunityId=opp.Id,PricebookEntryId=pbe1.Id,UnitPrice=10,Quantity=1);
+        insert oli;
+        
+        Pricebook2 pb11 = new Pricebook2(Name='Link Crude 2');
+        insert pb11;
+        Pricebook2 pb21 = new Pricebook2(Name='Link Future 2');
+        insert pb21;
+        
+        Account buyer11 = new Account(Name='Test Buyer 2',Rate_N__c=0.05);
+        insert buyer11;
+        Account seller11 = new Account(Name='Test Seller 2',Rate_N__c=0.05);
+        insert seller11;
+        
+        Contact con11 = new Contact(LastName='Test Contact 11',AccountId=buyer11.Id,Role__c = 'Invoice;Confirmation');
+        insert con11;
+        Contact con21 = new Contact(LastName='Test Contact 21',AccountId=seller11.Id,Role__c = 'Invoice;Confirmation');
+        insert con21;
+        
+        Product2 pro2 = new Product2(Name='Test 2',isActive=true);
+        insert pro2;       
+        
+        PricebookEntry pbe12 = new PricebookEntry(Product2Id=pro2.Id,isActive=true,UnitPrice=10,Pricebook2Id=Test.getStandardPricebookId());
+        insert pbe12;
+        
+        Opportunity opp2 = new Opportunity(RecordTypeId=recordTypeId,Name='test',CloseDate=system.today(),StageName='Closed Won', Seller__c=seller11.Id, Region__c = 'US Domestic', Buyer_Broker_1_approval__c = true, Seller_Broker_1_approval__c = true, Delivery__c = system.today(), Volume_Method__c = 'Total Quantity', Total_Volume_BBL_New__c = 200,Price_Type__c = 'Formula Price', Cost_Per_Unit_formula__c = 'CMA + ARGUS ROLL VERBIAGE', Master_Opportunity__c=opp.Id);
+        insert opp2;
+        
+        OpportunityLineItem oli2 = new OpportunityLineItem(OpportunityId=opp2.Id,PricebookEntryId=pbe12.Id,UnitPrice=10,Quantity=1);
+        insert oli2;
+        
+        opp.AccountId=buyer11.Id;
+        
+        ApexUtil.OpportunityTrigger_Is_Enabled = true;
+        Test.startTest();
+        update opp;
+        Test.stopTest();
+    }
+    
+    public static testmethod void test05(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05);
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05);
+        insert seller1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id,Role__c = 'Invoice;Confirmation');
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id,Role__c = 'Invoice;Confirmation');
+        insert con2;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Crude Opportunities'].Id;
+        
+        Product2 pro = new Product2(Name='Test',isActive=true);
+        insert pro;       
+        
+        PricebookEntry pbe1 = new PricebookEntry(Product2Id=pro.Id,isActive=true,UnitPrice=10,Pricebook2Id=Test.getStandardPricebookId());
+        insert pbe1;
+        
+        Opportunity opp = new Opportunity(RecordTypeId=recordTypeId,Name='test',CloseDate=system.today(),StageName='Closed Won', Seller__c=seller1.Id, Region__c = 'US Domestic', Buyer_Broker_1_approval__c = true, Seller_Broker_1_approval__c = true, Delivery__c = system.today(), Volume_Method__c = 'Total Quantity', Total_Volume_BBL_New__c = 200,Price_Type__c = 'Formula Price', Cost_Per_Unit_formula__c = 'CMA + ARGUS ROLL VERBIAGE');
+        insert opp;
+        
+        OpportunityLineItem oli = new OpportunityLineItem(OpportunityId=opp.Id,PricebookEntryId=pbe1.Id,UnitPrice=10,Quantity=1);
+        insert oli;
+        
+        opp.AccountId=buyer1.Id;
+        
+        ApexUtil.OpportunityTrigger_Is_Enabled = true;
+        Test.startTest();
+        update opp;
+        Test.stopTest();
+    }
+    
+    public static testmethod void test06(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05);
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05);
+        insert seller1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id,Role__c = 'Invoice;Confirmation');
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id,Role__c = 'Invoice;Confirmation');
+        insert con2;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Crude Opportunities'].Id;
+        
+        Product2 pro = new Product2(Name='Test',isActive=true);
+        insert pro;       
+        
+        PricebookEntry pbe1 = new PricebookEntry(Product2Id=pro.Id,isActive=true,UnitPrice=10,Pricebook2Id=Test.getStandardPricebookId());
+        insert pbe1;
+        
+        Opportunity opp = new Opportunity(RecordTypeId=recordTypeId,Name='test',CloseDate=system.today(),StageName='Proposal', Seller__c=seller1.Id, Region__c = 'US Domestic', Buyer_Broker_1_approval__c = true, Seller_Broker_1_approval__c = true, Delivery__c = system.today(), Volume_Method__c = 'Total Quantity', Total_Volume_BBL_New__c = 200,Price_Type__c = 'Formula Price', Cost_Per_Unit_formula__c = 'CMA + ARGUS ROLL VERBIAGE');
+        insert opp;
+        
+        OpportunityLineItem oli = new OpportunityLineItem(OpportunityId=opp.Id,PricebookEntryId=pbe1.Id,UnitPrice=10,Quantity=1);
+        insert oli;
+        
+        Account accS = new Account(Name='Test Acc');
+        insert accS;
+        Statement__c st = new Statement__c(Account__c=seller1.Id,Name='Test');
+        insert st;
+        Statement_Line_Item__c sti = new Statement_Line_Item__c(Link_Ref__c=opp.Id, Statement__c=st.Id);
+        insert sti;
+        
+        opp.AccountId=buyer1.Id;
+        
+        ApexUtil.OpportunityTrigger_Is_Enabled = true;
+        Test.startTest();
+        update opp;
+        Test.stopTest();
+    }
+}
