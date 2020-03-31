@@ -1,0 +1,87 @@
+global class ContactEmailMergeBatch implements Database.Batchable<AggregateResult>{
+    global Boolean enter {get;set;}
+    global Set<Id> setIdCon {get;set;}
+    
+    global ContactEmailMergeBatch(){
+        system.debug('##construct ContactEmailMergeBatch');
+        enter = false;
+        setIdCon = new Set<Id>();
+        for(Contact con : [Select Id From Contact WHERE Namekey__c<>null and  Email<>null and Check_Merge_Email__c=false LIMIT 50000]){
+            setIdCon.add(con.Id);
+        }
+        system.debug(setIdCon);
+        
+        if(setIdCon.size()>0){
+            enter = true;
+        }else{ enter = false;
+        }
+    }
+    
+    global Iterable<AggregateResult> start(Database.batchableContext info){
+        system.debug('##start ContactEmailMergeBatch');
+        system.debug('##setIdCon: '+setIdCon);
+		return new AggregateResultMergeIterable3(setIdCon);
+    }
+    
+    global void execute(Database.BatchableContext BC, List<Sobject> scope){
+        system.debug('##execute ContactEmailMergeBatch');
+        List<String> lstSoNumber = new List<String>();
+        system.debug('##scope:'+scope);
+        for(Sobject so : scope){
+			AggregateResult ar = (AggregateResult) so;
+          	String soNumber = String.valueOf(ar.get('Email'));
+            system.debug(soNumber);
+            if(Integer.valueOf(ar.get('cantidad'))<=2) lstSoNumber.add(soNumber);
+            //lstSoNumber.add(soNumber.substring(1,soNumber.length()));
+        }
+        system.debug(lstSoNumber);
+        if(lstSoNumber.size()>0){
+            Map<Integer,Contact> mapContact = new Map<Integer,Contact>();
+            Integer cont = 0;
+            for(Contact con : [Select Id, AccountId From Contact WHERE Email IN: lstSoNumber ORDER BY CreatedDate ASC LIMIT 2]){
+                cont++;
+                mapContact.put(cont,con);
+            }
+            system.debug(mapContact);
+            
+            if(mapContact.size()==2){
+                Contact masterCont = mapContact.get(1);
+                Contact mergeCont = mapContact.get(2);
+                Set<String> setID = new Set<String>();
+                
+                for(AccountContactRelation acc : [select AccountId from AccountContactRelation where ContactId=:masterCont.Id])
+                    setID.add(acc.AccountId);
+                
+                List<AccountContactRelation> relation2 = [select Id, AccountId from AccountContactRelation where ContactId=:mergeCont.Id and AccountId in:setID  and IsDirect=false];
+                
+                if(relation2.size()>0) delete relation2;
+                
+                try {
+                    if(masterCont.AccountId == mergeCont.AccountId){
+                        system.debug('enter here 1');
+                        masterCont.Check_Merge_Email__c = true;
+                        merge masterCont mergeCont;
+                    }else{
+                        system.debug('enter here 2');
+                        mergeCont.AccountId = masterCont.AccountId;
+                        masterCont.Check_Merge_Email__c = true;
+                        update mergeCont;
+                        merge masterCont mergeCont;
+                    }
+                } catch (DmlException e) {
+                    System.debug('An unexpected error has occurred: ' + e.getMessage()); 
+                    System.abortJob(BC.getJobId());
+                }
+            }else{
+                Contact conTemp;
+                List<Contact> lstConUpdate = new List<Contact>();
+                for(Integer key : mapContact.keySet()){ conTemp = new Contact(Id = mapContact.get(key).Id,Check_Merge_Email__c = true); lstConUpdate.add(conTemp); }
+                if(lstConUpdate.size()>0) update lstConUpdate;
+            }
+        }
+    }
+    
+    global void finish(Database.BatchableContext BC){
+        system.debug('##finish ContactEmailMergeBatch');
+    }
+}
