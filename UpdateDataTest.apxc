@@ -1,0 +1,21 @@
+@isTest
+public class UpdateDataTest {
+    
+    public static testmethod void test01(){
+        Opportunity opp = new Opportunity();
+        opp.Name = 'Test';
+        opp.StageName = 'Close Won';
+        opp.CloseDate = Date.newInstance(2019, 11, 20);
+        insert opp;
+        Commission__c c = new Commission__c();
+        c.Transaction_No__c = opp.ID;
+        c.Name = 'Test';
+        insert c;
+        System.assertEquals(1, [select Id from Commission__c where Update_For_Ranking__c=false].size());
+        Test.startTest();
+        Database.executeBatch(new UpdateData(),100);
+        Test.stopTest();  
+        System.assertEquals(0, [select Id from Commission__c where Update_For_Ranking__c=false].size());
+    }
+
+}
