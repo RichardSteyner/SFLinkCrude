@@ -1,0 +1,404 @@
+public class InvoiceTriggerHandler {
+
+    /*private static void loadListsAfterOnly(List<Invoice__c> invs){
+    }*/
+    
+    private static void loadListsBeforeOnly(List<Invoice__c> invs){
+        
+    }
+    
+    //--------------------HANDLER METHODS----------------------
+    public static void beforeInsertUpdateActions(List<Invoice__c> invs, Map<Id, Invoice__c> oldInvs){
+        loadListsBeforeOnly(invs);
+        if (oldInvs == null){
+            System.debug('InvoiceTriggerHandler:: Calling methods Before INSERT...');
+            //call methods for Before INSERT only
+        }
+        else{
+            System.debug('InvoiceTriggerHandler::  Calling methods Before UPDATE...');
+            //call methods for Before UPDATE only
+        }
+        //call methods for Before UPDATE or INSERT
+        for(Invoice__c i : invs){
+            System.debug('Test Invoice Tx: ' + i.Name);
+        }
+        validationLock(invs);
+        setData(invs);
+    }
+
+    public static void afterInsertUpdateActions(List<Invoice__c> invs, Map<Id, Invoice__c> oldInvs){
+        loadListsBeforeOnly(invs);
+        if (oldInvs == null){
+            System.debug('InvoiceTriggerHandler:: Calling methods After INSERT...');
+            //call methods for After INSERT only
+            createStatement(invs);
+        }
+        else{
+            System.debug('InvoiceTriggerHandler::  Calling methods After UPDATE...');
+            //call methods for After UPDATE only
+            verifyStatement(invs);
+        }
+        //call methods for After UPDATE or INSERT
+        setBalanceDue(invs,oldInvs,false);
+        setQuickbookIds(invs, oldInvs, false);
+    }
+    
+    public static void afterDeleteActions(List<Invoice__c> invs){ 
+        setBalanceDue(invs,null,true); 
+        setQuickbookIds(invs, null, true);
+    }
+    
+    //--------------------HANDLER METHODS----------------------
+    public static void validationLock(List<Invoice__c> invs){
+        for(Invoice__c inv: invs){
+            if(inv.Lock__c) inv.addError('This record is locked and no updates can be made. Please speak to your system administrator if you have questions.');
+        }
+    }
+    
+    public static void setData(List<Invoice__c> invs){
+        system.debug('----#ENTER InvoiceTriggerHandler: setData method');
+        Set<Id> transactionIds = new Set<Id>();
+        for(Invoice__c inv : invs){
+            if(inv.Transaction_Number__c != null) transactionIds.add(inv.Transaction_Number__c);
+        }
+        
+        Map<String,Commission__c> commissionMap = new Map<String,Commission__c>();
+        for(Commission__c co : [Select Id, Transaction_No__c, Buyer_Commission__c, Seller_Commission__c From Commission__c WHERE Transaction_No__c IN: transactionIds]){ commissionMap.put(co.Transaction_No__c,co); }
+        
+        for(Invoice__c inv : invs){
+            if(inv.Role__c != null && inv.Transaction_Number__c != null && commissionMap.get(inv.Transaction_Number__c) != null){
+                if(inv.Role__c == 'Buyer') inv.Balance_Due__c = commissionMap.get(inv.Transaction_Number__c).Buyer_Commission__c;
+                if(inv.Role__c == 'Seller') inv.Balance_Due__c = commissionMap.get(inv.Transaction_Number__c).Seller_Commission__c;
+            }
+            if(inv.Balance_Due__c != null){ if((inv.Balance_Due__c - (inv.Total_Payments__c != null ? inv.Total_Payments__c : 0)) <= 0) inv.Paid__c = true; }
+            System.debug('Set Data: ' + inv.Balance_Due__c);
+        }
+    }
+    
+    public static void setBalanceDue(List<Invoice__c> invs, Map<Id, Invoice__c> oldInvs, Boolean isDelete){
+        system.debug('----#ENTER InvoiceTriggerHandler: setBalanceDue method');
+        Map<String,Decimal> sumMap = new Map<String,Decimal>();
+		Map<String,Decimal> restMap = new Map<String,Decimal>();
+        if(!isDelete){
+            if(oldInvs == null){
+                for(Invoice__c inv : invs){
+                    if(inv.Account__c != null && inv.Balance_Due__c > 0) sumMap.put(inv.Account__c,inv.Balance_Due__c);
+                }
+            }else{
+                for(Invoice__c inv : invs){ if(inv.Account__c != null && inv.Balance_Due__c > 0) { sumMap.put(inv.Account__c,inv.Balance_Due__c);} if(oldInvs.get(inv.Id).Account__c != null && oldInvs.get(inv.Id).Balance_Due__c > 0){restMap.put(oldInvs.get(inv.Id).Account__c,oldInvs.get(inv.Id).Balance_Due__c);}
+                }
+            }
+        }else{ for(Invoice__c inv : invs){if(inv.Account__c != null && inv.Balance_Due__c > 0) restMap.put(inv.Account__c,inv.Balance_Due__c);}
+        }
+        
+        List<Account> accList = new List<Account>();
+        for(Account acc : [Select Id, Balance_Due__c From Account WHERE Id IN: sumMap.keySet() OR Id IN: restMap.keySet()]){
+            if(acc.Balance_Due__c != null){ acc.Balance_Due__c = acc.Balance_Due__c + (sumMap.get(acc.Id) != null ? sumMap.get(acc.Id) : 0) - (restMap.get(acc.Id) != null ? restMap.get(acc.Id) : 0);
+            }else{
+                acc.Balance_Due__c = (sumMap.get(acc.Id) != null ? sumMap.get(acc.Id) : 0) - (restMap.get(acc.Id) != null ? restMap.get(acc.Id) : 0);
+            }
+            accList.add(acc);
+        }
+        
+        if(accList.size()>0) update accList;
+    }
+    
+    public static void setQuickbookIds(List<Invoice__c> invs, Map<Id, Invoice__c> oldInvs, Boolean isDelete){
+        system.debug('----#ENTER InvoiceTriggerHandler: setQuickbookIds method');
+        Map<Id,String> sellerQMap = new Map<Id,String>();
+        Map<Id,String> buyerQMap = new Map<Id,String>();
+        Map<Id,String> blankBuyerQMap = new Map<Id,String>();
+        Map<Id,String> blankSellerQMap = new Map<Id,String>();
+        if(!isDelete){
+            if(oldInvs == null){
+                for(Invoice__c inv : invs){
+                    if(inv.Transaction_Number__c != null && String.isNotBlank(inv.QuickbooksId__c) && inv.Role__c.equalsIgnoreCase('Buyer')) buyerQMap.put(inv.Transaction_Number__c, inv.QuickbooksId__c);
+                    else if (inv.Transaction_Number__c != null && String.isNotBlank(inv.QuickbooksId__c) && inv.Role__c.equalsIgnoreCase('Seller')) sellerQMap.put(inv.Transaction_Number__c, inv.QuickbooksId__c);
+                }
+            }else{
+                for(Invoice__c inv : invs){ 
+                    if(oldInvs.get(inv.Id).Transaction_Number__c != inv.Transaction_Number__c ||
+                            oldInvs.get(inv.Id).QuickbooksId__c != inv.QuickbooksId__c ||
+                            oldInvs.get(inv.Id).Role__c != inv.Role__c) {
+                         
+                        if(inv.Role__c.equalsIgnoreCase('Buyer') && inv.Transaction_Number__c != null && String.isNotBlank(inv.QuickbooksId__c)) {buyerQMap.put(inv.Transaction_Number__c, inv.QuickbooksId__c);System.debug('Hi1');}
+                        else if(inv.Role__c.equalsIgnoreCase('Seller') && inv.Transaction_Number__c != null && String.isNotBlank(inv.QuickbooksId__c)) {sellerQMap.put(inv.Transaction_Number__c, inv.QuickbooksId__c);System.debug('Hi2');}
+                        if(oldInvs.get(inv.Id).Transaction_Number__c != null && oldInvs.get(inv.Id).Role__c.equalsIgnoreCase('Buyer')) {blankBuyerQMap.put(oldInvs.get(inv.Id).Transaction_Number__c, '');System.debug('Hi3');}
+                        else if(oldInvs.get(inv.Id).Transaction_Number__c != null && oldInvs.get(inv.Id).Role__c.equalsIgnoreCase('Seller')) {blankSellerQMap.put(oldInvs.get(inv.Id).Transaction_Number__c, '');System.debug('Hi4');}
+                    }
+                }
+            }
+        }else{ 
+            for(Invoice__c inv : invs){
+            	if(inv.Transaction_Number__c != null && String.isNotBlank(inv.QuickbooksId__c) && String.isNotBlank(inv.Role__c)) 
+                {
+                    System.debug('ch');
+                    if(inv.Role__c.equalsIgnoreCase('Buyer')) blankBuyerQMap.put(inv.Transaction_Number__c, '');
+                    else if(inv.Role__c.equalsIgnoreCase('Seller')) blankSellerQMap.put(inv.Transaction_Number__c, '');
+                }
+            }
+        }
+        
+        List<Commission__c> comList = new List<Commission__c>();
+        for(Commission__c comm : [Select Id, Transaction_No__c From Commission__c WHERE Transaction_No__c IN: buyerQMap.keySet() OR Transaction_No__c IN: sellerQMap.keySet() OR Transaction_No__c IN: blankBuyerQMap.keySet() OR Transaction_No__c IN: blankSellerQMap.keySet()]){
+            /*if(acc.Balance_Due__c != null){ acc.Balance_Due__c = acc.Balance_Due__c + (sumMap.get(acc.Id) != null ? sumMap.get(acc.Id) : 0) - (restMap.get(acc.Id) != null ? restMap.get(acc.Id) : 0);
+            }else{
+                acc.Balance_Due__c = (sumMap.get(acc.Id) != null ? sumMap.get(acc.Id) : 0) - (restMap.get(acc.Id) != null ? restMap.get(acc.Id) : 0);
+            }*/
+            if(blankBuyerQMap.get(comm.Transaction_No__c)!= null)
+                comm.buyer_invoice_QBID__c = blankBuyerQMap.get(comm.Transaction_No__c);
+            if(blankSellerQMap.get(comm.Transaction_No__c)!= null)
+                comm.Seller_invoice_QBID__c = blankSellerQMap.get(comm.Transaction_No__c);
+            if(buyerQMap.get(comm.Transaction_No__c)!= null)
+                comm.buyer_invoice_QBID__c = buyerQMap.get(comm.Transaction_No__c);
+            if(sellerQMap.get(comm.Transaction_No__c)!= null)
+                comm.Seller_invoice_QBID__c = sellerQMap.get(comm.Transaction_No__c);
+            System.debug('Hola ss');
+            comList.add(comm);
+        }
+        
+        if(comList.size()>0) update comList;
+    }
+    
+    public static void verifyStatement(List<Invoice__c> invs){
+        system.debug('----#ENTER InvoiceTriggerHandler: verifyStatement method');
+        Set<Id> setIds = new Set<Id>();
+        for(Invoice__c inv : invs){
+            setIds.add(inv.Id);
+        }
+        
+        Map<String,String> sliMap = new Map<String,String>();
+        for(Statement_Line_Item__c sli : [Select Id, Invoice__c From Statement_Line_Item__c WHERE Invoice__c IN: setIds]){ sliMap.put(sli.Invoice__c,sli.Id); }
+        
+        List<Invoice__c> invList = new List<Invoice__c>();
+        for(Invoice__c inv : invs){
+            if(sliMap.get(inv.Id) == null) invList.add(inv);
+        }
+        
+        if(invList.size()>0) InvoiceTriggerHandler.createStatement(invList);
+    }
+    
+    public static void createStatement(List<Invoice__c> invs){
+        system.debug('----#ENTER InvoiceTriggerHandler: createStatement method');
+        Set<Id> setAccIds = new Set<Id>();
+        Set<Id> setTranIds = new Set<Id>();
+        for(Invoice__c inv : invs){
+            if(inv.Account__c != null) setAccIds.add(inv.Account__c);
+            if(inv.Transaction_Number__c != null) setTranIds.add(inv.Transaction_Number__c);
+        }
+        
+        Map<Id,Account> accountMap = new Map<Id,Account>();
+        for(Account acc : [Select Id, Name, Invoice_State__c From Account WHERE Id IN: setAccIds]){
+            accountMap.put(acc.Id,acc);
+        }
+        
+        Map<Id,Opportunity> transactionMap = new Map<Id,Opportunity>();
+        for(Opportunity opp : [Select Id, StageName, RecordTypeId, RecordType.Name, Buyer_Broker_1_approval__c, Seller_Broker_1_approval__c, Delivery__c, CloseDate From Opportunity WHERE Id IN: setTranIds]){
+            transactionMap.put(opp.Id,opp);
+        }
+        
+        //List<Date> dateListCrude = new List<Date>();
+        //List<Date> dateListFuture = new List<Date>();
+        Set<String> accListCrude = new Set<String>();
+        Set<String> accListFuture = new Set<String>();
+        for(Invoice__c inv : invs){
+            if(inv.Account__c != null && inv.Transaction_Number__c != null){
+                if(accountMap.get(inv.Account__c).Invoice_State__c == null && transactionMap.get(inv.Transaction_Number__c).Buyer_Broker_1_approval__c && transactionMap.get(inv.Transaction_Number__c).Seller_Broker_1_approval__c && transactionMap.get(inv.Transaction_Number__c).StageName == 'Closed Won'){
+                    if(transactionMap.get(inv.Transaction_Number__c).RecordTypeId == '0126A000000tzY3QAI' && transactionMap.get(inv.Transaction_Number__c).Delivery__c != null){ //Link Crude
+                        //dateListCrude.add(transactionMap.get(inv.Transaction_Number__c).Delivery__c);
+                        accListCrude.add(inv.Account__c);
+                    }else if(transactionMap.get(inv.Transaction_Number__c).RecordTypeId == '0126A000000tzY8QAI' && transactionMap.get(inv.Transaction_Number__c).CloseDate != null){ //Link Future
+                        //dateListFuture.add(transactionMap.get(inv.Transaction_Number__c).CloseDate);
+                        accListFuture.add(inv.Account__c);
+                    }
+                }else if(accountMap.get(inv.Account__c).Invoice_State__c == 'Delivery Date' && transactionMap.get(inv.Transaction_Number__c).Buyer_Broker_1_approval__c && transactionMap.get(inv.Transaction_Number__c).Seller_Broker_1_approval__c && transactionMap.get(inv.Transaction_Number__c).StageName == 'Closed Won'){
+                    if(transactionMap.get(inv.Transaction_Number__c).Delivery__c != null){
+                    	if(transactionMap.get(inv.Transaction_Number__c).RecordTypeId == '0126A000000tzY3QAI') accListCrude.add(inv.Account__c); //dateListCrude.add(transactionMap.get(inv.Transaction_Number__c).Delivery__c);
+                    	if(transactionMap.get(inv.Transaction_Number__c).RecordTypeId == '0126A000000tzY8QAI') accListFuture.add(inv.Account__c); //dateListFuture.add(transactionMap.get(inv.Transaction_Number__c).Delivery__c);
+                    }
+                }else if(accountMap.get(inv.Account__c).Invoice_State__c == 'Transaction Date' && transactionMap.get(inv.Transaction_Number__c).Buyer_Broker_1_approval__c && transactionMap.get(inv.Transaction_Number__c).Seller_Broker_1_approval__c && transactionMap.get(inv.Transaction_Number__c).StageName == 'Closed Won'){
+                    if(transactionMap.get(inv.Transaction_Number__c).CloseDate != null){
+                    	if(transactionMap.get(inv.Transaction_Number__c).RecordTypeId == '0126A000000tzY3QAI') accListCrude.add(inv.Account__c); //dateListCrude.add(transactionMap.get(inv.Transaction_Number__c).CloseDate);
+                    	if(transactionMap.get(inv.Transaction_Number__c).RecordTypeId == '0126A000000tzY8QAI') accListFuture.add(inv.Account__c); //dateListFuture.add(transactionMap.get(inv.Transaction_Number__c).CloseDate);
+                    }
+                }
+            }
+        }
+        
+        String statementLinkCrudeRTId = [Select Id From RecordType WHERE Name='Link Crude' and sObjectType='Statement__c'].Id;
+        String statementLinkFutureRTId = [Select Id From RecordType WHERE Name='Link Futures' and sObjectType='Statement__c'].Id;
+        
+        Map<Id,Statement__c> statementMap = new Map<Id,Statement__c>();
+        Map<Integer,Statement__c> statementMonthMap = new Map<Integer,Statement__c>();
+        //Map<Id,Statement__c> statementCrudeMap = new Map<Id,Statement__c>();
+        //Map<Integer,Statement__c> statementCrudeMonthMap = new Map<Integer,Statement__c>();
+        system.debug(accListCrude);
+        if(accListCrude.size()>0){
+            for(Statement__c st : [Select Id, Closing_Date__c, Transaction_Date__c, Account__c, Lock__c, RecordTypeId, RecordType.Name From Statement__c WHERE Account__c IN: accListCrude AND RecordTypeId=:statementLinkCrudeRTId ORDER BY Transaction_Date__c ASC /*Transaction_Date__c <=: dateListCrude AND Closing_Date__c >=: dateListCrude*/]){
+                statementMap.put(st.Id,st);
+                if(st.Transaction_Date__c != null) statementMonthMap.put(st.Transaction_Date__c.month(),st);
+            }
+        }
+        
+        //Map<Id,Statement__c> statementFutureMap = new Map<Id,Statement__c>();
+        //Map<Integer,Statement__c> statementFutureMonthMap = new Map<Integer,Statement__c>();
+        system.debug(accListFuture);
+        if(accListFuture.size()>0){
+            for(Statement__c st : [Select Id, Closing_Date__c, Transaction_Date__c, Account__c, Lock__c, RecordTypeId, RecordType.Name From Statement__c WHERE Account__c IN: accListFuture AND RecordTypeId=:statementLinkFutureRTId ORDER BY Transaction_Date__c ASC /*Transaction_Date__c <=: dateListFuture AND Closing_Date__c >=: dateListFuture*/]) {
+                statementMap.put(st.Id,st);
+                if(st.Transaction_Date__c != null) statementMonthMap.put(st.Transaction_Date__c.month(),st);
+            }
+        }
+        
+        system.debug(statementMap);
+        
+        Statement__c stAux;
+        Statement_Line_Item__c sliAux;
+        Map<Integer,Statement__c> stMap = new Map<Integer,Statement__c>();
+        List<Statement_Line_Item__c> sliList = new List<Statement_Line_Item__c>();
+        Boolean createStatement;
+        Boolean createStatementNextMonth;
+        Integer j = 1;
+        Date dateAux;
+        Date transactionDateAux;
+        Date searchDate;
+        Integer iMonth;
+        Boolean breakB;
+        Set<String> transOmmit;
+        String statementRecordType;
+        Integer numberOfDays;
+        system.debug(invs);
+        for(Invoice__c inv : invs){
+            createStatement = true;
+            createStatementNextMonth = false;
+            system.debug('##ENTER1');
+            if(inv.Account__c != null && inv.Transaction_Number__c != null){
+                system.debug('##ENTER2');
+                if(transactionMap.get(inv.Transaction_Number__c).Buyer_Broker_1_approval__c && transactionMap.get(inv.Transaction_Number__c).Seller_Broker_1_approval__c && transactionMap.get(inv.Transaction_Number__c).StageName == 'Closed Won'){
+                    system.debug('##ENTER3');
+                    if(accountMap.get(inv.Account__c).Invoice_State__c == 'Delivery Date') dateAux = transactionMap.get(inv.Transaction_Number__c).Delivery__c;
+                    if(accountMap.get(inv.Account__c).Invoice_State__c == 'Transaction Date') dateAux = transactionMap.get(inv.Transaction_Number__c).CloseDate;
+                    if(accountMap.get(inv.Account__c).Invoice_State__c == null){
+                        if(transactionMap.get(inv.Transaction_Number__c).RecordTypeId == '0126A000000tzY3QAI') dateAux = transactionMap.get(inv.Transaction_Number__c).Delivery__c;
+                        if(transactionMap.get(inv.Transaction_Number__c).RecordTypeId == '0126A000000tzY8QAI') dateAux = transactionMap.get(inv.Transaction_Number__c).CloseDate;
+                    }
+                    
+                    if(transactionMap.get(inv.Transaction_Number__c).RecordTypeId == '0126A000000tzY3QAI')
+                        statementRecordType = statementLinkCrudeRTId;
+                    else if(transactionMap.get(inv.Transaction_Number__c).RecordTypeId == '0126A000000tzY8QAI')
+                        statementRecordType = statementLinkFutureRTId;
+                            
+                    system.debug('dateAux: '+dateAux);
+                    if(dateAux != null){
+                        transOmmit = new Set<String>();
+                        for(Statement__c st : statementMap.values()){
+                            system.debug(st.RecordTypeId + ' - '+ statementRecordType);
+                            system.debug(st.Account__c + ' - '+ st.Account__c);
+                            system.debug(st.Transaction_Date__c);
+                            system.debug(st.Closing_Date__c);
+                            system.debug(dateAux);
+                            if(st.RecordTypeId == statementRecordType && st.Account__c == inv.Account__c && st.Transaction_Date__c <= dateAux && st.Closing_Date__c >= dateAux){
+                                if(!st.Lock__c){
+                                    sliAux = new Statement_Line_Item__c();
+                                    sliAux.Statement__c = st.Id;
+                                    sliAux.Invoice__c = inv.Id;
+                                    sliAux.Link_Ref__c = inv.Transaction_Number__c;
+                                    sliList.add(sliAux);
+                                    createStatement = false;
+                                    createStatementNextMonth = false;
+                                    break;
+                                }else{
+                                    transOmmit.add(st.Id);
+                                    createStatementNextMonth = true;
+                                    transactionDateAux = st.Closing_Date__c.addDays(1);
+                                }
+                            }
+                        }
+                        
+                        system.debug('11: '+createStatement);
+                        if(createStatement){
+                            for(Integer key : stMap.keySet()){
+                                stAux = stMap.get(key);
+                                if(stAux.RecordTypeId == statementRecordType && stAux.Account__c == inv.Account__c && stAux.Transaction_Date__c <= dateAux && stAux.Closing_Date__c >= dateAux){
+                                    sliAux = new Statement_Line_Item__c(Statement_Aux__c = key,Invoice__c = inv.Id,Link_Ref__c = inv.Transaction_Number__c); sliList.add(sliAux); createStatement = false; createStatementNextMonth = false; break;
+                                }
+                            }
+                            system.debug('22: '+createStatement);
+                            if(createStatement){
+                                if(createStatementNextMonth){
+                                    breakB = false;
+                                    iMonth = transactionDateAux.month();
+                                    system.debug('statementMonthMap: '+statementMonthMap);
+                                    system.debug('iMonth: '+iMonth);
+                                    searchDate = null;
+                                    while(statementMonthMap.get(iMonth) != null && !breakB){
+                                        if(searchDate == null) searchDate = Date.newInstance(transactionDateAux.year(), iMonth, transactionDateAux.day());
+                                        else searchDate = searchDate.addMonths(1);
+                                        
+                                        for(Statement__c st : statementMap.values()){
+                                            system.debug(searchDate);
+                                            if(st.RecordTypeId == statementRecordType && st.Account__c == inv.Account__c && st.Transaction_Date__c <= searchDate && st.Closing_Date__c >= searchDate && !transOmmit.contains(st.Id)){
+                                                breakB = true;
+                                                if(!st.Lock__c){
+                                                    sliAux = new Statement_Line_Item__c(Statement__c = st.Id,Invoice__c = inv.Id,Link_Ref__c = inv.Transaction_Number__c); sliList.add(sliAux); createStatement = false; createStatementNextMonth = false; iMonth = 0; break;
+                                                }else{ createStatementNextMonth = true; transactionDateAux = searchDate.addMonths(1);
+                                                }
+                                            }
+                                        }
+                                        for(Integer key : stMap.keySet()){
+                                            stAux = stMap.get(key);
+                                            if(stAux.RecordTypeId == statementRecordType && stAux.Account__c == inv.Account__c && stAux.Transaction_Date__c <= searchDate && stAux.Closing_Date__c >= searchDate){
+                                                breakB = true; sliAux = new Statement_Line_Item__c(Statement_Aux__c = key,Invoice__c = inv.Id,Link_Ref__c = inv.Transaction_Number__c); sliList.add(sliAux); createStatement = false; createStatementNextMonth = false; iMonth = 0; break;
+                                            }
+                                        }
+                                        
+                                        if(iMonth == 13) iMonth = 1; else iMonth++;
+                                    }
+                                }
+                                system.debug('33: '+createStatement);
+                                if(createStatement){
+                                    stAux = new Statement__c();
+                                    stAux.Account__c = inv.Account__c;
+                                    stAux.RecordTypeId = statementRecordType;
+                                    //stAux.Opportunity__c = inv.Transaction_Number__c;
+                                    //stAux.Exchange_ID__c = inv.Id;
+                                    if(!createStatementNextMonth){
+                                        stAux.Transaction_Date__c = Date.newInstance(dateAux.year(), dateAux.month(), 1);
+                                        numberOfDays = Date.daysInMonth(stAux.Transaction_Date__c.year(),stAux.Transaction_Date__c.month());
+                                        stAux.Closing_Date__c = Date.newInstance(stAux.Transaction_Date__c.year(), stAux.Transaction_Date__c.month(), numberOfDays);  
+                                    }else{
+                                        stAux.Transaction_Date__c = transactionDateAux;
+                                        numberOfDays = Date.daysInMonth(stAux.Transaction_Date__c.year(),stAux.Transaction_Date__c.month());
+                                        stAux.Closing_Date__c = Date.newInstance(stAux.Transaction_Date__c.year(), stAux.Transaction_Date__c.month(), numberOfDays); 
+                                    }
+                                    numberOfDays = Date.daysInMonth(stAux.Closing_Date__c.addDays(1).year(),stAux.Closing_Date__c.addDays(1).month());
+                                    stAux.Due_Date__c = Date.newInstance(stAux.Closing_Date__c.addDays(1).year(), stAux.Closing_Date__c.addDays(1).month(), numberOfDays);
+                                    stAux.Name = ('Statement - ' + accountMap.get(inv.Account__c).Name + ' - ' + stAux.Transaction_Date__c.format() + '-' + stAux.Closing_Date__c.format()).left(80);
+                                    stMap.put(j,stAux);
+                                    
+                                    sliAux = new Statement_Line_Item__c();
+                                    sliAux.Statement_Aux__c = j;
+                                    sliAux.Invoice__c = inv.Id;
+                                    sliAux.Link_Ref__c = inv.Transaction_Number__c;
+                                    sliList.add(sliAux);
+                                    
+                                    j++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        system.debug('stMap: ' + stMap);
+        if(stMap.size()>0) insert stMap.values();
+        if(sliList.size()>0){
+            for(Statement_Line_Item__c sti : sliList){
+                if(sti.Statement__c == null) sti.Statement__c = stMap.get(Integer.valueOf(sti.Statement_Aux__c)).Id;
+            }
+            system.debug('sliList: ' + sliList);
+            insert sliList;
+        }
+    }
+}
