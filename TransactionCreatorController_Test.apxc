@@ -1,0 +1,132 @@
+@isTest
+public class TransactionCreatorController_Test {
+    
+    public static testmethod void test01(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude',isActive=true);
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future',isActive=true);
+        insert pb2;
+        Pricebook2 pb3 = new Pricebook2(Name='Export Price book',isActive=true);
+        insert pb3;
+        Term__c t = new Term__c(Active__c=true,Link__c='Crude',Name='Test',Terms_Verbiage__c='Testing',Type__c='Payment Term');
+        insert t;
+        Account acc = new Account(Name='Test');
+        insert acc;
+        Contact c = new Contact(Lastname='Test',AccountId=acc.Id,Role__c='Confirmation;Invoice;');
+        insert c;
+        String RecordTypeCrudeId = [Select Id From RecordType WHERE Name = 'Link Crude Opportunities' AND sObjectType = 'Opportunity'].Id;
+        List<AccountContactRelation> acr = [select Id from AccountContactRelation limit 1];
+        Test.startTest();
+        TransactionCreatorController controller = new TransactionCreatorController();
+        controller.opportunityData.RecordTypeId = RecordTypeCrudeId;
+        controller.createTransaction();
+        controller.delivery = 'December 2019';
+        controller.saveAction();
+        TransactionCreatorController.searchAccount('test');
+        TransactionCreatorController.searchTrader('test','test');
+        TransactionCreatorController.selectContacts(acc.Id);
+        TransactionCreatorController.selectContacts2(acr.size()>0 ? acr[0].Id :  '', acc.Id);
+        TransactionCreatorController.searchContacts('test',acc.Id,'Confirmation');
+        TransactionCreatorController.searchBrokers('test');
+        TransactionCreatorController.searchTerms('test','Payment Term','Crude');
+        TransactionCreatorController.searchProduct('test','Crude','Crude');
+        Test.stopTest();
+    }
+    
+    public static testmethod void test02(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude',isActive=true);
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future',isActive=true);
+        insert pb2;
+        Pricebook2 pb3 = new Pricebook2(Name='Export Price book',isActive=true);
+        insert pb3;
+        Product2 pro = new Product2(Name='Test Product',isActive=true,Family='Link Crude Products');
+        insert pro;
+        Term__c t = new Term__c(Active__c=true,Link__c='Crude',Name='Test',Terms_Verbiage__c='Testing',Type__c='Payment Term');
+        insert t;
+        Account acc = new Account(Name='Test');
+        insert acc;
+        Contact c = new Contact(Lastname='Test',AccountId=acc.Id,Role__c='Confirmation;Invoice;');
+        insert c;
+        String RecordTypeCrudeId = [Select Id From RecordType WHERE Name = 'Link Crude Opportunities' AND sObjectType = 'Opportunity'].Id;
+        Opportunity opp = new Opportunity(Name='Test',CloseDate=system.today(),StageName='Closed Won',AccountId=acc.Id,RecordTypeId=RecordTypeCrudeId,Delivery__c=Date.newInstance(2019, 12, 02), Grade_Crude__c=pro.Id);
+        insert opp;
+        
+        Test.startTest();
+        Apexpages.StandardController sc = new Apexpages.StandardController(opp);
+        TransactionCreatorController controller = new TransactionCreatorController(sc);
+        controller.saveAction();
+        Test.stopTest();
+    }
+    
+    public static testmethod void test03(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude',isActive=true);
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future',isActive=true);
+        insert pb2;
+        Pricebook2 pb3 = new Pricebook2(Name='Export Price book',isActive=true);
+        insert pb3;
+        Term__c t = new Term__c(Active__c=true,Link__c='Crude',Name='Test',Terms_Verbiage__c='Testing',Type__c='Payment Term'); 
+        insert t;
+        Account acc = new Account(Name='Test');
+        insert acc;
+        Contact c = new Contact(Lastname='Test',AccountId=acc.Id,Role__c='Confirmation;Invoice;');
+        insert c;
+        String RecordTypeCrudeId = [Select Id From RecordType WHERE Name = 'Link Crude Opportunities' AND sObjectType = 'Opportunity'].Id;
+        
+        Test.startTest();
+        TransactionCreatorController controller = new TransactionCreatorController();
+        controller.opportunityData.RecordTypeId = RecordTypeCrudeId;
+        controller.createTransaction();
+        controller.delivery = 'December 2019';
+        controller.opportunityData.Void__c = true;
+        controller.saveAction();
+        Test.stopTest();
+    }
+    
+    public static testmethod void test04(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude',isActive=true);
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future',isActive=true);
+        insert pb2;
+        Pricebook2 pb3 = new Pricebook2(Name='Export Price book',isActive=true);
+        insert pb3;
+        Product2 pro = new Product2(Name='Test Product',isActive=true,Family='Link Crude Products');
+        insert pro;
+        Term__c t = new Term__c(Active__c=true,Link__c='Crude',Name='Test',Terms_Verbiage__c='Testing',Type__c='Payment Term');
+        insert t;
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05);
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05);
+        insert seller1;
+        Contact c = new Contact(Lastname='Test',AccountId=seller1.Id,Role__c='Confirmation;Invoice;');
+        insert c;
+        String RecordTypeCrudeId = [Select Id From RecordType WHERE Name = 'Link Crude Opportunities' AND sObjectType = 'Opportunity'].Id;
+        //Opportunity opp = new Opportunity(Name='Test',Transaction__c='Master (Strip Master)', Start_Date__c=System.today(), End_Date__c=System.today().addMonths(2), CloseDate=system.today(),StageName='Closed Won',AccountId=acc.Id,RecordTypeId=RecordTypeCrudeId,Delivery__c=Date.newInstance(2019, 12, 02), Grade_Crude__c=pro.Id);
+        Opportunity opp = new Opportunity(Transaction__c = 'Master (Strip Master)',RecordTypeId=recordTypeCrudeId,Name='test',CloseDate=system.today(),Start_Date__c=system.today(),End_Date__c=system.today().addMonths(3),StageName='Closed Won', AccountId=buyer1.Id, Seller__c=seller1.Id, Delivery__c = system.today(), Volume_Method__c = 'Total Quantity', Total_Volume_BBL_New__c = 200,Price_Type__c = 'Formula Price', Cost_Per_Unit_formula__c = 'CMA + ARGUS ROLL VERBIAGE');
+        insert opp;
+        
+        Test.startTest();
+        Apexpages.StandardController sc = new Apexpages.StandardController(opp);
+        TransactionCreatorController controller = new TransactionCreatorController(sc);
+        controller.saveAction();
+        Test.stopTest();
+    }
+    
+}
