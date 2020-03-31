@@ -1,0 +1,7 @@
+trigger StatementTrigger on Statement__c (before update) {
+    if(ApexUtil.StatementTrigger_Is_Enabled){
+        for(Statement__c st : trigger.new){
+            if(st.Lock__c) st.addError('This record is locked and no updates can be made. Please speak to your system administrator if you have questions.');
+        }
+    }
+}
