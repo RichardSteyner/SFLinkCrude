@@ -1,0 +1,274 @@
+trigger UpdateCommissionPercentages on Commission__c (before insert, before update, after insert, after update) {
+
+    if(ApexUtil.isUpdateComm==false){
+        if(trigger.isBefore){
+            Integer cont = 0;
+            Decimal sum1 = 0;
+            Integer cont2 = 0;
+            Decimal update1;
+            Set<Id> brokerIds = new Set<Id>();
+            for(Commission__c com : trigger.New){
+                if(com.Buyer_Side_Broker_1__c != null) brokerIds.add(com.Buyer_Side_Broker_1__c);
+                if(com.Buyer_Side_Broker_2__c != null) brokerIds.add(com.Buyer_Side_Broker_2__c);
+                if(com.Buyer_Side_Broker_3__c != null) brokerIds.add(com.Buyer_Side_Broker_3__c);
+                if(com.Buyer_Side_Broker_4__c != null) brokerIds.add(com.Buyer_Side_Broker_4__c);
+                if(com.Seller_Side_Broker_1__c != null) brokerIds.add(com.Seller_Side_Broker_1__c);
+                if(com.Seller_Side_Broker_2__c != null) brokerIds.add(com.Seller_Side_Broker_2__c);
+                if(com.Seller_Side_Broker_3__c != null) brokerIds.add(com.Seller_Side_Broker_3__c);
+                if(com.Seller_Side_Broker_4__c != null) brokerIds.add(com.Seller_Side_Broker_4__c);
+            }
+            
+            Map<Id,Contact> contactMap = new Map<Id,Contact>();
+            for(Contact conAux : [Select Id, Email, Overhead_Rate__c, Travel_Expense__c, Management_fee__c From Contact WHERE Id IN: brokerIds]) contactMap.put(conAux.Id,conAux);
+            
+            Decimal sumTravel;
+            Decimal sumManagement;
+            Decimal calculate1;
+            Decimal calculate2;
+            if(trigger.isInsert){
+                for(Commission__c com : trigger.new){
+                    if(com.Buyer_Side_Broker_1__c != null && contactMap.get(com.Buyer_Side_Broker_1__c) != null) com.Buyer_Broker_1_Overhead_Rate__c = contactMap.get(com.Buyer_Side_Broker_1__c).Overhead_Rate__c;
+                    if(com.Buyer_Side_Broker_2__c != null && contactMap.get(com.Buyer_Side_Broker_2__c) != null) com.Buyer_Broker_2_Overhead_Rate__c = contactMap.get(com.Buyer_Side_Broker_2__c).Overhead_Rate__c;
+                    if(com.Buyer_Side_Broker_3__c != null && contactMap.get(com.Buyer_Side_Broker_3__c) != null) com.Buyer_Broker_3_Overhead_Rate__c = contactMap.get(com.Buyer_Side_Broker_3__c).Overhead_Rate__c;
+                    if(com.Buyer_Side_Broker_4__c != null && contactMap.get(com.Buyer_Side_Broker_4__c) != null) com.Buyer_Broker_4_Overhead_Rate__c = contactMap.get(com.Buyer_Side_Broker_4__c).Overhead_Rate__c;
+                    if(com.Seller_Side_Broker_1__c != null && contactMap.get(com.Seller_Side_Broker_1__c) != null) com.Seller_Broker_1_Overhead_Rate__c = contactMap.get(com.Seller_Side_Broker_1__c).Overhead_Rate__c;
+                    if(com.Seller_Side_Broker_2__c != null && contactMap.get(com.Seller_Side_Broker_2__c) != null) com.Seller_Broker_2_Overhead_Rate__c = contactMap.get(com.Seller_Side_Broker_2__c).Overhead_Rate__c;
+                    if(com.Seller_Side_Broker_3__c != null && contactMap.get(com.Seller_Side_Broker_3__c) != null) com.Seller_Broker_3_Overhead_Rate__c = contactMap.get(com.Seller_Side_Broker_3__c).Overhead_Rate__c;
+                    if(com.Seller_Side_Broker_4__c != null && contactMap.get(com.Seller_Side_Broker_4__c) != null) com.Seller_Broker_4_Overhead_Rate__c = contactMap.get(com.Seller_Side_Broker_4__c).Overhead_Rate__c;
+                    
+                    //Commissions
+                    com.Buyer_1_Commission_BD__c = ((com.Buyer_Commission__c != null ? com.Buyer_Commission__c : 0) * (com.Buyer_Side_Commission_1__c != null ? com.Buyer_Side_Commission_1__c/100 : 0)) * (1 - (com.Buyer_Broker_1_Overhead_Rate__c != null ? com.Buyer_Broker_1_Overhead_Rate__c : 0));
+                    com.Buyer_2_Commission_BD__c = ((com.Buyer_Commission__c != null ? com.Buyer_Commission__c : 0) * (com.Buyer_Side_Commission_2__c != null ? com.Buyer_Side_Commission_2__c/100 : 0)) * (1 - (com.Buyer_Broker_2_Overhead_Rate__c != null ? com.Buyer_Broker_2_Overhead_Rate__c : 0));
+                    com.Buyer_3_Commission_BD__c = ((com.Buyer_Commission__c != null ? com.Buyer_Commission__c : 0) * (com.Buyer_Side_Commission_3__c != null ? com.Buyer_Side_Commission_3__c/100 : 0)) * (1 - (com.Buyer_Broker_3_Overhead_Rate__c != null ? com.Buyer_Broker_3_Overhead_Rate__c : 0));
+                    com.Buyer_4_Commission_BD__c = ((com.Buyer_Commission__c != null ? com.Buyer_Commission__c : 0) * (com.Buyer_Side_Commission_Split_4__c != null ? com.Buyer_Side_Commission_Split_4__c/100 : 0)) * (1 - (com.Buyer_Broker_4_Overhead_Rate__c != null ? com.Buyer_Broker_4_Overhead_Rate__c : 0));
+                    com.Seller_1_Commission_BD__c = ((com.Seller_Commission__c != null ? com.Seller_Commission__c : 0) * (com.Seller_Side_Commission_1__c != null ? com.Seller_Side_Commission_1__c/100 : 0)) * (1 - (com.Seller_Broker_1_Overhead_Rate__c != null ? com.Seller_Broker_1_Overhead_Rate__c : 0));
+                    com.Seller_2_Commission_BD__c = ((com.Seller_Commission__c != null ? com.Seller_Commission__c : 0) * (com.Seller_Side_Commission_2__c != null ? com.Seller_Side_Commission_2__c/100 : 0)) * (1 - (com.Seller_Broker_2_Overhead_Rate__c != null ? com.Seller_Broker_2_Overhead_Rate__c : 0));
+                    com.Seller_3_Commission_BD__c = ((com.Seller_Commission__c != null ? com.Seller_Commission__c : 0) * (com.Seller_Side_Commission_3__c != null ? com.Seller_Side_Commission_3__c/100 : 0)) * (1 - (com.Seller_Broker_3_Overhead_Rate__c != null ? com.Seller_Broker_3_Overhead_Rate__c : 0));
+                    com.Seller_4_Commission_BD__c = ((com.Seller_Commission__c != null ? com.Seller_Commission__c : 0) * (com.Seller_Side_Commission_Split_4__c != null ? com.Seller_Side_Commission_Split_4__c/100 : 0)) * (1 - (com.Seller_Broker_4_Overhead_Rate__c != null ? com.Seller_Broker_4_Overhead_Rate__c : 0));
+                    
+                    //Travel and Management
+                    sumTravel = 0;
+                    sumManagement = 0;
+                    if(com.Buyer_Side_Broker_1__c != null && com.Buyer_1_Commission__c != null) sumTravel = sumTravel + com.Buyer_1_Commission__c;
+                    if(com.Buyer_Side_Broker_2__c != null && com.Buyer_2_Commission__c != null) sumTravel = sumTravel + com.Buyer_2_Commission__c;
+                    if(com.Buyer_Side_Broker_3__c != null && com.Buyer_3_Commission__c != null) sumTravel = sumTravel + com.Buyer_3_Commission__c;
+                    if(com.Buyer_Side_Broker_4__c != null && com.Buyer_4_Commission__c != null) sumTravel = sumTravel + com.Buyer_4_Commission__c;
+                    if(com.Seller_Side_Broker_1__c != null && com.Seller_1_Commission__c != null) sumTravel = sumTravel + com.Seller_1_Commission__c;
+                    if(com.Seller_Side_Broker_2__c != null && com.Seller_2_Commission__c != null) sumTravel = sumTravel + com.Seller_2_Commission__c;
+                    if(com.Seller_Side_Broker_3__c != null && com.Seller_3_Commission__c != null) sumTravel = sumTravel + com.Seller_3_Commission__c;
+                    if(com.Seller_Side_Broker_4__c != null && com.Seller_4_Commission__c != null) sumTravel = sumTravel + com.Seller_4_Commission__c;
+                    com.Travel_Expense_JE__c = sumTravel * 0.05;
+                    com.Management_Fee_JE__c = ((com.Buyer_Commission__c != null ? com.Buyer_Commission__c : 0) + (com.Seller_Commission__c != null ? com.Seller_Commission__c : 0)) * 0.072;
+                }
+            }else{
+                for(Commission__c com : trigger.new){
+                    if(com.Lock__c) com.addError('This record is locked and no updates can be made. Please speak to your system administrator if you have questions.');
+                    
+                    if(com.Buyer_Side_Broker_1__c != null && contactMap.get(com.Buyer_Side_Broker_1__c) != null) com.Buyer_Side_Broker_1_Email__c = contactMap.get(com.Buyer_Side_Broker_1__c).Email;
+                    if(com.Seller_Side_Broker_1__c != null && contactMap.get(com.Seller_Side_Broker_1__c) != null) com.Seller_Side_Broker_1_Email__c = contactMap.get(com.Seller_Side_Broker_1__c).Email;
+                    //BUYER
+                    cont = 0;
+                    sum1 = 0;
+                    cont2 = 0;
+                    if((com.Buyer_Side_Broker_1__c != null && trigger.oldMap.get(com.Id).Buyer_Side_Commission_1__c != com.Buyer_Side_Commission_1__c) || (com.Buyer_Side_Broker_2__c != null && trigger.oldMap.get(com.Id).Buyer_Side_Commission_2__c != com.Buyer_Side_Commission_2__c) || (com.Buyer_Side_Broker_3__c != null && trigger.oldMap.get(com.Id).Buyer_Side_Commission_3__c != com.Buyer_Side_Commission_3__c) || (com.Buyer_Side_Broker_4__c != null && trigger.oldMap.get(com.Id).Buyer_Side_Commission_Split_4__c != com.Buyer_Side_Commission_Split_4__c)
+                      )
+                    {
+                        if(com.Buyer_Side_Broker_1__c != null) cont2++;
+                        if(com.Buyer_Side_Broker_2__c != null) cont2++;
+                        if(com.Buyer_Side_Broker_3__c != null) cont2++;
+                        if(com.Buyer_Side_Broker_4__c != null) cont2++;
+                        
+                        if(com.Buyer_Side_Broker_1__c != null && trigger.oldMap.get(com.Id).Buyer_Side_Commission_1__c != com.Buyer_Side_Commission_1__c){
+                            sum1 = sum1 + com.Buyer_Side_Commission_1__c; cont++; cont2--;
+                        }
+                        if(com.Buyer_Side_Broker_2__c != null && trigger.oldMap.get(com.Id).Buyer_Side_Commission_2__c != com.Buyer_Side_Commission_2__c){
+                            sum1 = sum1 + com.Buyer_Side_Commission_2__c; cont++; cont2--;
+                        }
+                        if(com.Buyer_Side_Broker_3__c != null && trigger.oldMap.get(com.Id).Buyer_Side_Commission_3__c != com.Buyer_Side_Commission_3__c){
+                            sum1 = sum1 + com.Buyer_Side_Commission_3__c; cont++; cont2--;
+                        }
+                        if(com.Buyer_Side_Broker_4__c != null && trigger.oldMap.get(com.Id).Buyer_Side_Commission_Split_4__c != com.Buyer_Side_Commission_Split_4__c){
+                            sum1 = sum1 + com.Buyer_Side_Commission_Split_4__c; cont++; cont2--;
+                        }
+                        
+                        if(cont2 > 0){
+                            update1 = (100-sum1)/cont2;
+                            
+                            if(com.Buyer_Side_Broker_1__c != null && trigger.oldMap.get(com.Id).Buyer_Side_Commission_1__c == com.Buyer_Side_Commission_1__c) com.Buyer_Side_Commission_1__c = update1;
+                            if(com.Buyer_Side_Broker_2__c != null && trigger.oldMap.get(com.Id).Buyer_Side_Commission_2__c == com.Buyer_Side_Commission_2__c) com.Buyer_Side_Commission_2__c = update1;
+                            if(com.Buyer_Side_Broker_3__c != null && trigger.oldMap.get(com.Id).Buyer_Side_Commission_3__c == com.Buyer_Side_Commission_3__c) com.Buyer_Side_Commission_3__c = update1;
+                            if(com.Buyer_Side_Broker_4__c != null && trigger.oldMap.get(com.Id).Buyer_Side_Commission_Split_4__c == com.Buyer_Side_Commission_Split_4__c) com.Buyer_Side_Commission_Split_4__c = update1;
+                        }
+                    }
+                    //SELLER
+                    cont = 0;
+                    sum1 = 0;
+                    cont2 = 0;
+                    if((com.Seller_Side_Broker_1__c != null && trigger.oldMap.get(com.Id).Seller_Side_Commission_1__c != com.Seller_Side_Commission_1__c) || (com.Seller_Side_Broker_2__c != null && trigger.oldMap.get(com.Id).Seller_Side_Commission_2__c != com.Seller_Side_Commission_2__c) || (com.Seller_Side_Broker_3__c != null && trigger.oldMap.get(com.Id).Seller_Side_Commission_3__c != com.Seller_Side_Commission_3__c) || (com.Seller_Side_Broker_4__c != null && trigger.oldMap.get(com.Id).Seller_Side_Commission_Split_4__c != com.Seller_Side_Commission_Split_4__c)
+                      )
+                    {
+                        if(com.Seller_Side_Broker_1__c != null) cont2++;
+                        if(com.Seller_Side_Broker_2__c != null) cont2++;
+                        if(com.Seller_Side_Broker_3__c != null) cont2++;
+                        if(com.Seller_Side_Broker_4__c != null) cont2++;
+                        
+                        if(com.Seller_Side_Broker_1__c != null && trigger.oldMap.get(com.Id).Seller_Side_Commission_1__c != com.Seller_Side_Commission_1__c){
+                            sum1 = sum1 + com.Seller_Side_Commission_1__c; cont++; cont2--;
+                        }
+                        if(com.Seller_Side_Broker_2__c != null && trigger.oldMap.get(com.Id).Seller_Side_Commission_2__c != com.Seller_Side_Commission_2__c){
+                            sum1 = sum1 + com.Seller_Side_Commission_2__c; cont++; cont2--;
+                        }
+                        if(com.Seller_Side_Broker_3__c != null && trigger.oldMap.get(com.Id).Seller_Side_Commission_3__c != com.Seller_Side_Commission_3__c){
+                            sum1 = sum1 + com.Seller_Side_Commission_3__c; cont++; cont2--;
+                        }
+                        if(com.Seller_Side_Broker_4__c != null && trigger.oldMap.get(com.Id).Seller_Side_Commission_Split_4__c != com.Seller_Side_Commission_Split_4__c){
+                            sum1 = sum1 + com.Seller_Side_Commission_Split_4__c; cont++; cont2--;
+                        }
+                        
+                        if(cont2 > 0){
+                            update1 = (100-sum1)/cont2;
+                            
+                            if(com.Seller_Side_Broker_1__c != null && trigger.oldMap.get(com.Id).Seller_Side_Commission_1__c == com.Seller_Side_Commission_1__c) com.Seller_Side_Commission_1__c = update1;
+                            if(com.Seller_Side_Broker_2__c != null && trigger.oldMap.get(com.Id).Seller_Side_Commission_2__c == com.Seller_Side_Commission_2__c) com.Seller_Side_Commission_2__c = update1;
+                            if(com.Seller_Side_Broker_3__c != null && trigger.oldMap.get(com.Id).Seller_Side_Commission_3__c == com.Seller_Side_Commission_3__c) com.Seller_Side_Commission_3__c = update1;
+                            if(com.Seller_Side_Broker_4__c != null && trigger.oldMap.get(com.Id).Seller_Side_Commission_Split_4__c == com.Seller_Side_Commission_Split_4__c) com.Seller_Side_Commission_Split_4__c = update1;
+                        }
+                    }
+                    
+                    if(com.Buyer_Side_Broker_1__c != null && contactMap.get(com.Buyer_Side_Broker_1__c) != null) com.Buyer_Broker_1_Overhead_Rate__c = contactMap.get(com.Buyer_Side_Broker_1__c).Overhead_Rate__c;
+                    if(com.Buyer_Side_Broker_2__c != null && contactMap.get(com.Buyer_Side_Broker_2__c) != null) com.Buyer_Broker_2_Overhead_Rate__c = contactMap.get(com.Buyer_Side_Broker_2__c).Overhead_Rate__c;
+                    if(com.Buyer_Side_Broker_3__c != null && contactMap.get(com.Buyer_Side_Broker_3__c) != null) com.Buyer_Broker_3_Overhead_Rate__c = contactMap.get(com.Buyer_Side_Broker_3__c).Overhead_Rate__c;
+                    if(com.Buyer_Side_Broker_4__c != null && contactMap.get(com.Buyer_Side_Broker_4__c) != null) com.Buyer_Broker_4_Overhead_Rate__c = contactMap.get(com.Buyer_Side_Broker_4__c).Overhead_Rate__c;
+                    if(com.Seller_Side_Broker_1__c != null && contactMap.get(com.Seller_Side_Broker_1__c) != null) com.Seller_Broker_1_Overhead_Rate__c = contactMap.get(com.Seller_Side_Broker_1__c).Overhead_Rate__c;
+                    if(com.Seller_Side_Broker_2__c != null && contactMap.get(com.Seller_Side_Broker_2__c) != null) com.Seller_Broker_2_Overhead_Rate__c = contactMap.get(com.Seller_Side_Broker_2__c).Overhead_Rate__c;
+                    if(com.Seller_Side_Broker_3__c != null && contactMap.get(com.Seller_Side_Broker_3__c) != null) com.Seller_Broker_3_Overhead_Rate__c = contactMap.get(com.Seller_Side_Broker_3__c).Overhead_Rate__c;
+                    if(com.Seller_Side_Broker_4__c != null && contactMap.get(com.Seller_Side_Broker_4__c) != null) com.Seller_Broker_4_Overhead_Rate__c = contactMap.get(com.Seller_Side_Broker_4__c).Overhead_Rate__c;
+                    
+                    //Commissions
+                    com.Buyer_1_Commission_BD__c = ((com.Buyer_Commission__c != null ? com.Buyer_Commission__c : 0) * (com.Buyer_Side_Commission_1__c != null ? com.Buyer_Side_Commission_1__c/100 : 0)) * (1 - (com.Buyer_Broker_1_Overhead_Rate__c != null ? com.Buyer_Broker_1_Overhead_Rate__c : 0));
+                    com.Buyer_2_Commission_BD__c = ((com.Buyer_Commission__c != null ? com.Buyer_Commission__c : 0) * (com.Buyer_Side_Commission_2__c != null ? com.Buyer_Side_Commission_2__c/100 : 0)) * (1 - (com.Buyer_Broker_2_Overhead_Rate__c != null ? com.Buyer_Broker_2_Overhead_Rate__c : 0));
+                    com.Buyer_3_Commission_BD__c = ((com.Buyer_Commission__c != null ? com.Buyer_Commission__c : 0) * (com.Buyer_Side_Commission_3__c != null ? com.Buyer_Side_Commission_3__c/100 : 0)) * (1 - (com.Buyer_Broker_3_Overhead_Rate__c != null ? com.Buyer_Broker_3_Overhead_Rate__c : 0));
+                    com.Buyer_4_Commission_BD__c = ((com.Buyer_Commission__c != null ? com.Buyer_Commission__c : 0) * (com.Buyer_Side_Commission_Split_4__c != null ? com.Buyer_Side_Commission_Split_4__c/100 : 0)) * (1 - (com.Buyer_Broker_4_Overhead_Rate__c != null ? com.Buyer_Broker_4_Overhead_Rate__c : 0));
+                    com.Seller_1_Commission_BD__c = ((com.Seller_Commission__c != null ? com.Seller_Commission__c : 0) * (com.Seller_Side_Commission_1__c != null ? com.Seller_Side_Commission_1__c/100 : 0)) * (1 - (com.Seller_Broker_1_Overhead_Rate__c != null ? com.Seller_Broker_1_Overhead_Rate__c : 0));
+                    com.Seller_2_Commission_BD__c = ((com.Seller_Commission__c != null ? com.Seller_Commission__c : 0) * (com.Seller_Side_Commission_2__c != null ? com.Seller_Side_Commission_2__c/100 : 0)) * (1 - (com.Seller_Broker_2_Overhead_Rate__c != null ? com.Seller_Broker_2_Overhead_Rate__c : 0));
+                    com.Seller_3_Commission_BD__c = ((com.Seller_Commission__c != null ? com.Seller_Commission__c : 0) * (com.Seller_Side_Commission_3__c != null ? com.Seller_Side_Commission_3__c/100 : 0)) * (1 - (com.Seller_Broker_3_Overhead_Rate__c != null ? com.Seller_Broker_3_Overhead_Rate__c : 0));
+                    com.Seller_4_Commission_BD__c = ((com.Seller_Commission__c != null ? com.Seller_Commission__c : 0) * (com.Seller_Side_Commission_Split_4__c != null ? com.Seller_Side_Commission_Split_4__c/100 : 0)) * (1 - (com.Seller_Broker_4_Overhead_Rate__c != null ? com.Seller_Broker_4_Overhead_Rate__c : 0));
+                    
+                    //Travel and Management
+                    sumTravel = 0;
+                    sumManagement = 0;
+                    if(com.Buyer_Side_Broker_1__c != null && com.Buyer_1_Commission__c != null) sumTravel = sumTravel + com.Buyer_1_Commission__c;
+                    if(com.Buyer_Side_Broker_2__c != null && com.Buyer_2_Commission__c != null) sumTravel = sumTravel + com.Buyer_2_Commission__c;
+                    if(com.Buyer_Side_Broker_3__c != null && com.Buyer_3_Commission__c != null) sumTravel = sumTravel + com.Buyer_3_Commission__c;
+                    if(com.Buyer_Side_Broker_4__c != null && com.Buyer_4_Commission__c != null) sumTravel = sumTravel + com.Buyer_4_Commission__c;
+                    if(com.Seller_Side_Broker_1__c != null && com.Seller_1_Commission__c != null) sumTravel = sumTravel + com.Seller_1_Commission__c;
+                    if(com.Seller_Side_Broker_2__c != null && com.Seller_2_Commission__c != null) sumTravel = sumTravel + com.Seller_2_Commission__c;
+                    if(com.Seller_Side_Broker_3__c != null && com.Seller_3_Commission__c != null) sumTravel = sumTravel + com.Seller_3_Commission__c;
+                    if(com.Seller_Side_Broker_4__c != null && com.Seller_4_Commission__c != null) sumTravel = sumTravel + com.Seller_4_Commission__c;
+                    com.Travel_Expense_JE__c = sumTravel * 0.05;
+                    com.Management_Fee_JE__c = ((com.Buyer_Commission__c != null ? com.Buyer_Commission__c : 0) + (com.Seller_Commission__c != null ? com.Seller_Commission__c : 0)) * 0.072;
+                }
+            }
+        }
+        if(trigger.isAfter){
+            Map<String,Opportunity> transMap = new Map<String,Opportunity>();
+            Set<String> commissionIds = new Set<String>();
+            for(Commission__c c : trigger.new){
+                commissionIds.add(c.Id);
+                if(c.Transaction_No__c != null) transMap.put(c.Transaction_No__c,new Opportunity());
+            }
+            
+            for(Opportunity trans : [SELECT Id, Total_Volume_BBL_New__c, Trader_for_Buyer__c, Trader_for_Seller__c, Seller__c, AccountId FROM Opportunity WHERE Id IN: transMap.keySet()]) transMap.put(trans.Id,trans);
+            
+            String accountRankingRT, traderRankingRT, brokerRankingRT;
+            for(RecordType rt : [SELECT Id, DeveloperName FROM RecordType WHERE sObjectType = 'Rank__c' AND (DeveloperName = 'Account_Ranking' or DeveloperName = 'Trader_Ranking' or DeveloperName = 'Broker_Ranking')]) {
+                if(rt.DeveloperName.equalsIgnoreCase('Account_Ranking')) accountRankingRT = rt.Id;
+                else if(rt.DeveloperName.equalsIgnoreCase('Trader_Ranking')) traderRankingRT = rt.Id;
+                else brokerRankingRT = rt.ID; //Broker_Ranking
+            }
+            
+            Rank__c rank;
+            List<Rank__c> rankList = new List<Rank__c>();
+            
+            if(trigger.isInsert){
+                for(Commission__c c : trigger.new){
+                    if(c.Transaction_No__c != null && transMap.get(c.Transaction_No__c) != null && (c.Buyer_Commission__c != null || c.Seller_Commission__c != null)
+                       && transMap.get(c.Transaction_No__c).Total_Volume_BBL_New__c != null
+                       && transMap.get(c.Transaction_No__c).Trader_for_Buyer__c != null
+                       && transMap.get(c.Transaction_No__c).Trader_for_Seller__c != null){
+                           if(transMap.get(c.Transaction_No__c).Seller__c != null){
+                               rank = new Rank__c(Commission__c = c.Id,Role__c = 'Seller', RecordTypeId = accountRankingRT, Account__c = transMap.get(c.Transaction_No__c).Seller__c);
+                               rankList.add(rank);
+                           }
+                           if(transMap.get(c.Transaction_No__c).AccountId != null){
+                               rank = new Rank__c(Commission__c = c.Id,Role__c = 'Buyer', RecordTypeId = accountRankingRT, Account__c = transMap.get(c.Transaction_No__c).AccountId);
+                               rankList.add(rank);
+                           }
+                           if(transMap.get(c.Transaction_No__c).Trader_for_Seller__c != null){
+                               rank = new Rank__c(Commission__c = c.Id,Role__c = 'Seller', RecordTypeId = traderRankingRT, Trader__c = transMap.get(c.Transaction_No__c).Trader_for_Seller__c);
+                               rankList.add(rank);
+                           }
+                           if(transMap.get(c.Transaction_No__c).Trader_for_Buyer__c != null){
+                               rank = new Rank__c(Commission__c = c.Id,Role__c = 'Buyer', RecordTypeId = traderRankingRT, Trader__c = transMap.get(c.Transaction_No__c).Trader_for_Buyer__c);
+                               rankList.add(rank);
+                           }
+                       }
+                    if(c.Buyer_Side_Broker_1__c!=null) rankList.add(new Rank__c(Broker__c=c.Buyer_Side_Broker_1__c, Commission__c = c.Id, Role__c = 'Buyer', RecordTypeId = brokerRankingRT, BrokerAux__c='B1', Split__c=c.Buyer_Side_Commission_1__c, Commission_Amount__c=c.Buyer_1_Commission_BD__c, Broker_Overhead_Rate__c=c.Buyer_Broker_1_Overhead_Rate__c));
+                    if(c.Buyer_Side_Broker_2__c!=null) rankList.add(new Rank__c(Broker__c=c.Buyer_Side_Broker_2__c, Commission__c = c.Id, Role__c = 'Buyer', RecordTypeId = brokerRankingRT, BrokerAux__c='B2', Split__c=c.Buyer_Side_Commission_2__c, Commission_Amount__c=c.Buyer_2_Commission_BD__c, Broker_Overhead_Rate__c=c.Buyer_Broker_2_Overhead_Rate__c));
+                    if(c.Buyer_Side_Broker_3__c!=null) rankList.add(new Rank__c(Broker__c=c.Buyer_Side_Broker_3__c, Commission__c = c.Id, Role__c = 'Buyer', RecordTypeId = brokerRankingRT, BrokerAux__c='B3', Split__c=c.Buyer_Side_Commission_3__c, Commission_Amount__c=c.Buyer_3_Commission_BD__c, Broker_Overhead_Rate__c=c.Buyer_Broker_3_Overhead_Rate__c));
+                    if(c.Buyer_Side_Broker_4__c!=null) rankList.add(new Rank__c(Broker__c=c.Buyer_Side_Broker_4__c, Commission__c = c.Id, Role__c = 'Buyer', RecordTypeId = brokerRankingRT, BrokerAux__c='B4', Split__c=c.Buyer_Side_Commission_Split_4__c, Commission_Amount__c=c.Buyer_4_Commission_BD__c, Broker_Overhead_Rate__c=c.Buyer_Broker_4_Overhead_Rate__c));
+                    if(c.Buyer_Side_Broker_5__c!=null) rankList.add(new Rank__c(Broker__c=c.Buyer_Side_Broker_5__c, Commission__c = c.Id, Role__c = 'Buyer', RecordTypeId = brokerRankingRT, BrokerAux__c='B5', Split__c=c.Buyer_Side_Commission_5__c, Commission_Amount__c=c.Buyer_5_Commission_BD__c, Broker_Overhead_Rate__c=c.Buyer_Broker_5_Overhead_Rate__c));
+                    
+                    if(c.Seller_Side_Broker_1__c!=null) rankList.add(new Rank__c(Broker__c=c.Seller_Side_Broker_1__c, Commission__c = c.Id, Role__c = 'Seller', RecordTypeId = brokerRankingRT, BrokerAux__c='S1', Split__c=c.Seller_Side_Commission_1__c, Commission_Amount__c=c.Seller_1_Commission_BD__c, Broker_Overhead_Rate__c=c.Seller_Broker_1_Overhead_Rate__c));
+                    if(c.Seller_Side_Broker_2__c!=null) rankList.add(new Rank__c(Broker__c=c.Seller_Side_Broker_2__c, Commission__c = c.Id, Role__c = 'Seller', RecordTypeId = brokerRankingRT, BrokerAux__c='S2', Split__c=c.Seller_Side_Commission_2__c, Commission_Amount__c=c.Seller_2_Commission_BD__c, Broker_Overhead_Rate__c=c.Seller_Broker_2_Overhead_Rate__c));
+                    if(c.Seller_Side_Broker_3__c!=null) rankList.add(new Rank__c(Broker__c=c.Seller_Side_Broker_3__c, Commission__c = c.Id, Role__c = 'Seller', RecordTypeId = brokerRankingRT, BrokerAux__c='S3', Split__c=c.Seller_Side_Commission_3__c, Commission_Amount__c=c.Seller_3_Commission_BD__c, Broker_Overhead_Rate__c=c.Seller_Broker_3_Overhead_Rate__c));
+                    if(c.Seller_Side_Broker_4__c!=null) rankList.add(new Rank__c(Broker__c=c.Seller_Side_Broker_4__c, Commission__c = c.Id, Role__c = 'Seller', RecordTypeId = brokerRankingRT, BrokerAux__c='S4', Split__c=c.Seller_Side_Commission_Split_4__c, Commission_Amount__c=c.Seller_4_Commission_BD__c, Broker_Overhead_Rate__c=c.Seller_Broker_4_Overhead_Rate__c));
+                    if(c.Seller_Side_Broker_5__c!=null) rankList.add(new Rank__c(Broker__c=c.Seller_Side_Broker_5__c, Commission__c = c.Id, Role__c = 'Seller', RecordTypeId = brokerRankingRT, BrokerAux__c='S5', Split__c=c.Seller_Side_Commission_5__c, Commission_Amount__c=c.Seller_5_Commission_BD__c, Broker_Overhead_Rate__c=c.Seller_Broker_5_Overhead_Rate__c));
+                    if(c.Seller_Side_Broker_6__c!=null) rankList.add(new Rank__c(Broker__c=c.Seller_Side_Broker_6__c, Commission__c = c.Id, Role__c = 'Seller', RecordTypeId = brokerRankingRT, BrokerAux__c='S6', Split__c=c.Seller_Side_Commission_6__c, Commission_Amount__c=c.Seller_6_Commission_BD__c, Broker_Overhead_Rate__c=c.Seller_Broker_6_Overhead_Rate__c));
+                    if(c.Seller_Side_Broker_7__c!=null) rankList.add(new Rank__c(Broker__c=c.Seller_Side_Broker_7__c, Commission__c = c.Id, Role__c = 'Seller', RecordTypeId = brokerRankingRT, BrokerAux__c='S7', Split__c=c.Seller_Side_Commission_7__c, Commission_Amount__c=c.Seller_7_Commission_BD__c, Broker_Overhead_Rate__c=c.Seller_Broker_7_Overhead_Rate__c));
+                }
+            }else{
+                Map<String,Rank__c> rankMap = new Map<String,Rank__c>();
+                for(Rank__c rAux : [SELECT Id, Commission__c, Role__c, RecordTypeId, Account__c, Trader__c, BrokerAux__c FROM Rank__c WHERE Commission__c IN: commissionIds]) rankMap.put(rAux.Commission__c + rAux.Role__c + rAux.RecordTypeId + (rAux.BrokerAux__c!=null ? rAux.BrokerAux__c : ''), rAux);
+                    
+                for(Commission__c c : trigger.new){
+                    if(c.Transaction_No__c != null && transMap.get(c.Transaction_No__c) != null && (c.Buyer_Commission__c != null || c.Seller_Commission__c != null) && transMap.get(c.Transaction_No__c).Total_Volume_BBL_New__c != null
+                       && (transMap.get(c.Transaction_No__c).Trader_for_Buyer__c != null || transMap.get(c.Transaction_No__c).Trader_for_Seller__c != null)){
+                           System.debug('hi');
+                           if(transMap.get(c.Transaction_No__c).Seller__c != null){
+                               rank = new Rank__c(Id = (rankMap.get(c.Id + 'Seller' + accountRankingRT) != null ? rankMap.get(c.Id + 'Seller' + accountRankingRT).Id : null),Commission__c = c.Id,Role__c = 'Seller', RecordTypeId = accountRankingRT, Account__c = transMap.get(c.Transaction_No__c).Seller__c);
+                               rankList.add(rank);
+                           }
+                           if(transMap.get(c.Transaction_No__c).AccountId != null){
+                               rank = new Rank__c(Id = (rankMap.get(c.Id + 'Buyer' + accountRankingRT) != null ? rankMap.get(c.Id + 'Buyer' + accountRankingRT).Id : null),Commission__c = c.Id,Role__c = 'Buyer', RecordTypeId = accountRankingRT, Account__c = transMap.get(c.Transaction_No__c).AccountId);
+                               rankList.add(rank);
+                           }
+                           if(transMap.get(c.Transaction_No__c).Trader_for_Seller__c != null){
+                               rank = new Rank__c(Id = (rankMap.get(c.Id + 'Seller' + traderRankingRT) != null ? rankMap.get(c.Id + 'Seller' + traderRankingRT).Id : null),Commission__c = c.Id,Role__c = 'Seller', RecordTypeId = traderRankingRT, Trader__c = transMap.get(c.Transaction_No__c).Trader_for_Seller__c);
+                               rankList.add(rank);
+                           }
+                           if(transMap.get(c.Transaction_No__c).Trader_for_Buyer__c != null){
+                               rank = new Rank__c(Id = (rankMap.get(c.Id + 'Buyer' + traderRankingRT) != null ? rankMap.get(c.Id + 'Buyer' + traderRankingRT).Id : null),Commission__c = c.Id,Role__c = 'Buyer', RecordTypeId = traderRankingRT, Trader__c = transMap.get(c.Transaction_No__c).Trader_for_Buyer__c);
+                               rankList.add(rank);
+                           }
+                       }
+                    if(c.Buyer_Side_Broker_1__c!=null) rankList.add(new Rank__c(Broker__c=c.Buyer_Side_Broker_1__c, Id = (rankMap.get(c.Id + 'Buyer' + brokerRankingRT + 'B1') != null ? rankMap.get(c.Id + 'Buyer' + brokerRankingRT + 'B1').Id : null), Commission__c = c.Id, Role__c = 'Buyer', RecordTypeId = brokerRankingRT, BrokerAux__c='B1', Split__c=c.Buyer_Side_Commission_1__c, Commission_Amount__c=c.Buyer_1_Commission_BD__c, Broker_Overhead_Rate__c=c.Buyer_Broker_1_Overhead_Rate__c));
+                    if(c.Buyer_Side_Broker_2__c!=null) rankList.add(new Rank__c(Broker__c=c.Buyer_Side_Broker_2__c, Id = (rankMap.get(c.Id + 'Buyer' + brokerRankingRT + 'B2') != null ? rankMap.get(c.Id + 'Buyer' + brokerRankingRT + 'B2').Id : null), Commission__c = c.Id, Role__c = 'Buyer', RecordTypeId = brokerRankingRT, BrokerAux__c='B2', Split__c=c.Buyer_Side_Commission_2__c, Commission_Amount__c=c.Buyer_2_Commission_BD__c, Broker_Overhead_Rate__c=c.Buyer_Broker_2_Overhead_Rate__c));
+                    if(c.Buyer_Side_Broker_3__c!=null) rankList.add(new Rank__c(Broker__c=c.Buyer_Side_Broker_3__c, Id = (rankMap.get(c.Id + 'Buyer' + brokerRankingRT + 'B3') != null ? rankMap.get(c.Id + 'Buyer' + brokerRankingRT + 'B3').Id : null), Commission__c = c.Id, Role__c = 'Buyer', RecordTypeId = brokerRankingRT, BrokerAux__c='B3', Split__c=c.Buyer_Side_Commission_3__c, Commission_Amount__c=c.Buyer_3_Commission_BD__c, Broker_Overhead_Rate__c=c.Buyer_Broker_3_Overhead_Rate__c));
+                    if(c.Buyer_Side_Broker_4__c!=null) rankList.add(new Rank__c(Broker__c=c.Buyer_Side_Broker_4__c, Id = (rankMap.get(c.Id + 'Buyer' + brokerRankingRT + 'B4') != null ? rankMap.get(c.Id + 'Buyer' + brokerRankingRT + 'B4').Id : null), Commission__c = c.Id, Role__c = 'Buyer', RecordTypeId = brokerRankingRT, BrokerAux__c='B4', Split__c=c.Buyer_Side_Commission_Split_4__c, Commission_Amount__c=c.Buyer_4_Commission_BD__c, Broker_Overhead_Rate__c=c.Buyer_Broker_4_Overhead_Rate__c));
+                    if(c.Buyer_Side_Broker_5__c!=null) rankList.add(new Rank__c(Broker__c=c.Buyer_Side_Broker_5__c, Id = (rankMap.get(c.Id + 'Buyer' + brokerRankingRT + 'B5') != null ? rankMap.get(c.Id + 'Buyer' + brokerRankingRT + 'B5').Id : null), Commission__c = c.Id, Role__c = 'Buyer', RecordTypeId = brokerRankingRT, BrokerAux__c='B5', Split__c=c.Buyer_Side_Commission_5__c, Commission_Amount__c=c.Buyer_5_Commission_BD__c, Broker_Overhead_Rate__c=c.Buyer_Broker_5_Overhead_Rate__c));
+                    
+                    if(c.Seller_Side_Broker_1__c!=null) rankList.add(new Rank__c(Broker__c=c.Seller_Side_Broker_1__c, Id = (rankMap.get(c.Id + 'Seller' + brokerRankingRT + 'S1') != null ? rankMap.get(c.Id + 'Seller' + brokerRankingRT + 'S1').Id : null), Commission__c = c.Id, Role__c = 'Seller', RecordTypeId = brokerRankingRT, BrokerAux__c='S1', Split__c=c.Seller_Side_Commission_1__c, Commission_Amount__c=c.Seller_1_Commission_BD__c, Broker_Overhead_Rate__c=c.Seller_Broker_1_Overhead_Rate__c));
+                    if(c.Seller_Side_Broker_2__c!=null) rankList.add(new Rank__c(Broker__c=c.Seller_Side_Broker_2__c, Id = (rankMap.get(c.Id + 'Seller' + brokerRankingRT + 'S2') != null ? rankMap.get(c.Id + 'Seller' + brokerRankingRT + 'S2').Id : null), Commission__c = c.Id, Role__c = 'Seller', RecordTypeId = brokerRankingRT, BrokerAux__c='S2', Split__c=c.Seller_Side_Commission_2__c, Commission_Amount__c=c.Seller_2_Commission_BD__c, Broker_Overhead_Rate__c=c.Seller_Broker_2_Overhead_Rate__c));
+                    if(c.Seller_Side_Broker_3__c!=null) rankList.add(new Rank__c(Broker__c=c.Seller_Side_Broker_3__c, Id = (rankMap.get(c.Id + 'Seller' + brokerRankingRT + 'S3') != null ? rankMap.get(c.Id + 'Seller' + brokerRankingRT + 'S3').Id : null), Commission__c = c.Id, Role__c = 'Seller', RecordTypeId = brokerRankingRT, BrokerAux__c='S3', Split__c=c.Seller_Side_Commission_3__c, Commission_Amount__c=c.Seller_3_Commission_BD__c, Broker_Overhead_Rate__c=c.Seller_Broker_3_Overhead_Rate__c));
+                    if(c.Seller_Side_Broker_4__c!=null) rankList.add(new Rank__c(Broker__c=c.Seller_Side_Broker_4__c, Id = (rankMap.get(c.Id + 'Seller' + brokerRankingRT + 'S4') != null ? rankMap.get(c.Id + 'Seller' + brokerRankingRT + 'S4').Id : null), Commission__c = c.Id, Role__c = 'Seller', RecordTypeId = brokerRankingRT, BrokerAux__c='S4', Split__c=c.Seller_Side_Commission_Split_4__c, Commission_Amount__c=c.Seller_4_Commission_BD__c, Broker_Overhead_Rate__c=c.Seller_Broker_4_Overhead_Rate__c));
+                    if(c.Seller_Side_Broker_5__c!=null) rankList.add(new Rank__c(Broker__c=c.Seller_Side_Broker_5__c, Id = (rankMap.get(c.Id + 'Seller' + brokerRankingRT + 'S5') != null ? rankMap.get(c.Id + 'Seller' + brokerRankingRT + 'S5').Id : null), Commission__c = c.Id, Role__c = 'Seller', RecordTypeId = brokerRankingRT, BrokerAux__c='S5', Split__c=c.Seller_Side_Commission_5__c, Commission_Amount__c=c.Seller_5_Commission_BD__c, Broker_Overhead_Rate__c=c.Seller_Broker_5_Overhead_Rate__c));
+                    if(c.Seller_Side_Broker_6__c!=null) rankList.add(new Rank__c(Broker__c=c.Seller_Side_Broker_6__c, Id = (rankMap.get(c.Id + 'Seller' + brokerRankingRT + 'S6') != null ? rankMap.get(c.Id + 'Seller' + brokerRankingRT + 'S6').Id : null), Commission__c = c.Id, Role__c = 'Seller', RecordTypeId = brokerRankingRT, BrokerAux__c='S6', Split__c=c.Seller_Side_Commission_6__c, Commission_Amount__c=c.Seller_6_Commission_BD__c, Broker_Overhead_Rate__c=c.Seller_Broker_6_Overhead_Rate__c));
+                    if(c.Seller_Side_Broker_7__c!=null) rankList.add(new Rank__c(Broker__c=c.Seller_Side_Broker_7__c, Id = (rankMap.get(c.Id + 'Seller' + brokerRankingRT + 'S7') != null ? rankMap.get(c.Id + 'Seller' + brokerRankingRT + 'S7').Id : null), Commission__c = c.Id, Role__c = 'Seller', RecordTypeId = brokerRankingRT, BrokerAux__c='S7', Split__c=c.Seller_Side_Commission_7__c, Commission_Amount__c=c.Seller_7_Commission_BD__c, Broker_Overhead_Rate__c=c.Seller_Broker_7_Overhead_Rate__c));
+                }
+            }
+            
+            if(rankList.size() > 0) upsert rankList;
+        }
+    }
+}
