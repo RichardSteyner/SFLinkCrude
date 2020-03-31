@@ -1,0 +1,50 @@
+global class GenerateGradeBatch implements Database.Batchable<sObject>, Database.Stateful{
+    Integer l;
+    
+    global GenerateGradeBatch(Integer l){
+        this.l=l;
+    }
+    
+    global Database.QueryLocator start(Database.BatchableContext BC){
+        system.debug('##start GenerateGradeBatch');
+        String query = 'Select Id, OpportunityId, Product2Id, RecordOpp__c from OpportunityLineItem where GenerateGrade__c=false ' + (l==0?'':'limit ' + l);
+        return Database.getQueryLocator(query);
+    }
+    
+    global void execute(Database.BatchableContext BC, List<OpportunityLineItem> scope){
+        try{
+            Map<Id,Opportunity> mapOpp = new Map<Id,Opportunity>();
+            List<OpportunityLineItem> listOLI = new List<OpportunityLineItem>();
+            system.debug('##execute GenerateGradeBatch');
+            for(OpportunityLineItem oli : scope){
+                if(oli.RecordOpp__c.equalsIgnoreCase('Link_Crude_Opportunities'))
+                	mapOpp.put(oli.OpportunityId, new Opportunity(Id=oli.OpportunityId, Grade_Crude__c=oli.Product2Id, Grade_Future__c=null));
+                else if(oli.RecordOpp__c.equalsIgnoreCase('Link_Futures_Opportunities'))
+                    mapOpp.put(oli.OpportunityId, new Opportunity(Id=oli.OpportunityId, Grade_Future__c=oli.Product2Id, Grade_Crude__c=null));
+            }
+            List<Database.SaveResult> saveResults = Database.update(mapOpp.values(), false);
+            for(Database.SaveResult saveResult:saveResults) {
+                if(!saveResult.isSuccess()) {
+                    for(Database.Error saveError : saveResult.getErrors()) 
+                        System.debug('GenerateGradeBatch - Opp Update Error: ' + saveError.getMessage());
+                }
+            }
+            for(OpportunityLineItem oli : scope){
+                listOli.add(new OpportunityLineItem(Id=oli.Id, GenerateGrade__c=true));
+            }
+            saveResults = Database.update(listOli, false);
+            for(Database.SaveResult saveResult:saveResults) {
+                if(!saveResult.isSuccess()) {
+                    for(Database.Error saveError : saveResult.getErrors()) 
+                        System.debug('GenerateGradeBatch - Oli Update Error: ' + saveError.getMessage());
+                }
+            }
+        }catch(Exception e){
+            System.debug('Exception: '+ e.getMessage());
+        }
+    }
+    
+    global void finish(Database.BatchableContext BC){
+        system.debug('##finish GenerateGradeBatch');
+    }
+}
