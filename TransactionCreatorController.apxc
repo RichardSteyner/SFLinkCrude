@@ -1,0 +1,1349 @@
+global class TransactionCreatorController {
+    public List<SelectOption> methodList {get;set;}
+    public List<SelectOption> transactionList {get;set;}
+    public List<SelectOption> recordTypeList {get;set;}
+    public Opportunity opportunityData {get;set;}
+    public String regionsJson {get;set;}
+    public String typesJson {get;set;}
+    public String pipelineJson {get;set;}
+    public String locationJson {get;set;}
+    public String deliveryJson {get;set;}
+    public String delivery {get;set;}
+    public String priceTypeJson {get;set;}
+    public String costPerUnitFormulaJson {get;set;}
+    public String opportunityID {get;set;}
+    public String message {get;set;}
+    public String messageSuccess {get;set;}
+    public String whoWillWrite {get;set;}
+    public List<SelectOption> options1 {get;set;}
+    public Boolean isStripeMaster {get;set;}
+    public String RecordTypeCrudeId {get;set;}
+    public String RecordTypeFutureId {get;set;}
+    public String PricebookCrudeId {get;set;}
+    public String PricebookFutureId {get;set;}
+    public String PricebookExportId {get;set;}
+    
+    //Grade
+    public String gradeCrude {get;set;}
+    public String gradeFuture {get;set;}
+    public String gradeExport {get;set;}
+    
+    //Terms
+    public String paymentTermName {get;set;}
+    public String contractTermName {get;set;}
+    public String commissionTermName {get;set;}
+    public String cancellationTermName {get;set;}
+    public String crudeOilTermName {get;set;}
+    public String receiptWindowTermName {get;set;}
+    public String receiptTermName {get;set;}
+    public String titleTermName {get;set;}
+    public String measurementTermName {get;set;}
+    public String allowedTermName {get;set;}
+    public String demurrageTermName {get;set;}
+    public String publicTermName {get;set;}
+    public String gtcTermName {get;set;}
+    public String specialTermName {get;set;}
+    
+    //Invoice
+    public Boolean existInvoiceSeller {get;set;}
+    public Boolean existInvoiceBuyer {get;set;}
+    public String urlInvoiceSeller {get;set;}
+    public String urlInvoiceBuyer {get;set;}
+    public Date dateInvoiceSeller {get;set;}
+    public Date dateInvoiceBuyer {get;set;}
+    
+    //Commission
+    public String confirmSellerName {get;set;}
+    public String confirmBuyerName {get;set;}
+    public String invoiceSellerName {get;set;}
+    public String invoiceBuyerName {get;set;}
+    public String sellerName {get;set;}
+    public String buyerName {get;set;}
+    public String traderSellerName {get;set;}
+    public String traderBuyerName {get;set;}
+    public Decimal rateSeller {get;set;}
+    public Decimal rateBuyer {get;set;}
+    public Decimal commissionSeller {get;set;}
+    public Decimal commissionBuyer {get;set;}
+    public Decimal sSplit1 {get;set;}
+    public Decimal sSplit2 {get;set;}
+    public Decimal sSplit3 {get;set;}
+    public Decimal sSplit4 {get;set;}
+    public Decimal bSplit1 {get;set;}
+    public Decimal bSplit2 {get;set;}
+    public Decimal bSplit3 {get;set;}
+    public Decimal bSplit4 {get;set;}
+    public String sBroker1 {get;set;}
+    public String sBroker2 {get;set;}
+    public String sBroker3 {get;set;}
+    public String sBroker4 {get;set;}
+    public String bBroker1 {get;set;}
+    public String bBroker2 {get;set;}
+    public String bBroker3 {get;set;}
+    public String bBroker4 {get;set;}
+    public String sBroker1Name {get;set;}
+    public String sBroker2Name {get;set;}
+    public String sBroker3Name {get;set;}
+    public String sBroker4Name {get;set;}
+    public String bBroker1Name {get;set;}
+    public String bBroker2Name {get;set;}
+    public String bBroker3Name {get;set;}
+    public String bBroker4Name {get;set;}
+    public String recordTypeName {get;set;}
+    //Roles
+    public boolean isAdministrator {get;set;}
+    public boolean isRole {get;set;}
+    public String auxRecordTypeIdRole {get;set;}
+    
+    public TransactionCreatorController(ApexPages.StandardSetController stdController) { //Create
+        Opportunity opp = (Opportunity)stdController.getRecord();
+        Init();        
+    }
+    
+    public TransactionCreatorController(ApexPages.StandardController stdController) { //Update
+        Opportunity opp = (Opportunity)stdController.getRecord();
+        Init();
+        opportunityID = opp.Id;
+        Opportunity oppTemp = [Select Id, RecordTypeId From Opportunity WHERE Id=:opp.Id];
+        opportunityData.Id = oppTemp.Id;
+        opportunityData.RecordTypeId = oppTemp.RecordTypeId;
+        createTransaction();
+    }
+    
+    public TransactionCreatorController(){
+        Init();
+    }
+    
+    public void getLocationPL(){
+        Map<Object,List<String>> dependValuesByControlValue = getDependentPicklistValues(Opportunity.Location__c);
+		Map<String,String> mapByRT = getValues('Opportunity',opportunityData.RecordTypeId,'Location__c');
+        List<cWrapper> locations = new List<cWrapper>();
+        for(Object k1 : dependValuesByControlValue.keySet()){
+            if((String) k1 == opportunityData.Type){
+                for(String k2: dependValuesByControlValue.get(k1)){
+                    if(mapByRT.get(k2) != null){
+                        locations.add(new cWrapper(k2.replace('&amp;','&'),k2.replace('&amp;','&'),null));
+                    }
+                }
+            }
+        }
+        locationJson = JSON.serialize(locations);
+    }
+    
+    public void getCostPerUnitFormula(){
+        List<cWrapper> costPerUnitFormulas = new List<cWrapper>();
+        System.debug('1: ' + opportunityData.RecordTypeId);
+        Map<String,String> map6 = getValues('Opportunity',opportunityData.RecordTypeId,'Cost_Per_Unit_formula__c');
+        String verbiage;
+        String costPerUnitFormula;
+        String costPerUnit = opportunityData.Cost_Per_Unit__c;
+        System.debug('2: ' + opportunityData.RecordTypeId);
+        for(String k1 : map6.keySet()){
+            verbiage = '';
+            costPerUnitFormula = k1;
+            system.debug(costPerUnitFormula);
+            if(opportunityData.Type == 'EXPORT'){
+                if(costPerUnitFormula=='ICE BRENT' || costPerUnitFormula=='CMA ICE BRENT'){
+                    if(costPerUnitFormula=='ICE BRENT') verbiage='OCTOBER DELIVERY, COST PER UNIT DECEMBER ICE BRENT (Priced Oct 7, 2019-Oct 11, 2019) [PLUS/MINUS] $[COST_PER_UNIT].';
+                    else if(costPerUnitFormula=='CMA ICE BRENT') verbiage='CMA ICE BREN [PLUS/MINUS] $[COST_PER_UNIT].';
+                    costPerUnitFormulas.add(new cWrapper(k1.replace('&amp;','&'),verbiage.replace('&amp;','&'),null));
+                }
+            }else{
+                if(opportunityData.RecordTypeId == RecordTypeFutureId){
+                    if(costPerUnitFormula!=null){
+                        if(costPerUnitFormula=='CMA/ ALL DAYS Including Weekends and NYMEX Holidays') verbiage='THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT EFFECTIVE FOR THE CALENDAR MONTH OF DELIVERY, INCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX  (PLUS/MINUS PRICE DIFFERENTIAL).  FOR ANY DAY THE NYMEX DOES NOT ESTABLISH A SETTLEMENT PRICE, THE FIRST PREVIOUS SETTLEMENT PRICE AVAILABLE WILL BE USED.';
+                        else if(costPerUnitFormula.equalsIgnoreCase('CMA/ MERC TRADE DAYS ONLY Exc. Weekends &amp; Holidays')){ verbiage='THE PRICE PER BBL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT DURING THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX [PLUS/MINUS] $[COST_PER_UNIT].'; System.debug('dwefrgthefgrrgrggrgr');}
+                        else if(costPerUnitFormula=='Nymex Settlement / Window Trade') verbiage='NYMEX SETTLEMENT PRICE FOR "MONTH, YEAR" SWEET CRUDE FUTURES ON 00/00/0000 [PLUS/MINUS] $[COST_PER_UNIT] PER BARREL.';
+                        else if(costPerUnitFormula=='ARGUS (seller side)'){ verbiage='THE AVERAGE OF "MONTH, YEAR" "WTD AVG" "SAID GRADE" CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DATED/DURING THE TRADE DAY(S) "MONTH, DATE, YEAR".';System.debug('ssssssssss');}
+                        else if(costPerUnitFormula=='ARGUS (buyer side)') verbiage='THE AVERAGE OF "MONTH, YEAR" "WTI FORMULA BASIS" PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DATED/DURING THE TRADE DAY(S) "MONTH, DAY YEAR".';
+                        else if(costPerUnitFormula=='MOP') verbiage='THE MEAN QUOTE FOR WTI *MONTH* AS REPORTED BY PLATTS OILGRAM ON *MONTH, DATE, YEAR*.';
+                        else if(costPerUnitFormula=='ARGUS EVERGREEN (seller side)') verbiage='THE AVERAGE OF THE "WTD AVG" EIC CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT FOR EACH MONTH BEGINNING ON THE 26TH DAY OF THE SECOND MONTH PRECEDING THE DELIVERY MONTH AND ENDING ON THE 25TH DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='ARGUS EVERGREEN (buyer side)') verbiage='THE AVERAGE OF THE "WTI" FORMULA BASIS PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT FOR EACH MONTH BEGINNING ON THE 26TH DAY OF THE SECOND MONTH PRECEDING THE DELIVERY MONTH AND ENDING ON THE 25TH DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='ARGUS WTI ASSESSMENT') verbiage='ARGUS ASSESSMENT FOR "MONTH" WTI FORMULA BASIS ON "MONTH, DATE, YEAR" "PLUS/MINUS" PER BARREL.';
+                        else if(costPerUnitFormula=='Argus Term Pricing (LLS)') verbiage='THE PRICE FOR EACH MONTH IS EQUAL TO THE ARITHMETIC AVERAGE OF THE WTD AVG LLS (1ST MONTH) PRICES FROM ARGUS MEDIA FOR EACH DAY THAT IS DETERMINED DURING THE MONTH BEGINNING WITH THE FIRST DAY AFTER THE 25TH CALENDAR DAY OF THE MONTH 2 MONTHS PRIOR TO THE DELIVERY MONTH THROUGH THE 25TH CALENDAR DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='Argus Term Pricing (WTI)') verbiage='THE PRICE FOR EACH MONTH IS EQUAL TO THE ARITHMETIC AVERAGE OF THE WTI FORMULA BASIS (1ST MONTH) PRICES FROM ARGUS MEDIA EACH DAY THAT IT IS DETERMINED DURING THE MONTH BEGINNING WITH THE FIRST DAY AFTER THE 25TH CALENDAR DAY OF THE MONTH 2 MONTHS PRIOR TO THE DELIVERY MONTH THROUGH THE 25TH CALENDAR DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='MOA') verbiage='WTI FORMULA BASIS QUOTE  FOR "MONTH" AS REPORTED BY ARGUS AMERICAS CRUDE FOR THE PERIOD 00/00/0000 THRU 00/00/0000 INCLUSIVE.';
+                        else if(costPerUnitFormula=='MID-POINT OF ARGUS') verbiage='THE MID-POINT OF ARGUS\' SPOT CRUDE PRICE ASSESSMENT FOR WTI FORMULA, MO1 CRUDE OIL AS PUBLISHED BY ARGUS AMERICAS CRUDE REPORT FOR "MONTH"; "PLUS/MINUS" U.S. PER BARREL MARKET DIFFERENTIAL.';
+                        else if(costPerUnitFormula=='Argus CMA') verbiage='THE AVERAGE OF "MONTH" "WTD AVG" DIFF CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF " MONTH, DATE, YEAR".';
+                        else if(costPerUnitFormula=='Argus/Nymex CMA-(trade days only)') verbiage='THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE DAILY SETTLEMENT PRICE FOR "LIGHT SWEET CRUDE OIL" "month" FUTURE CONTRACTS REPORTED BY NYMEX  FROM "00/00/000 THROUGH AND INCLUDING THE LAST DAY OF 00/00/000, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX.\n'+
+                            'THE WEIGHTED AVERAGE DIFFERENTIAL CMA NYMEX VALUE AS PUBLISHED BY PETROLEUM ARGUS DAILY CRUDE REPORT SHALL BE EFFECTIVE FOR "00/00/000 [PLUS/MINUS] $[COST_PER_UNIT] PER BARREL.';
+                        else if(costPerUnitFormula=='Conoco Posting') verbiage='CONOCOPHILLIPS COMPANY POSTING FOR WTI (40 API) [PLUS/MINUS] $[COST_PER_UNIT] PER BARREL.';
+                        else if(costPerUnitFormula=='ICE BRENT') verbiage='OCTOBER DELIVERY, COST PER UNIT DECEMBER ICE BRENT (Priced Oct 7, 2019-Oct 11, 2019) [PLUS/MINUS] $[COST_PER_UNIT].';
+                        else if(costPerUnitFormula=='CMA ICE BRENT') verbiage='CMA ICE BREN [PLUS/MINUS] $[COST_PER_UNIT].';
+                    }
+                } else if(opportunityData.RecordTypeId == RecordTypeCrudeId) {
+                    if(costPerUnitFormula!=null){
+                        if(costPerUnitFormula.equalsIgnoreCase('CMA TRADE DAYS ONLY INCLUDING Weekends &amp; Holidays')) verbiage='THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT EFFECTIVE FOR THE CALENDAR MONTH OF DELIVERY, INCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX  (PLUS/MINUS PRICE DIFFERENTIAL).  FOR ANY DAY THE NYMEX DOES NOT ESTABLISH A SETTLEMENT PRICE, THE FIRST PREVIOUS SETTLEMENT PRICE AVAILABLE WILL BE USED.';
+                        else if(costPerUnitFormula=='CMA/ ALL DAYS Including Weekends and NYMEX Holidays') verbiage='THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT EFFECTIVE FOR THE CALENDAR MONTH OF DELIVERY, INCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX  (PLUS/MINUS PRICE DIFFERENTIAL).  FOR ANY DAY THE NYMEX DOES NOT ESTABLISH A SETTLEMENT PRICE, THE FIRST PREVIOUS SETTLEMENT PRICE AVAILABLE WILL BE USED.';
+                        else if(costPerUnitFormula=='CMA/ MERC TRADE DAYS ONLY Exc. Weekends &amp; Holidays') verbiage='THE PRICE PER BBL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT DURING THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX [PLUS/MINUS] $[COST_PER_UNIT]';
+                        else if(costPerUnitFormula=='Nymex Settlement / Window Trade') verbiage='NYMEX SETTLEMENT PRICE FOR "MONTH YEAR" SWEET CRUDE FUTURES ON 00/00/0000 [PLUS/MINUS] $[COST_PER_UNIT] PER BARREL.';
+                        else if(costPerUnitFormula=='ARGUS (seller side)') verbiage='THE AVERAGE OF "MONTH, YEAR" "WTD AVG" HLS CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DATED/DURING THE PERIOD OF " MONTH, DATE, YEAR".';
+                        else if(costPerUnitFormula=='ARGUS (buyer side)') verbiage='THE AVERAGE OF "MONTH, YEAR" "WTI FORMULA BASIS" PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DATED/DURING THE PERIOD OF "MONTH, DAY YEAR".';
+                        else if(costPerUnitFormula=='MOP') verbiage='THE MEAN QUOTE FOR WTI *MONTH* AS REPORTED BY PLATTS OILGRAM ON *MONTH, DATE, YEAR*.';
+                        else if(costPerUnitFormula=='ARGUS EVERGREEN (seller side)') verbiage='THE AVERAGE OF THE "WTD AVG" EIC CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT FOR EACH MONTH BEGINNING ON THE 26TH DAY OF THE SECOND MONTH PRECEDING THE DELIVERY MONTH AND ENDING ON THE 25TH DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='ARGUS EVERGREEN (buyer side)')  verbiage='THE AVERAGE OF THE "WTI" FORMULA BASIS PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT FOR EACH MONTH BEGINNING ON THE 26TH DAY OF THE SECOND MONTH PRECEDING THE DELIVERY MONTH AND ENDING ON THE 25TH DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='ARGUS WTI ASSESSMENT') verbiage='ARGUS ASSESSMENT FOR "MONTH" WTI FORMULA BASIS ON "MONTH, DATE, YEAR" "PLUS/MINUS" PER BARREL.';
+                        else if(costPerUnitFormula=='Argus Term Pricing (LLS)') verbiage='THE PRICE FOR EACH MONTH IS EQUAL TO THE ARITHMETIC AVERAGE OF THE WTD AVG LLS (1ST MONTH) PRICES FROM ARGUS MEDIA FOR EACH DAY THAT IS DETERMINED DURING THE MONTH BEGINNING WITH THE FIRST DAY AFTER THE 25TH CALENDAR DAY OF THE MONTH 2 MONTHS PRIOR TO THE DELIVERY MONTH THROUGH THE 25TH CALENDAR DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='Argus Term Pricing (WTI)') verbiage='THE PRICE FOR EACH MONTH IS EQUAL TO THE ARITHMETIC AVERAGE OF THE WTI FORMULA BASIS (1ST MONTH) PRICES FROM ARGUS MEDIA EACH DAY THAT IT IS DETERMINED DURING THE MONTH BEGINNING WITH THE FIRST DAY AFTER THE 25TH CALENDAR DAY OF THE MONTH 2 MONTHS PRIOR TO THE DELIVERY MONTH THROUGH THE 25TH CALENDAR DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='MOA')  verbiage='WTI FORMULA BASIS QUOTE  FOR "MONTH" AS REPORTED BY ARGUS AMERICAS CRUDE FOR THE PERIOD 00/00/0000 THRU 00/00/0000 INCLUSIVE.';
+                        else if(costPerUnitFormula=='MID-POINT OF ARGUS')  verbiage='THE MID-POINT OF ARGUS SPOT CRUDE PRICE ASSESSMENT FOR WTI FORMULA, MO1 CRUDE OIL AS PUBLISHED BY ARGUS AMERICAS CRUDE REPORT FOR "MONTH"; "PLUS/MINUS" U.S. PER BARREL MARKET DIFFERENTIAL.';
+                        else if(costPerUnitFormula=='Argus CMA') verbiage='THE AVERAGE OF "MONTH" "WTD AVG" DIFF CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF " MONTH, DATE, YEAR".';
+                        else if(costPerUnitFormula=='Argus/Nymex CMA-(trade days only)') verbiage='THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE DAILY SETTLEMENT PRICE FOR "LIGHT SWEET CRUDE OIL" "month" FUTURE CONTRACTS REPORTED BY NYMEX  FROM "00/00/000 THROUGH AND INCLUDING THE LAST DAY OF 00/00/000, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX.\n'+
+                            'THE WEIGHTED AVERAGE DIFFERENTIAL CMA NYMEX VALUE AS PUBLISHED BY PETROLEUM ARGUS DAILY CRUDE REPORT SHALL BE EFFECTIVE FOR "00/00/000 [PLUS/MINUS] $[COST_PER_UNIT] PER BARREL.';
+                        else if(costPerUnitFormula=='Conoco Posting') verbiage='CONOCOPHILLIPS COMPANY POSTING FOR WTI (40 API) [PLUS/MINUS] $[COST_PER_UNIT] PER BARREL.';
+                        else if(costPerUnitFormula=='NYMEX VS. ARGUS ALL DAYS') verbiage='THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE "MONTH YEAR" DAILY SETTLEMENT PRICE FOR THE NYMEX "LIGHT SWEET CRUDE OIL" FUTURE CONTRACTS [PLUS/MINUS] $[COST_PER_UNIT] PER BARREL DURING THE PERIOD OF "MONTH, DAY YEAR" THRU MONTH, DAY YEAR" EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX.';
+                        else if(costPerUnitFormula=='CMAT ARGUS MEH CMA DIFF TO NYMEX (MPC/ OXY DEALS)') verbiage='THE PRICE PER BARREL SHALL BE 100% OF THE AVERAGE OF THE DAILY SETTLEMENT PRICE FOR "LIGHT SWEET CRUDE OIL" PROMPT MONTH FUTURE CONTRACTS REPORTED BY THE NEW YORK MERCANTILE EXCHANGE (NYMEX) FROM THE FIRST DAY OF THE CALENDAR MONTH THROUGH AND INCLUDING THE LAST DAY OF THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX" PLUS THE AVERAGE OF "MONTH, YEAR" WTI DIFF TO CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF "MONTH, DAY, YEAR THRU MONTH, DAY, YEAR" [PLUS/MINUS] $[COST_PER_UNIT].';
+                        else if(costPerUnitFormula=='CMAT ARUGS MEH CMA DIFF TO NYMEX PLUS HOUSTON DIFF') verbiage='THE PRICE PER BARREL SHALL BE 100% OF THE AVERAGE OF THE DAILY SETTLEMENT PRICE FOR "LIGHT SWEET CRUDE OIL" PROMPT MONTH FUTURE CONTRACTS REPORTED BY THE NEW YORK MERCANTILE EXCHANGE (NYMEX) FROM THE FIRST DAY OF THE CALENDAR MONTH THROUGH AND INCLUDING THE LAST DAY OF THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX" PLUS THE AVERAGE OF "MONTH, YEAR" WTI DIFF TO CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF "MONTH, DAY, YEAR THRU MONTH, DAY, YEAR" [PLUS/MINUS] $[COST_PER_UNIT], PLUS, THE AVERAGE OF " MONTH, YEAR " WTI HOUSTON DIFF AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE"';
+                        else if(costPerUnitFormula=='CMA + ARGUS ROLL VERBIAGE') verbiage='THE PRICE PER BBL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT DURING THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX PLUS THE AVERAGE OF "MONTH AND YEAR" "WTD AVG" DIFF CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF "MONTH, DATE, YEAR" PLUS ARGUS ROLL AVG [PLUS/MINUS] $[COST_PER_UNIT].';
+                        else if(costPerUnitFormula=='ICE BRENT') verbiage='OCTOBER DELIVERY, COST PER UNIT DECEMBER ICE BRENT (Priced Oct 7, 2019-Oct 11, 2019) [PLUS/MINUS] $[COST_PER_UNIT].';
+                        else if(costPerUnitFormula=='CMA ICE BRENT') verbiage='CMA ICE BREN [PLUS/MINUS] $[COST_PER_UNIT].';
+                    }
+                }
+                costPerUnitFormulas.add(new cWrapper(k1.replace('&amp;','&'),verbiage.replace('&amp;','&'),null));
+            }
+            
+        }
+        costPerUnitFormulaJson = JSON.serialize(costPerUnitFormulas);
+        System.debug('JSomn_: ' + costPerUnitFormulaJson);
+    }
+    
+    public static Map<Object,List<String>> getDependentPicklistValues( Schema.sObjectField dependToken )
+    {
+        Schema.DescribeFieldResult depend = dependToken.getDescribe();
+        Schema.sObjectField controlToken = depend.getController();
+        if ( controlToken == null ) return null;
+        Schema.DescribeFieldResult control = controlToken.getDescribe();
+        List<Schema.PicklistEntry> controlEntries =
+            (   control.getType() == Schema.DisplayType.Boolean
+             ?   null
+             :   control.getPicklistValues()
+            );
+        
+        String base64map = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+        Map<Object,List<String>> dependentPicklistValues = new Map<Object,List<String>>();
+        for ( Schema.PicklistEntry entry : depend.getPicklistValues() ) if ( entry.isActive() )
+        {
+            List<String> base64chars =
+                String.valueOf
+                (   ((Map<String,Object>) JSON.deserializeUntyped( JSON.serialize( entry ) )).get( 'validFor' )
+                ).split( '' );
+            for ( Integer index = 0; index < (controlEntries != null ? controlEntries.size() : 2); index++ )
+            {
+                Object controlValue =
+                    (   controlEntries == null
+                     ?   (Object) (index == 1)
+                     :   (Object) (controlEntries[ index ].isActive() ? controlEntries[ index ].getLabel() : null)
+                    );
+                Integer bitIndex = index / 6, bitShift = 5 - Math.mod( index, 6 );
+                if  (   controlValue == null
+                     ||  (base64map.indexOf( base64chars[ bitIndex ] ) & (1 << bitShift)) == 0
+                    ) continue;
+                if ( !dependentPicklistValues.containsKey( controlValue ) )
+                {
+                    dependentPicklistValues.put( controlValue, new List<String>() );
+                }
+                dependentPicklistValues.get( controlValue ).add( entry.getLabel() );
+            }
+        }
+        return dependentPicklistValues;
+    }
+    
+    public void createTransaction(){
+        system.debug('opportunityID: ' +opportunityID);
+        message = '';
+        if(opportunityData.RecordTypeId != null){
+            getValuesByRecordType();
+            getLocationPL();
+            if(opportunityID == null){
+                getCostPerUnitFormula();
+                insert opportunityData;
+                opportunityData.Name = [Select Name From Opportunity WHERE Id=:opportunityData.Id].Name;
+                system.debug('opportunityData: '+opportunityData);
+            }else{
+                List<String> fields = getFieldsOpp();
+                String query = 'SELECT Seller__r.Rate_N__c, Account.Rate_N__c, Grade_Crude__r.Name, Grade_Future__r.Name, RecordType.Name, Seller__r.Name, Account.Name, Trader_for_Seller__r.Name, Trader_for_Buyer__r.Name, Payment_Terms_Lookup__r.Name, Contract_Terms_Lookup__r.Name, Commission_Terms_Lookup__r.Name, Confirmation_Seller__r.Name,'+
+                    			'Confirmation_Buyer__r.Name, Invoice_Seller__r.Name, Invoice_Buyer__r.Name, Cancellation__r.Name, Crude_oil_specifications__r.Name, Receipt_Delivery_Window_Terms__r.Name, Receipt_Delivery_Terms__r.Name,' +
+                    			'Title_and_Risk_Transfer_Terms__r.Name, Measurement_Terms__r.Name, Allowed_Laytime_Terms__r.Name, Demurrage_Rate_Terms__r.Name, Public_Terminal_Terms__r.Name, GTC_s_Terms__r.Name, Special_Provisions_Terms__r.Name, Grade_Export__r.Name,';
+                for(String f : fields){
+                    query = query + f + ',';
+                }
+                query = query.removeEnd(',');
+                query = query + ' FROM Opportunity WHERE Id=\'' + opportunityID +'\'';
+                opportunityData = Database.query(query);
+                
+                getCostPerUnitFormula();
+                
+                recordTypeName = opportunityData.RecordType.Name;
+                gradeCrude = opportunityData.Grade_Crude__r.Name;
+                gradeFuture = opportunityData.Grade_Future__r.Name;
+                gradeExport = opportunityData.Grade_Export__r.Name;
+                isStripeMaster = false;
+                if(opportunityData.Transaction__c == 'Master (Strip Master)') isStripeMaster = true;
+                
+                rateSeller = opportunityData.Seller__r.Rate_N__c;
+                if(opportunityData.Type != 'EXCHANGE') rateBuyer = opportunityData.Account.Rate_N__c; else rateBuyer = null;
+                
+                if(opportunityData.Delivery__c != null){
+                    Integer month = opportunityData.Delivery__c.month();
+                    Integer year = opportunityData.Delivery__c.year();
+                    String monthStr = '';
+                    if(month == 1) monthStr = 'January';
+                    if(month == 2) monthStr = 'February';
+                    if(month == 3) monthStr = 'March';
+                    if(month == 4) monthStr = 'April';
+                    if(month == 5) monthStr = 'May';
+                    if(month == 6) monthStr = 'June';
+                    if(month == 7) monthStr = 'July';
+                    if(month == 8) monthStr = 'August';
+                    if(month == 9) monthStr = 'September';
+                    if(month == 10) monthStr = 'October';
+                    if(month == 11) monthStr = 'November';
+                    if(month == 12) monthStr = 'December';
+                    delivery = monthStr + ' ' + String.valueOf(year);
+                }
+                sellerName = opportunityData.Seller__r.Name;
+                buyerName = opportunityData.Account.Name;
+                traderSellerName = opportunityData.Trader_for_Seller__r.Name;
+                traderBuyerName = opportunityData.Trader_for_Buyer__r.Name;
+                paymentTermName = opportunityData.Payment_Terms_Lookup__r.Name;
+    			contractTermName = opportunityData.Contract_Terms_Lookup__r.Name;
+    			commissionTermName = opportunityData.Commission_Terms_Lookup__r.Name;
+                confirmSellerName = opportunityData.Confirmation_Seller__r.Name;
+    			confirmBuyerName = opportunityData.Confirmation_Buyer__r.Name;
+    			invoiceSellerName = opportunityData.Invoice_Seller__r.Name;
+                invoiceBuyerName = opportunityData.Invoice_Buyer__r.Name;
+                cancellationTermName = opportunityData.Cancellation__r.Name;
+                crudeOilTermName = opportunityData.Crude_oil_specifications__r.Name;
+                receiptWindowTermName = opportunityData.Receipt_Delivery_Window_Terms__r.Name;
+                receiptTermName = opportunityData.Receipt_Delivery_Terms__r.Name;
+                titleTermName = opportunityData.Title_and_Risk_Transfer_Terms__r.Name;
+                measurementTermName = opportunityData.Measurement_Terms__r.Name;
+                allowedTermName = opportunityData.Allowed_Laytime_Terms__r.Name;
+                demurrageTermName = opportunityData.Demurrage_Rate_Terms__r.Name;
+                publicTermName = opportunityData.Public_Terminal_Terms__r.Name;
+                gtcTermName = opportunityData.GTC_s_Terms__r.Name;
+                specialTermName = opportunityData.Special_Provisions_Terms__r.Name;
+                
+                if(opportunityData.Seller_Will_Write__c){
+                    whoWillWrite = 'Seller';
+                }else{
+                    if(opportunityData.Buyer_Will_Write__c){
+                        whoWillWrite = 'Buyer';
+                    }
+                }
+                
+                List<Commission__c> commissionList = [Select Id, Seller_Rate__c, Seller_Commission__c, Buyer_Rate__c, Buyer_Commission__c, Seller_Side_Commission_1__c, Seller_Side_Commission_2__c, Seller_Side_Commission_3__c, Seller_Side_Commission_Split_4__c,
+                                                      Buyer_Side_Commission_1__c, Buyer_Side_Commission_2__c, Buyer_Side_Commission_3__c, Buyer_Side_Commission_Split_4__c, Seller_Side_Broker_1__c, Seller_Side_Broker_2__c, Seller_Side_Broker_3__c,
+                                                      Seller_Side_Broker_4__c, Buyer_Side_Broker_1__c, Buyer_Side_Broker_2__c, Buyer_Side_Broker_3__c, Buyer_Side_Broker_4__c,
+                                                      Seller_Side_Broker_1__r.Name, Seller_Side_Broker_2__r.Name, Seller_Side_Broker_3__r.Name, Seller_Side_Broker_4__r.Name, Buyer_Side_Broker_1__r.Name, Buyer_Side_Broker_2__r.Name,
+                                                      Buyer_Side_Broker_3__r.Name, Buyer_Side_Broker_4__r.Name
+                                                      From Commission__c WHERE Transaction_No__c=:opportunityData.Id LIMIT 1];
+                if(commissionList.size()>0){
+                    rateSeller = commissionList[0].Seller_Rate__c;
+                    commissionSeller = commissionList[0].Seller_Commission__c;
+                    //if(opportunityData.Type != 'EXCHANGE'){
+                        rateBuyer = commissionList[0].Buyer_Rate__c;
+                        commissionBuyer = commissionList[0].Buyer_Commission__c;
+                    /*}else{
+                        rateBuyer = null;
+                        commissionBuyer = null;
+                    }*/
+                    sBroker1 = commissionList[0].Seller_Side_Broker_1__c;
+                    sBroker2 = commissionList[0].Seller_Side_Broker_2__c;
+                    sBroker3 = commissionList[0].Seller_Side_Broker_3__c;
+                    sBroker4 = commissionList[0].Seller_Side_Broker_4__c;
+                    bBroker1 = commissionList[0].Buyer_Side_Broker_1__c;
+                    bBroker2 = commissionList[0].Buyer_Side_Broker_2__c;
+                    bBroker3 = commissionList[0].Buyer_Side_Broker_3__c;
+                    bBroker4 = commissionList[0].Buyer_Side_Broker_4__c;
+                    sBroker1Name = commissionList[0].Seller_Side_Broker_1__r.Name;
+                    sBroker2Name = commissionList[0].Seller_Side_Broker_2__r.Name;
+                    sBroker3Name = commissionList[0].Seller_Side_Broker_3__r.Name;
+                    sBroker4Name = commissionList[0].Seller_Side_Broker_4__r.Name;
+                    bBroker1Name = commissionList[0].Buyer_Side_Broker_1__r.Name;
+                    bBroker2Name = commissionList[0].Buyer_Side_Broker_2__r.Name;
+                    bBroker3Name = commissionList[0].Buyer_Side_Broker_3__r.Name;
+                    bBroker4Name = commissionList[0].Buyer_Side_Broker_4__r.Name;
+                    if(commissionList[0].Seller_Side_Commission_1__c != null) sSplit1 = commissionList[0].Seller_Side_Commission_1__c;
+                    if(commissionList[0].Seller_Side_Commission_2__c != null) sSplit2 = commissionList[0].Seller_Side_Commission_2__c;
+                    if(commissionList[0].Seller_Side_Commission_3__c != null) sSplit3 = commissionList[0].Seller_Side_Commission_3__c;
+                    if(commissionList[0].Seller_Side_Commission_Split_4__c != null) sSplit4 = commissionList[0].Seller_Side_Commission_Split_4__c;
+                    if(commissionList[0].Buyer_Side_Commission_1__c != null) bSplit1 = commissionList[0].Buyer_Side_Commission_1__c;
+                    if(commissionList[0].Buyer_Side_Commission_2__c != null) bSplit2 = commissionList[0].Buyer_Side_Commission_2__c;
+                    if(commissionList[0].Buyer_Side_Commission_3__c != null) bSplit3 = commissionList[0].Buyer_Side_Commission_3__c;
+                    if(commissionList[0].Buyer_Side_Commission_Split_4__c != null) bSplit4 = commissionList[0].Buyer_Side_Commission_Split_4__c;
+                }
+            }
+    
+            if(opportunityData.RecordTypeId == RecordTypeCrudeId){
+                urlInvoiceSeller = 'https://' + ApexPages.currentPage().getHeaders().get('Host') + '/apex/LC_ConfirmationVFP?id='+ opportunityData.Id + '&type=seller';
+                urlInvoiceBuyer = 'https://' + ApexPages.currentPage().getHeaders().get('Host') + '/apex/LC_ConfirmationVFP?id='+ opportunityData.Id + '&type=buyer';
+            }else{
+                urlInvoiceSeller = 'https://' + ApexPages.currentPage().getHeaders().get('Host') + '/apex/LF_ConfirmationVFP?id='+ opportunityData.Id + '&type=seller';
+                urlInvoiceBuyer = 'https://' + ApexPages.currentPage().getHeaders().get('Host') + '/apex/LF_ConfirmationVFP?id='+ opportunityData.Id + '&type=buyer';
+            }          
+        }else{
+            message = 'Select Record Type';
+        }
+    }
+    
+    public void getValuesByRecordType(){
+        List<cWrapper> types = new List<cWrapper>();
+        Map<String,String> map1 = getValues('Opportunity',opportunityData.RecordTypeId,'Type');
+        for(String k1 : map1.keySet()){
+            types.add(new cWrapper(k1.replace('&amp;','&'),map1.get(k1).replace('&amp;','&'),null));
+        }
+        typesJson = JSON.serialize(types);
+        
+        List<cWrapper> regions = new List<cWrapper>();
+        Map<String,String> map2 = getValues('Opportunity',opportunityData.RecordTypeId,'Region__c');
+        for(String k1 : map2.keySet()){
+            regions.add(new cWrapper(k1.replace('&amp;','&'),map2.get(k1).replace('&amp;','&'),null));
+        }
+        regionsJson = JSON.serialize(regions);
+        
+        List<cWrapper> pipelines = new List<cWrapper>();
+        Map<String,String> map3 = getValues('Opportunity',opportunityData.RecordTypeId,'Pipeline_link__c');
+        for(String k1 : map3.keySet()){
+            pipelines.add(new cWrapper(k1.replace('&amp;','&'),map3.get(k1).replace('&amp;','&'),null));
+        }
+        pipelineJson = JSON.serialize(pipelines);
+        
+        List<cWrapper> locations = new List<cWrapper>();
+        Map<String,String> map4 = getValues('Opportunity',opportunityData.RecordTypeId,'Location__c');
+        for(String k1 : map4.keySet()){
+            locations.add(new cWrapper(k1.replace('&amp;','&'),map4.get(k1).replace('&amp;','&'),null));
+        }
+        locationJson = JSON.serialize(locations);
+        
+        List<cWrapper> priceTypes = new List<cWrapper>();
+        Map<String,String> map5 = getValues('Opportunity',opportunityData.RecordTypeId,'Price_Type__c');
+        for(String k1 : map5.keySet()){
+            priceTypes.add(new cWrapper(k1.replace('&amp;','&'),map5.get(k1).replace('&amp;','&'),null));
+        }
+        priceTypeJson = JSON.serialize(priceTypes);
+        
+        /*List<cWrapper> costPerUnitFormulas = new List<cWrapper>();
+        Map<String,String> map6 = getValues('Opportunity',opportunityData.RecordTypeId,'Cost_Per_Unit_formula__c');
+        String verbiage;
+        String costPerUnitFormula;
+        String costPerUnit = opportunityData.Cost_Per_Unit__c;
+        for(String k1 : map6.keySet()){
+            verbiage = '';
+            costPerUnitFormula = k1;
+            if(opportunityData.Type == 'EXPORT'){
+                if(costPerUnitFormula=='ICE BRENT') verbiage='OCTOBER DELIVERY, COST PER UNIT DECEMBER ICE BRENT (Priced Oct 7, 2019-Oct 11, 2019) [PLUS/MINUS] $[COST_PER_UNIT].';
+                else if(costPerUnitFormula=='CMA ICE BRENT') verbiage='CMA ICE BREN [PLUS/MINUS] $[COST_PER_UNIT].';
+                costPerUnitFormulas.add(new cWrapper(k1.replace('&amp;','&'),verbiage.replace('&amp;','&'),null));
+            }else{
+                if(opportunityData.RecordTypeId == RecordTypeFutureId){
+                    if(costPerUnitFormula!=null){
+                        if(costPerUnitFormula=='CMA/ ALL DAYS Including Weekends and NYMEX Holidays') verbiage='THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT EFFECTIVE FOR THE CALENDAR MONTH OF DELIVERY, INCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX  (PLUS/MINUS PRICE DIFFERENTIAL).  FOR ANY DAY THE NYMEX DOES NOT ESTABLISH A SETTLEMENT PRICE, THE FIRST PREVIOUS SETTLEMENT PRICE AVAILABLE WILL BE USED.';
+                        else if(costPerUnitFormula=='CMA/ MERC TRADE DAYS ONLY Exc. Weekends & Holidays') verbiage='THE PRICE PER BBL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT DURING THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX [PLUS/MINUS] $[COST_PER_UNIT].';
+                        else if(costPerUnitFormula=='Nymex Settlement/Window Trade') verbiage='NYMEX SETTLEMENT PRICE FOR "MONTH, YEAR" SWEET CRUDE FUTURES ON 00/00/0000 [PLUS/MINUS] $[COST_PER_UNIT] PER BARREL.';
+                        else if(costPerUnitFormula=='ARGUS (seller side)') verbiage='THE AVERAGE OF "MONTH, YEAR" "WTD AVG" "SAID GRADE" CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DATED/DURING THE TRADE DAY(S) "MONTH, DATE, YEAR".';
+                        else if(costPerUnitFormula=='ARGUS (buyer side)') verbiage='THE AVERAGE OF "MONTH, YEAR" "WTI FORMULA BASIS" PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DATED/DURING THE TRADE DAY(S) "MONTH, DAY YEAR".';
+                        else if(costPerUnitFormula=='MOP') verbiage='THE MEAN QUOTE FOR WTI *MONTH* AS REPORTED BY PLATTS OILGRAM ON *MONTH, DATE, YEAR*.';
+                        else if(costPerUnitFormula=='ARGUS EVERGREEN (seller side)') verbiage='THE AVERAGE OF THE "WTD AVG" EIC CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT FOR EACH MONTH BEGINNING ON THE 26TH DAY OF THE SECOND MONTH PRECEDING THE DELIVERY MONTH AND ENDING ON THE 25TH DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='ARGUS EVERGREEN (buyer side)') verbiage='THE AVERAGE OF THE "WTI" FORMULA BASIS PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT FOR EACH MONTH BEGINNING ON THE 26TH DAY OF THE SECOND MONTH PRECEDING THE DELIVERY MONTH AND ENDING ON THE 25TH DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='ARGUS WTI ASSESSMENT') verbiage='ARGUS ASSESSMENT FOR "MONTH" WTI FORMULA BASIS ON "MONTH, DATE, YEAR" "PLUS/MINUS" PER BARREL.';
+                        else if(costPerUnitFormula=='Argus Term Pricing (LLS)') verbiage='THE PRICE FOR EACH MONTH IS EQUAL TO THE ARITHMETIC AVERAGE OF THE WTD AVG LLS (1ST MONTH) PRICES FROM ARGUS MEDIA FOR EACH DAY THAT IS DETERMINED DURING THE MONTH BEGINNING WITH THE FIRST DAY AFTER THE 25TH CALENDAR DAY OF THE MONTH 2 MONTHS PRIOR TO THE DELIVERY MONTH THROUGH THE 25TH CALENDAR DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='Argus Term Pricing (WTI)') verbiage='THE PRICE FOR EACH MONTH IS EQUAL TO THE ARITHMETIC AVERAGE OF THE WTI FORMULA BASIS (1ST MONTH) PRICES FROM ARGUS MEDIA EACH DAY THAT IT IS DETERMINED DURING THE MONTH BEGINNING WITH THE FIRST DAY AFTER THE 25TH CALENDAR DAY OF THE MONTH 2 MONTHS PRIOR TO THE DELIVERY MONTH THROUGH THE 25TH CALENDAR DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='MOA') verbiage='WTI FORMULA BASIS QUOTE  FOR "MONTH" AS REPORTED BY ARGUS AMERICAS CRUDE FOR THE PERIOD 00/00/0000 THRU 00/00/0000 INCLUSIVE.';
+                        else if(costPerUnitFormula=='MID-POINT OF ARGUS') verbiage='THE MID-POINT OF ARGUS\' SPOT CRUDE PRICE ASSESSMENT FOR WTI FORMULA, MO1 CRUDE OIL AS PUBLISHED BY ARGUS AMERICAS CRUDE REPORT FOR "MONTH"; "PLUS/MINUS" U.S. PER BARREL MARKET DIFFERENTIAL.';
+                        else if(costPerUnitFormula=='Argus CMA') verbiage='THE AVERAGE OF "MONTH" "WTD AVG" DIFF CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF " MONTH, DATE, YEAR".';
+                        else if(costPerUnitFormula=='Argus/Nymex CMA-(trade days only)') verbiage='THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE DAILY SETTLEMENT PRICE FOR "LIGHT SWEET CRUDE OIL" "month" FUTURE CONTRACTS REPORTED BY NYMEX  FROM "00/00/000 THROUGH AND INCLUDING THE LAST DAY OF 00/00/000, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX.\n'+
+                            'THE WEIGHTED AVERAGE DIFFERENTIAL CMA NYMEX VALUE AS PUBLISHED BY PETROLEUM ARGUS DAILY CRUDE REPORT SHALL BE EFFECTIVE FOR "00/00/000 [PLUS/MINUS] $[COST_PER_UNIT] PER BARREL.';
+                        else if(costPerUnitFormula=='Conoco Posting') verbiage='CONOCOPHILLIPS COMPANY POSTING FOR WTI (40 API) [PLUS/MINUS] $[COST_PER_UNIT] PER BARREL.';
+                        else if(costPerUnitFormula=='ICE BRENT') verbiage='OCTOBER DELIVERY, COST PER UNIT DECEMBER ICE BRENT (Priced Oct 7, 2019-Oct 11, 2019) [PLUS/MINUS] $[COST_PER_UNIT].';
+                        else if(costPerUnitFormula=='CMA ICE BRENT') verbiage='CMA ICE BREN [PLUS/MINUS] $[COST_PER_UNIT].';
+                    }
+                } else if(opportunityData.RecordTypeId == RecordTypeCrudeId) {
+                    if(costPerUnitFormula!=null){
+                        if(costPerUnitFormula=='CMA TRADE DAYS ONLY INCLUDING Weekends & Holidays') verbiage='THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT EFFECTIVE FOR THE CALENDAR MONTH OF DELIVERY, INCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX  (PLUS/MINUS PRICE DIFFERENTIAL).  FOR ANY DAY THE NYMEX DOES NOT ESTABLISH A SETTLEMENT PRICE, THE FIRST PREVIOUS SETTLEMENT PRICE AVAILABLE WILL BE USED.';
+                        else if(costPerUnitFormula=='CMA/ MERC TRADE DAYS ONLY Exc. Weekends & Holidays') verbiage='THE PRICE PER BBL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT DURING THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX [PLUS/MINUS] $[COST_PER_UNIT]';
+                        else if(costPerUnitFormula=='Nymex Settlement/Window Trade') verbiage='NYMEX SETTLEMENT PRICE FOR "MONTH YEAR" SWEET CRUDE FUTURES ON 00/00/0000 [PLUS/MINUS] $[COST_PER_UNIT] PER BARREL.';
+                        else if(costPerUnitFormula=='ARGUS (seller side)') verbiage='THE AVERAGE OF "MONTH, YEAR" "WTD AVG" HLS CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DATED/DURING THE PERIOD OF " MONTH, DATE, YEAR".';
+                        else if(costPerUnitFormula=='ARGUS (buyer side)') verbiage='THE AVERAGE OF "MONTH, YEAR" "WTI FORMULA BASIS" PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DATED/DURING THE PERIOD OF "MONTH, DAY YEAR".';
+                        else if(costPerUnitFormula=='MOP') verbiage='THE MEAN QUOTE FOR WTI *MONTH* AS REPORTED BY PLATTS OILGRAM ON *MONTH, DATE, YEAR*.';
+                        else if(costPerUnitFormula=='ARGUS EVERGREEN (seller side)') verbiage='THE AVERAGE OF THE "WTD AVG" EIC CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT FOR EACH MONTH BEGINNING ON THE 26TH DAY OF THE SECOND MONTH PRECEDING THE DELIVERY MONTH AND ENDING ON THE 25TH DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='ARGUS EVERGREEN (buyer side)')  verbiage='THE AVERAGE OF THE "WTI" FORMULA BASIS PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT FOR EACH MONTH BEGINNING ON THE 26TH DAY OF THE SECOND MONTH PRECEDING THE DELIVERY MONTH AND ENDING ON THE 25TH DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='ARGUS WTI ASSESSMENT') verbiage='ARGUS ASSESSMENT FOR "MONTH" WTI FORMULA BASIS ON "MONTH, DATE, YEAR" "PLUS/MINUS" PER BARREL.';
+                        else if(costPerUnitFormula=='Argus Term Pricing (LLS)') verbiage='THE PRICE FOR EACH MONTH IS EQUAL TO THE ARITHMETIC AVERAGE OF THE WTD AVG LLS (1ST MONTH) PRICES FROM ARGUS MEDIA FOR EACH DAY THAT IS DETERMINED DURING THE MONTH BEGINNING WITH THE FIRST DAY AFTER THE 25TH CALENDAR DAY OF THE MONTH 2 MONTHS PRIOR TO THE DELIVERY MONTH THROUGH THE 25TH CALENDAR DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='Argus Term Pricing (WTI)') verbiage='THE PRICE FOR EACH MONTH IS EQUAL TO THE ARITHMETIC AVERAGE OF THE WTI FORMULA BASIS (1ST MONTH) PRICES FROM ARGUS MEDIA EACH DAY THAT IT IS DETERMINED DURING THE MONTH BEGINNING WITH THE FIRST DAY AFTER THE 25TH CALENDAR DAY OF THE MONTH 2 MONTHS PRIOR TO THE DELIVERY MONTH THROUGH THE 25TH CALENDAR DAY OF THE FOLLOWING MONTH.';
+                        else if(costPerUnitFormula=='MOA')  verbiage='WTI FORMULA BASIS QUOTE  FOR "MONTH" AS REPORTED BY ARGUS AMERICAS CRUDE FOR THE PERIOD 00/00/0000 THRU 00/00/0000 INCLUSIVE.';
+                        else if(costPerUnitFormula=='MID-POINT OF ARGUS')  verbiage='THE MID-POINT OF ARGUS SPOT CRUDE PRICE ASSESSMENT FOR WTI FORMULA, MO1 CRUDE OIL AS PUBLISHED BY ARGUS AMERICAS CRUDE REPORT FOR "MONTH"; "PLUS/MINUS" U.S. PER BARREL MARKET DIFFERENTIAL.';
+                        else if(costPerUnitFormula=='Argus CMA') verbiage='THE AVERAGE OF "MONTH" "WTD AVG" DIFF CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF " MONTH, DATE, YEAR".';
+                        else if(costPerUnitFormula=='Argus/Nymex CMA-(trade days only)') verbiage='THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE DAILY SETTLEMENT PRICE FOR "LIGHT SWEET CRUDE OIL" "month" FUTURE CONTRACTS REPORTED BY NYMEX  FROM "00/00/000 THROUGH AND INCLUDING THE LAST DAY OF 00/00/000, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX.\n'+
+                            'THE WEIGHTED AVERAGE DIFFERENTIAL CMA NYMEX VALUE AS PUBLISHED BY PETROLEUM ARGUS DAILY CRUDE REPORT SHALL BE EFFECTIVE FOR "00/00/000 [PLUS/MINUS] $[COST_PER_UNIT] PER BARREL.';
+                        else if(costPerUnitFormula=='Conoco Posting') verbiage='CONOCOPHILLIPS COMPANY POSTING FOR WTI (40 API) [PLUS/MINUS] $[COST_PER_UNIT] PER BARREL.';
+                        else if(costPerUnitFormula=='NYMEX VS. ARGUS ALL DAYS') verbiage='THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE "MONTH YEAR" DAILY SETTLEMENT PRICE FOR THE NYMEX "LIGHT SWEET CRUDE OIL" FUTURE CONTRACTS [PLUS/MINUS] $[COST_PER_UNIT] PER BARREL DURING THE PERIOD OF "MONTH, DAY YEAR" THRU MONTH, DAY YEAR" EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX.';
+                        else if(costPerUnitFormula=='CMAT ARGUS MEH CMA DIFF TO NYMEX (MPC/ OXY DEALS)') verbiage='THE PRICE PER BARREL SHALL BE 100% OF THE AVERAGE OF THE DAILY SETTLEMENT PRICE FOR "LIGHT SWEET CRUDE OIL" PROMPT MONTH FUTURE CONTRACTS REPORTED BY THE NEW YORK MERCANTILE EXCHANGE (NYMEX) FROM THE FIRST DAY OF THE CALENDAR MONTH THROUGH AND INCLUDING THE LAST DAY OF THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX" PLUS THE AVERAGE OF "MONTH, YEAR" WTI DIFF TO CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF "MONTH, DAY, YEAR THRU MONTH, DAY, YEAR" [PLUS/MINUS] $[COST_PER_UNIT].';
+                        else if(costPerUnitFormula=='CMAT ARUGS MEH CMA DIFF TO NYMEX PLUS HOUSTON DIFF') verbiage='THE PRICE PER BARREL SHALL BE 100% OF THE AVERAGE OF THE DAILY SETTLEMENT PRICE FOR "LIGHT SWEET CRUDE OIL" PROMPT MONTH FUTURE CONTRACTS REPORTED BY THE NEW YORK MERCANTILE EXCHANGE (NYMEX) FROM THE FIRST DAY OF THE CALENDAR MONTH THROUGH AND INCLUDING THE LAST DAY OF THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX" PLUS THE AVERAGE OF "MONTH, YEAR" WTI DIFF TO CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF "MONTH, DAY, YEAR THRU MONTH, DAY, YEAR" [PLUS/MINUS] $[COST_PER_UNIT], PLUS, THE AVERAGE OF " MONTH, YEAR " WTI HOUSTON DIFF AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE"';
+                        else if(costPerUnitFormula=='CMA + ARGUS ROLL VERBIAGE') verbiage='THE PRICE PER BBL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT DURING THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX PLUS THE AVERAGE OF "MONTH AND YEAR" "WTD AVG" DIFF CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF "MONTH, DATE, YEAR" PLUS ARGUS ROLL AVG [PLUS/MINUS] $[COST_PER_UNIT].';
+                        else if(costPerUnitFormula=='ICE BRENT') verbiage='OCTOBER DELIVERY, COST PER UNIT DECEMBER ICE BRENT (Priced Oct 7, 2019-Oct 11, 2019) [PLUS/MINUS] $[COST_PER_UNIT].';
+                        else if(costPerUnitFormula=='CMA ICE BRENT') verbiage='CMA ICE BREN [PLUS/MINUS] $[COST_PER_UNIT].';
+                    }
+                }
+                costPerUnitFormulas.add(new cWrapper(k1.replace('&amp;','&'),verbiage.replace('&amp;','&'),null));
+            }
+        }
+        costPerUnitFormulaJson = JSON.serialize(costPerUnitFormulas);*/
+    }
+
+    public static List<String> getFieldsOpp(){
+        Map<String, Schema.SObjectType> schemaMap = Schema.getGlobalDescribe();
+        Schema.SObjectType accountSchema = schemaMap.get('Opportunity');
+        Map<String, Schema.SObjectField> mapFields = accountSchema.getDescribe().fields.getMap();
+        List<String> lstFields = new List<String>();
+        for(String key : mapFields.keySet()){
+            if(mapFields.get(key).getDescribe().isUpdateable()) {
+                lstFields.add(String.valueOf(mapFields.get(key)));
+            }
+        }
+        
+        return lstFields;
+    }
+    
+    public void saveAction(){
+        messageSuccess = '';
+        saveTrans();
+        if(!message.contains('Error') && !message.contains('Please select a Record Type')){
+            PageReference pagePdf;
+            PageReference pagePdf2;
+            ContentVersion conVer;
+            Blob pdfPageBlob;
+            String conDoc;
+            ContentDocumentLink cDe;
+            if(opportunityData.RecordTypeId == RecordTypeCrudeId){
+            	pagePdf = Page.LC_confirmationVFP;
+                pagePdf2 = Page.LC_confirmationVFP;
+            }else{
+                pagePdf = Page.LF_confirmationVFP;
+                pagePdf2 = Page.LF_confirmationVFP;
+            }
+            
+            String nameFileBuyer;
+            String nameFileSeller;
+            String oppNameAux = opportunityData.Name.replace(' MASTER','');
+            if(oppNameAux.contains('-R')){
+                nameFileBuyer = oppNameAux.subString(0,oppNameAux.length() - 3) + 'B' + oppNameAux.subString(oppNameAux.length() - 3,oppNameAux.length() - 2) + '-R';
+                nameFileSeller = oppNameAux.subString(0,oppNameAux.length() - 3) + 'S' + oppNameAux.subString(oppNameAux.length() - 3,oppNameAux.length() - 2) + '-R';
+            }else{
+                if(!oppNameAux.subString(oppNameAux.length()-1,oppNameAux.length()).isNumeric()){
+                    nameFileBuyer = oppNameAux.subString(0,oppNameAux.length() - 1) + 'B' + oppNameAux.subString(oppNameAux.length() - 1);
+                    nameFileSeller = oppNameAux.subString(0,oppNameAux.length() - 1) + 'S' + oppNameAux.subString(oppNameAux.length() - 1);
+                }else{
+                    nameFileBuyer = oppNameAux + 'B';
+                    nameFileSeller = oppNameAux + 'S';
+                }
+            }
+            if(opportunityData.Transaction__c == 'Master (Strip Master)'){
+                nameFileBuyer = nameFileBuyer + ' MASTER';
+                nameFileSeller = nameFileSeller + ' MASTER';
+            }
+            
+            //BUYER
+            if(opportunity.AccountId != null){
+                pagePdf.getParameters().put('id',opportunityData.Id);
+                pagePdf.getParameters().put('type','buyer');
+                if(!Test.isRunningTest()){
+                    pdfPageBlob = pagePdf.getContent();
+                }else{ 
+                    pdfPageBlob = blob.valueof('TEST');
+                }
+                
+                
+                
+                conVer = new ContentVersion();
+                conVer.PathOnClient = '/'+nameFileBuyer+'_'+system.today().format()+'.pdf';
+                conVer.Title = nameFileBuyer+' - '+system.today().format();
+                conVer.VersionData = pdfPageBlob;
+                insert conVer;
+                
+                conDoc = [SELECT ContentDocumentId FROM ContentVersion WHERE Id =:conVer.Id].ContentDocumentId;
+                
+                //Create ContentDocumentLink
+                cDe = new ContentDocumentLink();
+                cDe.ContentDocumentId = conDoc;
+                cDe.LinkedEntityId = opportunityData.Id;
+                cDe.ShareType = 'V';
+                cDe.Visibility = 'AllUsers';
+                insert cDe;
+            }
+            
+            //SELLER
+            if(opportunityData.Seller__c != null){
+                pagePdf2.getParameters().put('id',opportunityData.Id);
+                pagePdf2.getParameters().put('type','seller');
+                if(!Test.isRunningTest()){
+                    pdfPageBlob = pagePdf2.getContent();
+                }else{ 
+                    pdfPageBlob = blob.valueof('TEST');
+                }
+                conVer = new ContentVersion();
+                conVer.PathOnClient = '/'+nameFileSeller+'_'+system.today().format()+'.pdf';
+                conVer.Title = nameFileSeller+' - '+system.today().format();
+                conVer.VersionData = pdfPageBlob;
+                insert conVer;
+                
+                conDoc = [SELECT ContentDocumentId FROM ContentVersion WHERE Id =:conVer.Id].ContentDocumentId;
+                
+                //Create ContentDocumentLink
+                cDe = new ContentDocumentLink();
+                cDe.ContentDocumentId = conDoc;
+                cDe.LinkedEntityId = opportunityData.Id;
+                cDe.ShareType = 'V';
+                cDe.Visibility = 'AllUsers';
+                insert cDe;
+            }
+            
+            messageSuccess = 'Transaction "'+opportunityData.Name+'" was saved.'; 
+        }         
+    }
+    
+    public pageReference newTransaction(){ 
+        System.debug('RT2: ' + opportunityData.RecordTypeId);
+        PageReference pag = new PageReference('/apex/TransactionCreator');
+        pag.setRedirect(true);
+        return pag; 
+    }
+    
+    public void calculateTotal(){
+        Integer numberOfDays;
+        Date dateAux;
+        Decimal totalvolume;
+        Integer month;
+        if(delivery != null && delivery != ''){
+            system.debug(delivery.split(' ').size());
+            if(delivery.split(' ').size() > 1){
+                if(delivery.split(' ')[0] == 'January') month = 1;
+                if(delivery.split(' ')[0] == 'February') month = 2;
+                if(delivery.split(' ')[0] == 'March') month = 3;
+                if(delivery.split(' ')[0] == 'April') month = 4;
+                if(delivery.split(' ')[0] == 'May') month = 5;
+                if(delivery.split(' ')[0] == 'June') month = 6;
+                if(delivery.split(' ')[0] == 'July') month = 7;
+                if(delivery.split(' ')[0] == 'August') month = 8;
+                if(delivery.split(' ')[0] == 'September') month = 9;
+                if(delivery.split(' ')[0] == 'October') month = 10;
+                if(delivery.split(' ')[0] == 'November') month = 11;
+                if(delivery.split(' ')[0] == 'December') month = 12;
+                if(month != null) opportunityData.Delivery__c = Date.newInstance(Integer.valueOf(delivery.split(' ')[1]), month, 1);
+            }
+        }
+        system.debug(opportunityData.Delivery__c);
+        if(opportunityData.Volume_Method__c != null && opportunityData.Delivery__c!=null && opportunityData.Transaction__c != 'Member (Strip Member)'){
+            numberOfDays = Date.daysInMonth(opportunityData.Delivery__c.year(), opportunityData.Delivery__c.month());
+            if(opportunityData.Volume_Method__c == 'Total Quantity' && opportunityData.Total_Volume_BBL_New__c != null){
+                opportunityData.Volume_BBL_Day_New__c = (opportunityData.Total_Volume_BBL_New__c / numberOfDays).setScale(2);
+            }else if(opportunityData.Volume_Method__c == 'BPD' && opportunityData.Volume_BBL_Day_New__c != null){
+                opportunityData.Total_Volume_BBL_New__c = (opportunityData.Volume_BBL_Day_New__c * numberOfDays).setScale(2);
+            }
+        }
+        if(opportunityData.Transaction__c == 'Master (Strip Master)' && opportunityData.Volume_Method__c == 'BPD' && opportunityData.Start_Date__c != null && opportunityData.End_Date__c != null && opportunityData.Volume_BBL_Day_New__c != null){
+            totalvolume = 0;
+            dateAux = opportunityData.Start_Date__c;
+            system.debug(dateAux);
+            while(dateAux <= opportunityData.End_Date__c){
+                numberOfDays = Date.daysInMonth(dateAux.year(),dateAux.month());
+                totalvolume = totalvolume + (numberOfDays * opportunityData.Volume_BBL_Day_New__c);
+                system.debug(totalvolume);
+                dateAux = dateAux.addMonths(1);
+            }
+            opportunityData.Total_Volume_BBL_New__c = (totalvolume != null ? totalvolume.setScale(2) : 0);
+        }
+    }
+    
+    public void saveTrans(){
+        system.debug('recordType: '+opportunityData.RecordTypeId);
+        message = '';
+        messageSuccess = '';
+        Integer month = null;
+        Opportunity oppOliAux;
+        if(opportunityData.RecordTypeId != null && opportunityData.Id != null){
+            Boolean deliveryValidate = true;
+            getLocationPL();
+            getCostPerUnitFormula();
+            System.debug('Formula inicial: '  + opportunityData.Cost_Per_Unit_Formula_Verbiage__c);
+            if(delivery != null && delivery != ''){
+                if(delivery.split(' ').size() == 2){
+                    if(delivery.split(' ')[0] == 'January') month = 1;
+                    if(delivery.split(' ')[0] == 'February') month = 2;
+                    if(delivery.split(' ')[0] == 'March') month = 3;
+                    if(delivery.split(' ')[0] == 'April') month = 4;
+                    if(delivery.split(' ')[0] == 'May') month = 5;
+                    if(delivery.split(' ')[0] == 'June') month = 6;
+                    if(delivery.split(' ')[0] == 'July') month = 7;
+                    if(delivery.split(' ')[0] == 'August') month = 8;
+                    if(delivery.split(' ')[0] == 'September') month = 9;
+                    if(delivery.split(' ')[0] == 'October') month = 10;
+                    if(delivery.split(' ')[0] == 'November') month = 11;
+                    if(delivery.split(' ')[0] == 'December') month = 12;
+                    if(month != null) deliveryValidate = true; else deliveryValidate = false;
+                }else{
+                    deliveryValidate = false;
+                }
+            }
+            if(deliveryValidate){
+                Decimal totalSe = (sSplit1 != null ? sSplit1 : 0) + (sSplit2 != null ? sSplit2 : 0) + (sSplit3 != null ? sSplit3 : 0) + (sSplit4 != null ? sSplit4 : 0);
+                Decimal totalBu = (bSplit1 != null ? bSplit1 : 0) + (bSplit2 != null ? bSplit2 : 0) + (bSplit3 != null ? bSplit3 : 0) + (bSplit4 != null ? bSplit4 : 0);
+                if(totalSe <= 100 && totalBu <= 100){
+                    try{               
+                        if(opportunityData.Transaction__c == 'Master (Strip Master)'){
+                            isStripeMaster = true;
+                        }else{
+                            isStripeMaster = false;
+                            opportunityData.Start_Date__c = null;
+                            opportunityData.End_Date__c = null;
+                        }
+                        if(opportunityData.Price_Type__c != 'Formula Price'){
+                            opportunityData.Cost_Per_Unit_formula__c = null;
+                            opportunityData.Cost_Per_Unit_Formula_Verbiage__c = null;
+                        }
+                        if(delivery != null && delivery != ''){
+                            system.debug(delivery.split(' ').size());
+                            if(delivery.split(' ').size() > 1){
+                                if(delivery.split(' ')[0] == 'January') month = 1;
+                                if(delivery.split(' ')[0] == 'February') month = 2;
+                                if(delivery.split(' ')[0] == 'March') month = 3;
+                                if(delivery.split(' ')[0] == 'April') month = 4;
+                                if(delivery.split(' ')[0] == 'May') month = 5;
+                                if(delivery.split(' ')[0] == 'June') month = 6;
+                                if(delivery.split(' ')[0] == 'July') month = 7;
+                                if(delivery.split(' ')[0] == 'August') month = 8;
+                                if(delivery.split(' ')[0] == 'September') month = 9;
+                                if(delivery.split(' ')[0] == 'October') month = 10;
+                                if(delivery.split(' ')[0] == 'November') month = 11;
+                                if(delivery.split(' ')[0] == 'December') month = 12;
+                                if(month != null) opportunityData.Delivery__c = Date.newInstance(Integer.valueOf(delivery.split(' ')[1]), month, 1);
+                            }
+                        }
+                        system.debug('whoWillWrite: '+whoWillWrite);
+                        if(whoWillWrite != null && whoWillWrite != ''){
+                            if(whoWillWrite == 'Seller'){
+                                opportunityData.Seller_Will_Write__c = true;
+                            }else{
+                                opportunityData.Seller_Will_Write__c = false;
+                            }
+                            if(whoWillWrite == 'Buyer'){
+                                opportunityData.Buyer_Will_Write__c = true;
+                            }else{
+                                opportunityData.Buyer_Will_Write__c = false;
+                            }
+                        }
+                        if(opportunityData.Type != 'EXPORT'){
+                            opportunityData.Tolerance__c = null;
+                            opportunityData.Party_Option__c = null;
+                            opportunityData.Delivery_Window_Start__c = null;
+                            opportunityData.Delivery_Window_End__c = null;
+                        }
+                        //system.debug('##CREATOR: '+opportunityData.Cost_Per_Unit_formula__c);
+                        if(opportunityData.Void__c){
+                            ApexUtil.OpportunityTrigger_Is_Enabled = false;
+                            ApexUtil.InvoiceTrigger_Is_Enabled = false;
+                            ApexUtil.isUpdateComm = true;
+                            ApexUtil.OpportunityProductTrigger_Is_Enabled = false;
+                            
+                            Set<String> oppVoidIds = new Set<String>();
+                            oppVoidIds.add(opportunityData.Id);
+                            
+                            opportunityData.Amount = 0;
+                            opportunityData.Adjustments_Applied__c = 0;
+                            opportunityData.Balance_Due__c = 0;
+                            opportunityData.Commission__c = 0;
+                            opportunityData.Debits__c = 0;
+                            opportunityData.Payments_Applied__c = 0;
+                            opportunityData.Product_Price__c = 0;
+                            opportunityData.Total_Volume_BBL_New__c = 0;
+                            opportunityData.Volume_BBL_Day_New__c = 0;
+                            
+                            List<Opportunity> oppVoidList = new List<Opportunity>();
+                            for(Opportunity oppvoid : [SELECT Id FROM Opportunity WHERE Master_Opportunity__c =: opportunityData.Id]){
+                                oppVoidIds.add(oppvoid.Id);
+                                oppvoid.Amount = 0;
+                                oppvoid.Adjustments_Applied__c = 0;
+                                oppvoid.Balance_Due__c = 0;
+                                oppvoid.Commission__c = 0;
+                                oppvoid.Debits__c = 0;
+                                oppvoid.Payments_Applied__c = 0;
+                                oppvoid.Product_Price__c = 0;
+                                oppvoid.Total_Volume_BBL_New__c = 0;
+                                oppvoid.Volume_BBL_Day_New__c = 0;
+                                oppVoidList.add(oppvoid);
+                            }
+                            
+                            List<Invoice__c> invVoidList = new List<Invoice__c>();
+                            for(Invoice__c invvoid : [SELECT Id FROM Invoice__c WHERE Transaction_Number__c IN: oppVoidIds]){
+                                invvoid.Balance_Due__c = 0;
+                                invvoid.Total_Payments__c = 0;
+                                invVoidList.add(invvoid);
+                            }
+                            
+                            List<Commission__c> comVoidList = new List<Commission__c>();
+                            for(Commission__c comvoid : [SELECT Id FROM Commission__c WHERE Transaction_No__c IN: oppVoidIds]){
+                                comvoid.Buyer_1_Commission_BD__c = 0;
+                                comvoid.Buyer_2_Commission_BD__c = 0;
+                                comvoid.Buyer_3_Commission_BD__c = 0;
+                                comvoid.Buyer_4_Commission_BD__c = 0;
+                                comvoid.Buyer_Commission__c = 0;
+                                comvoid.Buyer_Commission_Amount_Paid__c = 0;
+                                comvoid.Management_Fee_JE__c = 0;
+                                comvoid.Seller_1_Commission_BD__c = 0;
+                                comvoid.Seller_2_Commission_BD__c = 0;
+                                comvoid.Seller_3_Commission_BD__c = 0;
+                                comvoid.Seller_4_Commission_BD__c = 0;
+                                comvoid.Seller_Commission__c = 0;
+                                comvoid.Seller_Commission_Amount_Paid__c = 0;
+                                comvoid.Travel_Expense_JE__c = 0;
+                                comvoid.Buyer_Broker_1_Overhead_Rate__c = 0;
+                                comvoid.Buyer_Broker_2_Overhead_Rate__c = 0;
+                                comvoid.Buyer_Broker_3_Overhead_Rate__c = 0;
+                                comvoid.Buyer_Broker_4_Overhead_Rate__c = 0;
+                                comvoid.Buyer_Broker_5_Overhead_Rate__c = 0;
+                                comvoid.Buyer_Rate__c = 0;
+                                comvoid.Seller_Broker_1_Overhead_Rate__c = 0;
+                                comvoid.Seller_Broker_2_Overhead_Rate__c = 0;
+                                comvoid.Seller_Broker_3_Overhead_Rate__c = 0;
+                                comvoid.Seller_Broker_4_Overhead_Rate__c = 0;
+                                comvoid.Seller_Rate__c = 0;
+                                comVoidList.add(comvoid);
+                            }
+                            
+                            List<OpportunityLineItem> oliVoidList = new List<OpportunityLineItem>();
+                            for(OpportunityLineItem olivoid : [SELECT Id FROM OpportunityLineItem WHERE OpportunityId IN: oppVoidIds]){
+                                olivoid.UnitPrice = 0;
+                                oliVoidList.add(olivoid);
+                            }
+                            
+                            rateSeller = 0;
+                            commissionSeller = 0;
+                            rateBuyer = 0;
+                            commissionBuyer = 0;
+                            if(sSplit1 != null) sSplit1 = 0;
+                            if(sSplit2 != null) sSplit2 = 0;
+                            if(sSplit3 != null) sSplit3 = 0;
+                            if(sSplit4 != null) sSplit4 = 0;
+                            if(bSplit1 != null) bSplit1 = 0;
+                            if(bSplit2 != null) bSplit2 = 0;
+                            if(bSplit3 != null) bSplit3 = 0;
+                            if(bSplit4 != null) bSplit4 = 0;
+                            
+                            if(oppVoidList.size() > 0) update oppVoidList;
+                            if(invVoidList.size() > 0) update invVoidList;
+                            if(comVoidList.size() > 0) update comVoidList;
+                            if(oliVoidList.size() > 0) update oliVoidList;
+                        }
+                        System.debug('Test trigger: ' + ApexUtil.OpportunityTrigger_Is_Enabled + ' - ' + ApexUtil.InvoiceTrigger_Is_Enabled + '--> ' + commissionSeller);
+                        update opportunityData;
+                        
+                        if(!opportunityData.Void__c){
+                            List<Commission__c> commissionList = [Select Id, Seller_Side_Broker_1__c, Seller_Side_Broker_2__c, Seller_Side_Broker_3__c, Seller_Side_Broker_4__c, Buyer_Side_Broker_1__c, Buyer_Side_Broker_2__c,
+                                                                  Buyer_Side_Broker_3__c, Buyer_Side_Broker_4__c, Seller_Side_Commission_1__c, Seller_Side_Commission_2__c, Seller_Side_Commission_3__c, Seller_Side_Commission_Split_4__c, 
+                                                                  Buyer_Side_Commission_1__c, Buyer_Side_Commission_2__c, Buyer_Side_Commission_3__c, Buyer_Side_Commission_Split_4__c
+                                                                  From Commission__c WHERE Transaction_No__c=:opportunityData.Id LIMIT 1];
+                            if(commissionList.size()>0){
+                                commissionList[0].Seller_Rate__c = rateSeller;
+                                commissionList[0].Seller_Commission__c = commissionSeller;
+                                //if(opportunityData.Type != 'EXCHANGE'){
+                                commissionList[0].Buyer_Rate__c = rateBuyer;
+                                commissionList[0].Buyer_Commission__c = commissionBuyer;
+                                /*}else{
+                                    commissionList[0].Buyer_Rate__c = null;
+                                    commissionList[0].Buyer_Commission__c = null;
+                                    }*/
+                                if(sBroker1 != '') commissionList[0].Seller_Side_Broker_1__c = sBroker1;
+                                if(sBroker2 != '') commissionList[0].Seller_Side_Broker_2__c = sBroker2;
+                                if(sBroker3 != '') commissionList[0].Seller_Side_Broker_3__c = sBroker3;
+                                if(sBroker4 != '') commissionList[0].Seller_Side_Broker_4__c = sBroker4;
+                                if(bBroker1 != '') commissionList[0].Buyer_Side_Broker_1__c = bBroker1;
+                                if(bBroker2 != '') commissionList[0].Buyer_Side_Broker_2__c = bBroker2;
+                                if(bBroker3 != '') commissionList[0].Buyer_Side_Broker_3__c = bBroker3;
+                                if(bBroker4 != '') commissionList[0].Buyer_Side_Broker_4__c = bBroker4;
+                                if(sSplit1 != null) commissionList[0].Seller_Side_Commission_1__c = sSplit1;
+                                if(sSplit2 != null) commissionList[0].Seller_Side_Commission_2__c = sSplit2;
+                                if(sSplit3 != null) commissionList[0].Seller_Side_Commission_3__c = sSplit3;
+                                if(sSplit4 != null) commissionList[0].Seller_Side_Commission_Split_4__c = sSplit4;
+                                if(bSplit1 != null) commissionList[0].Buyer_Side_Commission_1__c = bSplit1;
+                                if(bSplit2 != null) commissionList[0].Buyer_Side_Commission_2__c = bSplit2;
+                                if(bSplit3 != null) commissionList[0].Buyer_Side_Commission_3__c = bSplit3;
+                                if(bSplit4 != null) commissionList[0].Buyer_Side_Commission_Split_4__c = bSplit4;
+                                System.debug('commissionList[0]: ' + commissionList[0]);
+                                update commissionList[0];
+                                
+                                List<Commission__c> commissionChildList = [Select Id From Commission__c WHERE Transaction_No__r.Master_Opportunity__c=:opportunityData.Id];
+                                //Set<Id> auxIdInvUpdate = new set<Id>();
+                                for(Commission__c cChild : commissionChildList){
+                                    cChild.Seller_Side_Broker_1__c = commissionList[0].Seller_Side_Broker_1__c;
+                                    cChild.Seller_Side_Broker_2__c = commissionList[0].Seller_Side_Broker_2__c;
+                                    cChild.Seller_Side_Broker_3__c = commissionList[0].Seller_Side_Broker_3__c;
+                                    cChild.Seller_Side_Broker_4__c = commissionList[0].Seller_Side_Broker_4__c;
+                                    cChild.Buyer_Side_Broker_1__c = commissionList[0].Buyer_Side_Broker_1__c;
+                                    cChild.Buyer_Side_Broker_2__c = commissionList[0].Buyer_Side_Broker_2__c;
+                                    cChild.Buyer_Side_Broker_3__c = commissionList[0].Buyer_Side_Broker_3__c;
+                                    cChild.Buyer_Side_Broker_4__c = commissionList[0].Buyer_Side_Broker_4__c;
+                                    cChild.Seller_Side_Commission_1__c = commissionList[0].Seller_Side_Commission_1__c;
+                                    cChild.Seller_Side_Commission_2__c = commissionList[0].Seller_Side_Commission_2__c;
+                                    cChild.Seller_Side_Commission_3__c = commissionList[0].Seller_Side_Commission_3__c;
+                                    cChild.Seller_Side_Commission_Split_4__c = commissionList[0].Seller_Side_Commission_Split_4__c;
+                                    cChild.Buyer_Side_Commission_1__c = commissionList[0].Buyer_Side_Commission_1__c;
+                                    cChild.Buyer_Side_Commission_2__c = commissionList[0].Buyer_Side_Commission_2__c;
+                                    cChild.Buyer_Side_Commission_3__c = commissionList[0].Buyer_Side_Commission_3__c;
+                                    cChild.Buyer_Side_Commission_Split_4__c = commissionList[0].Buyer_Side_Commission_Split_4__c;
+                                    cChild.Seller_Rate__c = rateSeller;
+                                    if(opportunityData.Total_Volume_BBL_New__c!=null && rateSeller!=null) cChild.Seller_Commission__c = rateSeller*opportunityData.Total_Volume_BBL_New__c;
+                                    cChild.Buyer_Rate__c = rateBuyer;
+                                    if(opportunityData.Total_Volume_BBL_New__c!=null && rateBuyer!=null) cChild.Buyer_Commission__c = rateBuyer*opportunityData.Total_Volume_BBL_New__c;
+                                	System.debug('3103--RS:' + rateSeller + '-RB:' + rateBuyer + '-TBN:' + opportunityData.Total_Volume_BBL_New__c);
+                                }
+                                
+                                if(commissionChildList.size() > 0) update commissionChildList;                        
+                            }
+                            List<Invoice__c> invoiceList = [Select Id,Role__c,Invoice_Date__c, Transaction_Number__c, Balance_Due__c, Total_Payments__c, Paid__c From Invoice__c WHERE Transaction_Number__c=:opportunityData.Id or Transaction_Number__r.Master_Opportunity__c=:opportunityData.Id];
+                            if(invoiceList.size()>0){
+                                Boolean auxValorInvTrigger = ApexUtil.InvoiceTrigger_Is_Enabled;
+                                ApexUtil.InvoiceTrigger_Is_Enabled = false;
+                                InvoiceTriggerHandler.setData(invoiceList);
+                                update invoiceList;
+                                ApexUtil.InvoiceTrigger_Is_Enabled = auxValorInvTrigger;
+                                for(Invoice__c inv : invoiceList){
+                                    if(inv.Transaction_Number__c==opportunityData.Id){
+                                        if(inv.Role__c == 'Seller'){
+                                            existInvoiceSeller = true;
+                                            dateInvoiceSeller = inv.Invoice_Date__c;
+                                        }
+                                        if(inv.Role__c == 'Buyer'){
+                                            existInvoiceBuyer = true;
+                                            dateInvoiceBuyer = inv.Invoice_Date__c;
+                                        }
+                                    }
+                                }
+                            }
+                            List<OpportunityLineItem> olis = [Select Id, PricebookEntryId From OpportunityLineItem WHERE OpportunityId =: opportunityData.Id LIMIT 1];
+                            OpportunityLineItem oli;
+                            List<PricebookEntry> pbeList;
+                            system.debug(opportunityData.RecordTypeId);
+                            system.debug(RecordTypeCrudeId);
+                            system.debug(opportunityData.Total_Volume_BBL_New__c);
+                            if(opportunityData.Type == 'EXPORT' && opportunityData.Grade_Export__c != null){
+                                opportunityData.Grade_Crude__c = null;
+                                opportunityData.Grade_Future__c = null;
+                                pbeList = [Select Id From PricebookEntry WHERE Product2Id=:opportunityData.Grade_Export__c AND isActive=true and Pricebook2Id=:PricebookExportId];
+                                system.debug(pbeList);
+                                if(pbeList.size()>0){
+                                    if(olis.size() > 0){
+                                        oli = olis[0];
+                                        if(oli.PricebookEntryId!=pbeList[0].Id){
+                                        	oli = new OpportunityLineItem();
+                                            delete olis[0];
+                                            oli.OpportunityId = opportunityData.Id;
+                                            oli.PricebookEntryId = pbeList[0].Id;
+                                            if(opportunityData.Cost_Per_Unit__c != null) oli.UnitPrice = Decimal.valueOf(opportunityData.Cost_Per_Unit__c); else oli.UnitPrice = 0;
+                                            if(opportunityData.Total_Volume_BBL_New__c != null) oli.Quantity = opportunityData.Total_Volume_BBL_New__c; else oli.Quantity = 1;
+                                            oppOliAux = new Opportunity(Id=opportunityData.Id, Pricebook2Id=PricebookExportId);
+                                            update oppOliAux;
+                                         }else{
+                                         	if(opportunityData.Cost_Per_Unit__c != null) oli.UnitPrice = Decimal.valueOf(opportunityData.Cost_Per_Unit__c); else oli.UnitPrice = 0;
+                                            if(opportunityData.Total_Volume_BBL_New__c != null) oli.Quantity = opportunityData.Total_Volume_BBL_New__c; else oli.Quantity = 1;
+                                         }
+                                    }else{
+                                        oli = new OpportunityLineItem();
+                                        oli.OpportunityId = opportunityData.Id;
+                                        oli.PricebookEntryId = pbeList[0].Id;
+                                        if(opportunityData.Cost_Per_Unit__c != null) oli.UnitPrice = Decimal.valueOf(opportunityData.Cost_Per_Unit__c); else oli.UnitPrice = 0;
+                                        if(opportunityData.Total_Volume_BBL_New__c != null) oli.Quantity = opportunityData.Total_Volume_BBL_New__c; else oli.Quantity = 1;
+                                        oppOliAux = new Opportunity(Id=opportunityData.Id, Pricebook2Id=PricebookExportId);
+                                        update oppOliAux;
+                                    }
+                                    system.debug(oli);
+                                    upsert oli;
+                                }
+                            }else{
+                                opportunityData.Grade_Export__c = null;
+                                if(opportunityData.RecordTypeId == RecordTypeCrudeId){
+                                    pbeList = [Select Id From PricebookEntry WHERE Product2Id=:opportunityData.Grade_Crude__c AND isActive=true and Pricebook2Id=:PricebookCrudeId];
+                                    system.debug(pbeList);
+                                    if(pbeList.size()>0){
+                                        if(opportunityData.Grade_Crude__c != null){
+                                            if(olis.size() > 0){
+                                                oli = olis[0];
+                                                if(oli.PricebookEntryId!=pbeList[0].Id){
+                                                    oli = new OpportunityLineItem();
+                                                    delete olis[0];
+                                                    oli.OpportunityId = opportunityData.Id;
+                                                    oli.PricebookEntryId = pbeList[0].Id;
+                                                    if(opportunityData.Cost_Per_Unit__c != null) oli.UnitPrice = Decimal.valueOf(opportunityData.Cost_Per_Unit__c); else oli.UnitPrice = 0;
+                                                    if(opportunityData.Total_Volume_BBL_New__c != null) oli.Quantity = opportunityData.Total_Volume_BBL_New__c; else oli.Quantity = 1;
+                                                    oppOliAux = new Opportunity(Id=opportunityData.Id, Pricebook2Id=PricebookCrudeId);
+                                                	update oppOliAux;
+                                                }else{
+                                                    if(opportunityData.Cost_Per_Unit__c != null) oli.UnitPrice = Decimal.valueOf(opportunityData.Cost_Per_Unit__c); else oli.UnitPrice = 0;
+                                                    if(opportunityData.Total_Volume_BBL_New__c != null) oli.Quantity = opportunityData.Total_Volume_BBL_New__c; else oli.Quantity = 1;
+                                                }
+                                            }else{
+                                                oli = new OpportunityLineItem();
+                                                oli.OpportunityId = opportunityData.Id;
+                                                oli.PricebookEntryId = pbeList[0].Id;
+                                                if(opportunityData.Cost_Per_Unit__c != null) oli.UnitPrice = Decimal.valueOf(opportunityData.Cost_Per_Unit__c); else oli.UnitPrice = 0;
+                                                if(opportunityData.Total_Volume_BBL_New__c != null) oli.Quantity = opportunityData.Total_Volume_BBL_New__c; else oli.Quantity = 1;
+                                                oppOliAux = new Opportunity(Id=opportunityData.Id, Pricebook2Id=PricebookCrudeId);
+                                                update oppOliAux;
+                                            }
+                                        }
+                                        system.debug(oli);
+                                        upsert oli;
+                                    }
+                                }else if(opportunityData.RecordTypeId == RecordTypeFutureId){
+                                    system.debug(opportunityData.Grade_Future__c);
+                                    pbeList = [Select Id From PricebookEntry WHERE Product2Id=:opportunityData.Grade_Future__c AND isActive=true and Pricebook2Id=:PricebookFutureId];
+                                    system.debug(pbeList);
+                                    if(pbeList.size()>0){
+                                        if(opportunityData.Grade_Future__c != null){
+                                            if(olis.size() > 0){
+                                                oli = olis[0];
+                                                if(oli.PricebookEntryId!=pbeList[0].Id){
+                                                    oli = new OpportunityLineItem();
+                                                    delete olis[0];
+                                                    oli.OpportunityId = opportunityData.Id;
+                                                    oli.PricebookEntryId = pbeList[0].Id;
+                                                    if(opportunityData.Cost_Per_Unit__c != null) oli.UnitPrice = Decimal.valueOf(opportunityData.Cost_Per_Unit__c); else oli.UnitPrice = 0;
+                                                    if(opportunityData.Total_Volume_BBL_New__c != null) oli.Quantity = opportunityData.Total_Volume_BBL_New__c; else oli.Quantity = 1;
+                                                    oppOliAux = new Opportunity(Id=opportunityData.Id, Pricebook2Id=PricebookFutureId);
+                                               	 	update oppOliAux;
+                                                }else{
+                                                    if(opportunityData.Cost_Per_Unit__c != null) oli.UnitPrice = Decimal.valueOf(opportunityData.Cost_Per_Unit__c); else oli.UnitPrice = 0;
+                                                    if(opportunityData.Total_Volume_BBL_New__c != null) oli.Quantity = opportunityData.Total_Volume_BBL_New__c; else oli.Quantity = 1;
+                                                }
+                                            }else{
+                                                oli = new OpportunityLineItem();
+                                                oli.OpportunityId = opportunityData.Id;
+                                                oli.PricebookEntryId = pbeList[0].Id;
+                                                if(opportunityData.Cost_Per_Unit__c != null) oli.UnitPrice = Decimal.valueOf(opportunityData.Cost_Per_Unit__c); else oli.UnitPrice = 0;
+                                                if(opportunityData.Total_Volume_BBL_New__c != null) oli.Quantity = opportunityData.Total_Volume_BBL_New__c; else oli.Quantity = 1;
+                                                oppOliAux = new Opportunity(Id=opportunityData.Id, Pricebook2Id=PricebookFutureId);
+                                                update oppOliAux;
+                                            }
+                                        }
+                                        system.debug(oli);
+                                        upsert oli;
+                                    }
+                                }
+                            }
+                        }else{
+                            List<Opportunity> oppToTrigger = new List<Opportunity>();
+                            oppToTrigger.add(opportunityData);
+                            OpportunityTriggerHandler.changeName(oppToTrigger);
+                        }
+                        Opportunity opportunityDataAux = [SELECT Id, Name FROM Opportunity WHERE Id =: opportunityData.Id];
+                        opportunityData.Name = opportunityDataAux.Name;
+                        
+                        ApexUtil.OpportunityTrigger_Is_Enabled = true;
+                        ApexUtil.InvoiceTrigger_Is_Enabled = true;
+                        ApexUtil.isUpdateComm = false;
+                        ApexUtil.OpportunityProductTrigger_Is_Enabled = true;
+                    }catch(DMLException e){
+                        if(e.getMessage().contains('NameUnique__c duplicates value'))
+                            message = 'Error: Duplicate Transaction Number, change the Transaction Number please';
+                        else
+                        	message = 'Error: '+ e.getLineNumber() + '-' + e.getMessage();
+                    }
+                }else{
+                    message = 'Error: Total commission split cannot exceed 100, please correct the splits for the brokers.';
+                }
+            }else{
+                message = 'Error: Please choose a valid delivery.';
+            }
+        }else{
+            message = 'Please select a Record Type.';
+        }
+    }
+    
+    public void Init(){
+        message = '';
+        messageSuccess = '';
+        delivery = null;
+        existInvoiceSeller = false;
+        existInvoiceBuyer = false;
+        isStripeMaster = false;
+        urlInvoiceSeller = '';
+        urlInvoiceBuyer = '';
+        
+        RecordTypeCrudeId = [Select Id From RecordType WHERE Name = 'Link Crude Opportunities' AND sObjectType = 'Opportunity'].Id;
+        RecordTypeFutureId = [Select Id From RecordType WHERE Name = 'Link Futures Opportunities' AND sObjectType = 'Opportunity'].Id;
+        PricebookCrudeId = [Select Id From Pricebook2 WHERE Name = 'Link Crude' AND isActive=true].Id;
+    	PricebookFutureId = [Select Id From Pricebook2 WHERE Name = 'Link Future' AND isActive=true].Id;
+        PricebookExportId = [Select Id From Pricebook2 WHERE Name = 'Export Price book' AND isActive=true].Id;
+        
+        opportunityData = new Opportunity();
+        opportunityData.Name = '.';
+        opportunityData.StageName = 'Closed Won';
+        opportunityData.CloseDate = system.today();
+        opportunityData.Region__c = 'US Domestic';
+        opportunityData.Master_Agreement__c = 'OTHER TERMS AND CONDITIONS SHALL BE ACCORDANCE WITH NORMAL INDUSTRY PRACTICE';
+        
+        List<Schema.PicklistEntry> ple;
+        Schema.DescribeFieldResult fieldResult;
+        
+        options1 = new List<SelectOption>();
+        options1.add(new SelectOption('Seller','Seller'));
+        options1.add(new SelectOption('Buyer','Buyer'));
+        
+        recordTypeList = new List<SelectOption>();
+        Schema.DescribeSObjectResult R = Opportunity.SObjectType.getDescribe();
+		List<Schema.RecordTypeInfo> RT = R.getRecordTypeInfos();
+        recordTypeList.add(new SelectOption('','--None--'));
+        for(Schema.RecordTypeInfo pickListVal : RT){
+            if(!pickListVal.isMaster()) recordTypeList.add(new SelectOption(pickListVal.getRecordTypeId(),pickListVal.getName()));
+        }
+            
+        transactionList = new List<SelectOption>();
+        fieldResult = Opportunity.Transaction__c.getDescribe();
+        ple = fieldResult.getPicklistValues();
+        transactionList.add(new SelectOption('','--None--'));
+        for( Schema.PicklistEntry pickListVal : ple){
+            if(pickListVal.getValue() != 'Member (Strip Member)') transactionList.add(new SelectOption(pickListVal.getLabel(),pickListVal.getValue()));
+        } 
+        
+        methodList = new List<SelectOption>();
+        fieldResult = Opportunity.Volume_Method__c.getDescribe();
+        ple = fieldResult.getPicklistValues();
+        for( Schema.PicklistEntry pickListVal : ple){
+            methodList.add(new SelectOption(pickListVal.getLabel(),pickListVal.getValue()));
+        }
+        
+        List<cWrapper> regions = new List<cWrapper>();
+        regionsJson = JSON.serialize(regions);
+        
+        List<cWrapper> types = new List<cWrapper>();
+        typesJson = JSON.serialize(types);
+        
+        List<cWrapper> pipelines = new List<cWrapper>();
+        pipelineJson = JSON.serialize(pipelines);
+        
+        List<cWrapper> locations = new List<cWrapper>();
+        locationJson = JSON.serialize(locations);
+
+        List<cWrapper> deliveries = new List<cWrapper>();
+        Integer mes = system.today().month();
+        deliveries.add(new cWrapper('January ' + (mes>=1 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), 'January ' + (mes>=1 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), null));
+        deliveries.add(new cWrapper('February ' + (mes>=2 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), 'February ' + (mes>=2 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), null));
+        deliveries.add(new cWrapper('March ' + (mes>=3 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), 'March ' + (mes>=3 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), null));
+        deliveries.add(new cWrapper('April ' + (mes>=4 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), 'April ' + (mes>=4 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), null));
+        deliveries.add(new cWrapper('May ' + (mes>=5 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), 'May ' + (mes>=5 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), null));
+        deliveries.add(new cWrapper('June ' + (mes>=6 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), 'June ' + (mes>=6 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), null));
+        deliveries.add(new cWrapper('July ' + (mes>=7 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), 'July ' + (mes>=7 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), null));
+        deliveries.add(new cWrapper('August ' + (mes>=8 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), 'August ' + (mes>=8 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), null));
+        deliveries.add(new cWrapper('September ' + (mes>=9 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), 'September ' + (mes>=9 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), null));
+        deliveries.add(new cWrapper('October ' + (mes>=10 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), 'October ' + (mes>=10 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), null));
+        deliveries.add(new cWrapper('November ' + (mes>=11 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), 'November ' + (mes>=11 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), null));
+        deliveries.add(new cWrapper('December ' + (mes>=12 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), 'December ' + (mes>=12 ? String.valueOf(system.today().year()+1) : String.valueOf(system.today().year())), null));
+        deliveryJson = JSON.serialize(deliveries);
+        
+        List<cWrapper> priceTypes = new List<cWrapper>();
+        priceTypeJson = JSON.serialize(priceTypes);
+        
+        List<cWrapper> costPerUnitFormulas = new List<cWrapper>();
+        costPerUnitFormulaJson = JSON.serialize(costPerUnitFormulas);
+        
+        User auxUser = [select Id, Name, Profile.Name, UserRole.Name from User where ID=:UserInfo.getUserId()];
+        isAdministrator = auxUser.Profile.Name.equalsIgnoreCase('System Administrator') ? true : auxUser.Profile.Name.equalsIgnoreCase('Smarsh Chatter Archiving') ? true : false;
+        System.debug('User Info: ' + auxUser.Name + ' - ' + auxUser.Profile.Name + ' - ' + auxUser.UserRole.Name + '\nAdministrator: ' + isAdministrator);
+        auxRecordTypeIdRole = '';
+        if(auxUser.UserRole.Name!=null){
+        	if(auxUser.UserRole.Name.equalsIgnoreCase('Link Crude Role')) { System.debug('Link Crude Role'); auxRecordTypeIdRole = RecordTypeCrudeId; isRole = true;}
+            else if(auxUser.UserRole.Name.equalsIgnoreCase('Link Future Role')) { System.debug('Link Future Role'); auxRecordTypeIdRole = RecordTypeFutureId; isRole = true;}
+        }else
+        	System.debug('You do not have an assigned role:');
+        //isAdministrator = false;
+       	System.debug('RT: ' + opportunityData.RecordTypeId);
+    }
+    
+    public static Map<String, String> getValues(String objectType, String recordTypeId, String fieldName) {
+        //Endpoint
+        String endpoint = URL.getSalesforceBaseUrl().toExternalForm();
+        endpoint += '/services/data/v41.0';
+        endpoint += '/ui-api/object-info/{0}/picklist-values/{1}/{2}';
+        endpoint = String.format(endpoint, new String[]{ objectType, recordTypeId, fieldName });
+        EncodingUtil.urlEncode(endpoint,'UTF-8');
+        
+        //HTTP Request send
+        HttpRequest req = new HttpRequest();
+        req.setHeader('Authorization', 'OAuth ' + UserInfo.getSessionId()); 
+        req.setEndpoint(endpoint);
+        req.setMethod('GET');
+        Http http = new Http();
+        HTTPResponse res;
+        if(!Test.isRunningTest()){ res = http.send(req);
+        }else{
+            res = new HTTPResponse();
+            res.setStatusCode(200);
+            res.setBody('{"values":[{"attributes":null,"label":"test","validFor":[],"value":"test"}]}');
+        }
+        
+        //Parse response
+        Map<String,String> result = new Map<String,String>();
+        Map<String,Object> root = (Map<String,Object>) JSON.deserializeUntyped(res.getBody());
+        if(!root.containsKey('values')){ return result; }
+        List<Object> pValues = (List<Object>)root.get('values');
+        for(Object pValue : pValues){
+            Map<String,Object> pValueMap = (Map<String,Object>)pValue;
+            result.put((String)pValueMap.get('value'), (String)pValueMap.get('label'));
+        }
+        
+        return result;
+    }
+    
+    @RemoteAction
+    global static String searchAccount(String accountName){
+        List<cWrapper> accountList = new List<cWrapper>();
+        accountName = '%'+accountName+'%'; 
+        for(Account acc : [Select Id, Name, Rate_N__c From Account WHERE Name LIKE: accountName LIMIT 10]){
+            accountList.add(new cWrapper(acc.Name,acc.Id,acc.Rate_N__c));
+        }
+        return JSON.serialize(accountList);
+    }
+    
+    @RemoteAction
+    global static String searchTrader(String contactName,String accountId){
+        List<cWrapper> contactList = new List<cWrapper>();
+        if(accountId != ''){
+            contactName = '%'+contactName+'%'; 
+            for(AccountContactRelation rel : [Select Id, ContactId, Contact.Name From AccountContactRelation WHERE Contact.Block_in_New_TX__c = false AND IsActive=true AND Contact.Name LIKE: contactName AND AccountId=:accountId AND (Roles includes ('Trader') or (Contact.Role_Formula__c='Trader' and Contact.AccountId=:accountId)) LIMIT 10]){
+                contactList.add(new cWrapper(rel.Contact.Name,rel.ContactId,null, rel.Id));
+            }
+        }
+        return JSON.serialize(contactList);
+    }
+    
+    @RemoteAction
+    global static String selectContacts(String accountId){
+        List<cWrapperContact> contactList = new List<cWrapperContact>();
+        if(accountId != ''){
+            for(AccountContactRelation rel : [Select Id, ContactId, Contact.Name From AccountContactRelation WHERE Contact.Block_in_New_TX__c = false AND IsActive=true AND AccountId=:accountId AND(Roles includes ('Confirmation') or (Contact.Role__c includes ('Confirmation') and Contact.AccountId=:accountId)) ORDER BY Contact.CreatedDate ASC LIMIT 1]){
+                contactList.add(new cWrapperContact(rel.Contact.Name,rel.ContactId,'Confirmation'));
+            }
+            for(AccountContactRelation rel : [Select Id, ContactId, Contact.Name From AccountContactRelation WHERE Contact.Block_in_New_TX__c = false AND IsActive=true AND AccountId=:accountId AND (Roles includes ('Invoice') or (Contact.Role__c includes ('Invoice') and Contact.AccountId=:accountId)) ORDER BY Contact.CreatedDate ASC LIMIT 1]){
+                contactList.add(new cWrapperContact(rel.Contact.Name,rel.ContactId,'Invoice'));
+            }
+        }
+        return JSON.serialize(contactList);
+    }
+    
+    @RemoteAction
+    global static String selectContacts2(String relationId, String accountId){
+        List<cWrapperContact> contactList = new List<cWrapperContact>();
+        if(relationId != ''){
+            for(AccountContactRelation rel : [Select Id, ContactId, Contact.Name From AccountContactRelation WHERE Id=:relationId AND(Roles includes ('Confirmation') or (Contact.Role__c includes ('Confirmation') and Contact.AccountId=:accountId)) ORDER BY Contact.CreatedDate ASC LIMIT 1]){
+                contactList.add(new cWrapperContact(rel.Contact.Name,rel.ContactId,'Confirmation'));
+            }
+            for(AccountContactRelation rel : [Select Id, ContactId, Contact.Name From AccountContactRelation WHERE Id=:relationId AND (Roles includes ('Invoice') or (Contact.Role__c includes ('Invoice') and Contact.AccountId=:accountId)) ORDER BY Contact.CreatedDate ASC LIMIT 1]){
+                contactList.add(new cWrapperContact(rel.Contact.Name,rel.ContactId,'Invoice'));
+            }
+        }
+        return JSON.serialize(contactList);
+    }
+    
+    @RemoteAction
+    global static String searchContacts(String contactName,String accountId, String role){
+        List<cWrapper> contactList = new List<cWrapper>();
+        if(accountId != ''){
+            contactName = '%'+contactName+'%'; 
+            for(AccountContactRelation rel : [Select Id, ContactId, Contact.Name From AccountContactRelation WHERE Contact.Name LIKE: contactName AND Contact.Block_in_New_TX__c = false AND IsActive=true AND AccountId=:accountId AND (Roles includes (:role) or (Contact.Role__c includes (:role) and Contact.AccountId=:accountId)) LIMIT 10]){
+                contactList.add(new cWrapper(rel.Contact.Name,rel.ContactId,null));
+            }
+        }
+        return JSON.serialize(contactList);
+    }
+    
+    @RemoteAction
+    global static String searchBrokers(String contactName){
+        List<cWrapper> contactList = new List<cWrapper>();
+        contactName = '%'+contactName+'%'; 
+        for(Contact con : [Select Id, Name From Contact WHERE Title = 'Broker' AND (Name LIKE: contactName OR Initials__c LIKE: contactName) LIMIT 10]){
+            contactList.add(new cWrapper(con.Name,con.Id,null));
+        }
+        return JSON.serialize(contactList);
+    }
+    
+    @RemoteAction
+    global static String searchTerms(String termName, String type_z, String linkD){
+        system.debug(termName);
+        system.debug(linkD);
+        system.debug(type_z);
+        if(type_z == 'GTC\'s'){
+            type_z = 'GTC%';
+        }
+        List<cWrapperTerm> termList = new List<cWrapperTerm>();
+        if(linkD != ''){
+            termName = '%'+termName+'%'; 
+            for(Term__c t : [Select Id, Name, Terms_Verbiage__c From Term__c WHERE Name LIKE: termName AND Type__c LIKE :type_z AND Active__c=true AND Link__c=:linkD LIMIT 10]){
+                termList.add(new cWrapperTerm(t.Name,t.Id,t.Terms_Verbiage__c));
+            }
+        }
+        system.debug(termList);
+        return JSON.serialize(termList);
+    }
+    
+    @RemoteAction
+    global static String searchProduct(String productName, String type_z, String pricebook2Id){
+        if(type_z == 'Crude') type_z = 'Link Crude Products'; else if(type_z == 'Future') type_z = 'Link Futures Products';
+        
+        List<cWrapper> productList = new List<cWrapper>();
+        productName = '%'+productName+'%'; 
+        if(type_z == 'Export'){
+            for(PricebookEntry pbe : [Select Id, Product2.Id, Product2.Name From PricebookEntry WHERE Product2.Name LIKE: productName AND isActive=true AND Pricebook2Id=:pricebook2Id LIMIT 10]){
+                productList.add(new cWrapper(pbe.Product2.Name,pbe.Product2.Id,null));
+            }
+        }else{
+            for(PricebookEntry pbe : [Select Id, Product2.Id, Product2.Name From PricebookEntry WHERE Product2.Name LIKE: productName AND Product2.Family=:type_z AND isActive=true AND Pricebook2Id=:pricebook2Id LIMIT 10]){
+                productList.add(new cWrapper(pbe.Product2.Name,pbe.Product2.Id,null));
+            }
+        }
+        System.debug('Pricebook2 Id: ' + pricebook2Id);
+        return JSON.serialize(productList);
+    }
+
+    global class cWrapper{
+    	public String value;
+        public String data;
+        public Decimal other;
+        public String data2;
+        
+        public cWrapper(String zvalue, String zdata, Decimal zother){
+            value = zvalue;
+            data = zdata;
+            other = zother;
+        }
+        
+        public cWrapper(String zvalue, String zdata, Decimal zother, String zdata2){
+            value = zvalue;
+            data = zdata;
+            other = zother;
+            data2 = zdata2;
+        }
+    }
+    
+    global class cWrapperContact{
+    	public String value;
+        public String data;
+        public String type_z;
+        
+        public cWrapperContact(String zvalue, String zdata, String ztype){
+            value = zvalue;
+            data = zdata;
+            type_z = ztype;
+        }
+    }
+    
+    global class cWrapperTerm{
+    	public String value;
+        public String data;
+        public String verbiage;
+        
+        public cWrapperTerm(String zvalue, String zdata, String zverbiage){
+            value = zvalue;
+            data = zdata;
+            verbiage = zverbiage;
+        }
+    }
+}
