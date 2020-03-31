@@ -1,0 +1,91 @@
+@isTest
+public class AdjustmentTrigger_Test {
+    
+    public static testmethod void testAccount(){
+        Account acc = new Account(Name='Test Account');
+        insert acc;
+        
+        Test.startTest();
+        Adjustment__c ajustment = new Adjustment__c(Debit__c = 30, Account__c = acc.Id);
+        insert ajustment;
+        Adjustment__c ajustment2 = new Adjustment__c(Credit__c = 10, Account__c = acc.Id);
+        insert ajustment2;
+        ajustment2.Credit__c = 20;
+        update ajustment2;
+        Adjustment__c ajustment3 = new Adjustment__c(Credit__c = 10, Account__c = acc.Id);
+        insert ajustment3;
+        delete ajustment3;
+        Test.stopTest();
+        
+        Account dataAssert = [Select Id, Adjustments_Applied__c From Account WHERE Id=:acc.Id];
+        system.assertEquals(10, dataAssert.Adjustments_Applied__c);
+    }
+    
+    public static testmethod void testContact(){
+        Contact con = new Contact(LastName='Test Account');
+        insert con;
+        
+        Test.startTest();
+        Adjustment__c ajustment = new Adjustment__c(Debit__c = 30, Apply_to_Seller_or_Buyer__c = con.Id);
+        insert ajustment;
+        Adjustment__c ajustment2 = new Adjustment__c(Credit__c = 10, Apply_to_Seller_or_Buyer__c = con.Id);
+        insert ajustment2;
+        ajustment2.Credit__c = 20;
+        update ajustment2;
+        Adjustment__c ajustment3 = new Adjustment__c(Credit__c = 10, Apply_to_Seller_or_Buyer__c = con.Id);
+        insert ajustment3;
+        delete ajustment3;
+        Test.stopTest();
+        
+        Contact dataAssert = [Select Id, Adjustments_Applied__c From Contact WHERE Id=:con.Id];
+        system.assertEquals(10, dataAssert.Adjustments_Applied__c);
+    }
+    
+	public static testmethod void testOpportunity(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        Opportunity opp = new Opportunity(RecordTypeId=recordTypeId,Name='Test Account',CloseDate=system.today(),StageName='Proposal');
+        insert opp;
+        
+        Test.startTest();
+        Adjustment__c ajustment = new Adjustment__c(Debit__c = 30, Apply_to_Transaction__c = opp.Id);
+        insert ajustment;
+        Adjustment__c ajustment2 = new Adjustment__c(Credit__c = 10, Apply_to_Transaction__c = opp.Id);
+        insert ajustment2;
+        ajustment2.Credit__c = 20;
+        update ajustment2;
+        Adjustment__c ajustment3 = new Adjustment__c(Credit__c = 10, Apply_to_Transaction__c = opp.Id);
+        insert ajustment3;
+        delete ajustment3;
+        Test.stopTest();
+        
+        Opportunity dataAssert = [Select Id, Adjustments_Applied__c From Opportunity WHERE Id=:opp.Id];
+        system.assertEquals(10, dataAssert.Adjustments_Applied__c);
+    }    
+    
+    public static testmethod void testStatement(){
+        Account acc = new Account(Name='Test Account');
+        insert acc;
+        Statement__c st = new Statement__c(Name='Test Account',Account__c=acc.Id);
+        insert st;
+        
+        Test.startTest();
+        Adjustment__c ajustment = new Adjustment__c(Debit__c = 30, Apply_to_Statement__c = st.Id);
+        insert ajustment;
+        Adjustment__c ajustment2 = new Adjustment__c(Credit__c = 10, Apply_to_Statement__c = st.Id);
+        insert ajustment2;
+        ajustment2.Credit__c = 20;
+        update ajustment2;
+        Adjustment__c ajustment3 = new Adjustment__c(Credit__c = 10, Apply_to_Statement__c = st.Id);
+        insert ajustment3;
+        delete ajustment3;
+        Test.stopTest();
+        
+        Statement__c dataAssert = [Select Id, Adjustments_Applied__c From Statement__c WHERE Id=:st.Id];
+        system.assertEquals(10, dataAssert.Adjustments_Applied__c);
+    }
+}
