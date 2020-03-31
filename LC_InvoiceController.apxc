@@ -1,0 +1,17 @@
+public class LC_InvoiceController {
+
+    public Invoice__c inv {get;set;}
+    public OpportunityContactRole sellerContact {get;Set;}
+    public OpportunityContactRole buyerContact {get;set;}
+    public List<OpportunityLineItem> olis {get;Set;}
+    public String invId {get;set;}
+
+    public LC_InvoiceController(ApexPages.StandardController controller) {
+        Invoice__c invx = (Invoice__c) controller.getRecord();
+        invId = invx.Id;
+        showFields();
+    }
+    
+    public void showFields(){
+    }
+}
