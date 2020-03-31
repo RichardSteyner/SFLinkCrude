@@ -1,0 +1,284 @@
+@isTest
+public class InvoiceTrigger_Test {
+    
+    public static testmethod void test01(){
+        Account acc = new Account(Name='Test Acc');
+        insert acc;
+        Invoice__c inv = new Invoice__c(Account__c=acc.Id,Name='Test');
+        insert inv;
+        Test.startTest();
+        inv.Lock__c = true;
+        try{
+        	update inv;    
+        }catch(DMLException e){
+            system.assertEquals(true,e.getMessage().contains('This record is locked and no updates can be made. Please speak to your system administrator if you have questions.'));
+        }
+        Test.stopTest();
+    }
+    
+    public static testmethod void test02(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05);
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05);
+        insert seller1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id,Role__c = 'Invoice;Confirmation');
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id,Role__c = 'Invoice;Confirmation');
+        insert con2;
+
+		Product2 pro = new Product2(Name='Test',isActive=true);
+        insert pro;       
+        
+        PricebookEntry pbe1 = new PricebookEntry(Product2Id=pro.Id,isActive=true,UnitPrice=10,Pricebook2Id=Test.getStandardPricebookId());
+        insert pbe1;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        Test.startTest();
+        Opportunity opp = new Opportunity();
+        opp.RecordTypeId=recordTypeId;
+        opp.Name='test';
+        opp.CloseDate=system.today();
+        opp.StageName='Closed Won';
+        opp.Seller_Broker_1_approval__c = true;
+        opp.Buyer_Broker_1_approval__c = true;
+        opp.AccountId=buyer1.Id;
+        opp.Seller__c=seller1.Id;
+        opp.Delivery__c = system.today();
+        opp.Volume_Method__c = 'BPD';
+        opp.Volume_BBL_Day_New__c = 20;
+        opp.Price_Type__c = 'Formula Price';
+        opp.Cost_Per_Unit_formula__c = 'Conoco Posting';
+        ApexUtil.OpportunityTrigger_Is_Enabled = true;
+        insert opp;
+        Test.stopTest();
+    }
+    
+    public static testmethod void test03(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05,Invoice_State__c='Delivery Date');
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05,Invoice_State__c='Delivery Date');
+        insert seller1;
+        
+        String recordTypeStId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures' and sObjectType='Statement__c' LIMIT 1].Id;
+        Statement__c st1 = new Statement__c(Account__c=buyer1.Id,RecordTypeId=recordTypeStId,Transaction_Date__c=system.today().addDays(-10),Closing_Date__c=system.today().addDays(10),Lock__c=true);
+        insert st1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id,Role__c = 'Invoice;Confirmation');
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id,Role__c = 'Invoice;Confirmation');
+        insert con2;
+
+		Product2 pro = new Product2(Name='Test',isActive=true);
+        insert pro;       
+        
+        PricebookEntry pbe1 = new PricebookEntry(Product2Id=pro.Id,isActive=true,UnitPrice=10,Pricebook2Id=Test.getStandardPricebookId());
+        insert pbe1;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        Test.startTest();
+        Opportunity opp = new Opportunity();
+        opp.RecordTypeId=recordTypeId;
+        opp.Name='test';
+        opp.CloseDate=system.today();
+        opp.StageName='Closed Won';
+        opp.Seller_Broker_1_approval__c = true;
+        opp.Buyer_Broker_1_approval__c = true;
+        opp.AccountId=buyer1.Id;
+        opp.Seller__c=seller1.Id;
+        opp.Delivery__c = system.today();
+        opp.Volume_Method__c = 'BPD';
+        opp.Volume_BBL_Day_New__c = 20;
+        opp.Price_Type__c = 'Formula Price';
+        opp.Cost_Per_Unit_formula__c = 'Conoco Posting';
+        opp.Delivery__c = system.today();
+        ApexUtil.OpportunityTrigger_Is_Enabled = true;
+        insert opp;
+        Test.stopTest();
+    }
+    
+    public static testmethod void test04(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05,Invoice_State__c='Transaction Date');
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05,Invoice_State__c='Transaction Date');
+        insert seller1;
+        
+        String recordTypeStId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Crude' and sObjectType='Statement__c' LIMIT 1].Id;
+        Statement__c st1 = new Statement__c(Account__c=buyer1.Id,RecordTypeId=recordTypeStId,Transaction_Date__c=system.today().addDays(-10),Closing_Date__c=system.today().addDays(10));
+        insert st1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id,Role__c = 'Invoice;Confirmation');
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id,Role__c = 'Invoice;Confirmation');
+        insert con2;
+
+		Product2 pro = new Product2(Name='Test',isActive=true);
+        insert pro;       
+        
+        PricebookEntry pbe1 = new PricebookEntry(Product2Id=pro.Id,isActive=true,UnitPrice=10,Pricebook2Id=Test.getStandardPricebookId());
+        insert pbe1;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Crude Opportunities'].Id;
+        Test.startTest();
+        Opportunity opp = new Opportunity();
+        opp.RecordTypeId=recordTypeId;
+        opp.Name='test';
+        opp.CloseDate=system.today();
+        opp.StageName='Closed Won';
+        opp.Seller_Broker_1_approval__c = true;
+        opp.Buyer_Broker_1_approval__c = true;
+        opp.AccountId=buyer1.Id;
+        opp.Seller__c=seller1.Id;
+        opp.Delivery__c = system.today();
+        opp.Volume_Method__c = 'BPD';
+        opp.Volume_BBL_Day_New__c = 20;
+        opp.Price_Type__c = 'Formula Price';
+        opp.Cost_Per_Unit_formula__c = 'Conoco Posting';
+        opp.Delivery__c = system.today();
+        ApexUtil.OpportunityTrigger_Is_Enabled = true;
+        insert opp;
+        
+       	ApexUtil.InvoiceTrigger_Is_Enabled = true;
+        delete [select Id from Invoice__c];
+        Test.stopTest();
+    }
+    
+    public static testmethod void test05(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05,Invoice_State__c='Transaction Date');
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05,Invoice_State__c='Transaction Date');
+        insert seller1;
+        
+        String recordTypeStId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Crude' and sObjectType='Statement__c' LIMIT 1].Id;
+        Statement__c st1 = new Statement__c(Account__c=buyer1.Id,RecordTypeId=recordTypeStId,Transaction_Date__c=system.today().addDays(-10),Closing_Date__c=system.today().addDays(10));
+        insert st1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id,Role__c = 'Invoice;Confirmation');
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id,Role__c = 'Invoice;Confirmation');
+        insert con2;
+
+		Product2 pro = new Product2(Name='Test',isActive=true);
+        insert pro;       
+        
+        PricebookEntry pbe1 = new PricebookEntry(Product2Id=pro.Id,isActive=true,UnitPrice=10,Pricebook2Id=Test.getStandardPricebookId());
+        insert pbe1;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Crude Opportunities'].Id;
+        Opportunity opp = new Opportunity();
+        opp.RecordTypeId=recordTypeId;
+        opp.Name='test';
+        opp.CloseDate=system.today();
+        opp.StageName='Closed Won';
+        opp.AccountId=buyer1.Id;
+        opp.Seller__c=seller1.Id;
+        opp.Delivery__c = system.today();
+        opp.Volume_Method__c = 'BPD';
+        opp.Volume_BBL_Day_New__c = 20;
+        opp.Price_Type__c = 'Formula Price';
+        opp.Cost_Per_Unit_formula__c = 'Conoco Posting';
+        opp.Delivery__c = system.today();
+        ApexUtil.OpportunityTrigger_Is_Enabled = true;
+        insert opp;
+        
+        Test.startTest();
+        ApexUtil.OpportunityTrigger_Is_Enabled = true;
+        opp.Seller_Broker_1_approval__c = true;
+        opp.Buyer_Broker_1_approval__c = true;
+        update opp;
+        Test.stopTest();
+    }
+    
+    public static testmethod void test06(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05,Invoice_State__c='Transaction Date');
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05,Invoice_State__c='Transaction Date');
+        insert seller1;
+        
+        String recordTypeStId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Crude' and sObjectType='Statement__c' LIMIT 1].Id;
+        Statement__c st1 = new Statement__c(Account__c=buyer1.Id,RecordTypeId=recordTypeStId,Transaction_Date__c=system.today().addDays(-10),Closing_Date__c=system.today().addDays(10));
+        insert st1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id,Role__c = 'Invoice;Confirmation');
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id,Role__c = 'Invoice;Confirmation');
+        insert con2;
+
+		Product2 pro = new Product2(Name='Test',isActive=true);
+        insert pro;       
+        
+        PricebookEntry pbe1 = new PricebookEntry(Product2Id=pro.Id,isActive=true,UnitPrice=10,Pricebook2Id=Test.getStandardPricebookId());
+        insert pbe1;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Crude Opportunities'].Id;
+        Opportunity opp = new Opportunity();
+        opp.RecordTypeId=recordTypeId;
+        opp.Name='test';
+        opp.CloseDate=system.today();
+        opp.StageName='Closed Won';
+        opp.AccountId=buyer1.Id;
+        opp.Seller__c=seller1.Id;
+        opp.Delivery__c = system.today();
+        opp.Volume_Method__c = 'BPD';
+        opp.Volume_BBL_Day_New__c = 20;
+        opp.Price_Type__c = 'Formula Price';
+        opp.Cost_Per_Unit_formula__c = 'Conoco Posting';
+        opp.Delivery__c = system.today();
+        ApexUtil.OpportunityTrigger_Is_Enabled = true;
+        insert opp;
+        
+        Test.startTest();
+        InvoiceTriggerHandler.verifyStatement([Select Id,Account__c,Transaction_Number__c From Invoice__c]);
+        Test.stopTest();
+    }
+}
