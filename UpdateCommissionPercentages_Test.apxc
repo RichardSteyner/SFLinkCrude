@@ -1,0 +1,24 @@
+@isTest
+public class UpdateCommissionPercentages_Test {
+    
+    public static testmethod void test01(){
+        Contact c1 = new Contact(LastName='Test1',Title='Broker'); insert c1;
+        Contact c2 = new Contact(LastName='Test2',Title='Broker'); insert c2;
+        Contact c3 = new Contact(LastName='Test3',Title='Broker'); insert c3;
+        Contact c4 = new Contact(LastName='Test4',Title='Broker'); insert c4;
+        
+        Commission__c c = new Commission__c(Name='Test',
+                                            Buyer_Side_Broker_1__c=c1.Id,Buyer_Side_Broker_2__c=c2.Id,Buyer_Side_Broker_3__c=c3.Id,Buyer_Side_Broker_4__c=c4.Id,
+                                            Seller_Side_Broker_1__c=c1.Id,Seller_Side_Broker_2__c=c2.Id,Seller_Side_Broker_3__c=c3.Id,Seller_Side_Broker_4__c=c4.Id
+                                           );
+        insert c;
+        Test.startTest();
+        c.Buyer_Side_Commission_1__c = 40;
+        c.Seller_Side_Commission_1__c = 40;
+        update c;
+        Test.stopTest();
+        
+        Commission__c comAssert = [Select Id,Buyer_Side_Commission_2__c From Commission__c WHERE Id=:c.Id];
+        system.assertEquals(20, comAssert.Buyer_Side_Commission_2__c);
+    }
+}
