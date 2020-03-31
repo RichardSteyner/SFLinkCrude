@@ -1,0 +1,29 @@
+trigger AssignPricebbok on Product2 (after insert) {
+    
+    List<PricebookEntry> lstPbes = new List<PricebookEntry>();
+    String peLinkCrudeId = [SELECT Id, Name FROM Pricebook2 WHERE Name = 'Link Crude'].Id;
+    String peLinkFutureId = [SELECT Id, Name FROM Pricebook2 WHERE Name = 'Link Future'].Id;
+    String standardPricebook = (Test.isRunningTest() ? Test.getStandardPricebookId() : [SELECT Id, Name FROM Pricebook2 WHERE isStandard = true].Id);
+    
+    PricebookEntry pricebookAux;
+    for(Product2 prod : trigger.New){
+        if(prod.Family!=null){
+            pricebookAux = new PricebookEntry();
+            pricebookAux.Product2Id = prod.Id;
+            pricebookAux.Pricebook2Id = standardPricebook;
+            pricebookAux.UnitPrice = 0.00;
+            pricebookAux.isActive=prod.isActive;
+            lstPbes.add(pricebookAux);
+            
+            pricebookAux = new PricebookEntry();
+            pricebookAux.Product2Id = prod.Id;
+            if(prod.Family=='Link Crude Products') pricebookAux.Pricebook2Id = peLinkCrudeId; else if(prod.Family == 'Link Futures Products') pricebookAux.Pricebook2Id = peLinkFutureId;
+            pricebookAux.UnitPrice = 0.00;
+            pricebookAux.isActive=prod.isActive;
+            lstPbes.add(pricebookAux);
+        }
+    }
+    
+    if(lstPbes.size()>0) insert lstPbes;
+
+}
