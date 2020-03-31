@@ -1,0 +1,42 @@
+@isTest
+public class SendConfirmationEmail_Test {
+    
+    public static testmethod void test01(){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05);
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05);
+        insert seller1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id,Title__c='Trader',Confirmation_Email__c='test1@cloudcreations.com');
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id,Title__c='Trader',Confirmation_Email__c='test2@cloudcreations.com');
+        insert con2;
+        
+        ApexUtil.isUpdateOpp = true;
+        ApexUtil.OpportunityTrigger_Is_Enabled = false;
+        Opportunity opp = new Opportunity(Name='test',CloseDate=system.today(),StageName='Proposal', AccountId=buyer1.Id, Seller__c=seller1.Id);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(OpportunityId=opp.Id,ContactId=con1.Id,Role='Confirm for Buyer');
+        insert ocr1;
+        OpportunityContactRole ocr2 = new OpportunityContactRole(OpportunityId=opp.Id,ContactId=con2.Id,Role='Confirm for Seller');
+        insert ocr2;
+        
+        Test.startTest();
+        SendConfirmationEmail.emailConfirmationSellerPdf(opp.Id, 'LC');
+        SendConfirmationEmail.emailConfirmationSellerPdf(opp.Id, 'LF');
+        SendConfirmationEmail.emailConfirmationBuyerPdf(opp.Id, 'LC');
+        SendConfirmationEmail.emailConfirmationBuyerPdf(opp.Id, 'LF');
+        
+        SendConfirmationEmail.emailConfirmationBuyerPdfLightning(opp.Id, 'LC');
+        SendConfirmationEmail.emailConfirmationBuyerPdfLightning(opp.Id, 'LF');
+        SendConfirmationEmail.emailConfirmationSellerPdfLightning(opp.Id, 'LC');
+        SendConfirmationEmail.emailConfirmationSellerPdfLightning(opp.Id, 'LF');
+        Test.stopTest();
+    }
+}
