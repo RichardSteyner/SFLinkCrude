@@ -1,0 +1,42 @@
+global class CommissionKeyBatch implements Database.Batchable<sObject>, Database.Stateful{
+    
+    global CommissionKeyBatch(){
+    }
+    
+    global Database.QueryLocator start(Database.BatchableContext BC){
+        system.debug('##start CommissionKeyBatch');
+        String query = 'Select Id, Transaction_No__c From Commission__c WHERE Transaction_No__c != null and Transaction_Key__c=null';
+        return Database.getQueryLocator(query);
+    }
+    
+    global void execute(Database.BatchableContext BC, List<Commission__c> scope){
+        system.debug('##execute CommissionKeyBatch');
+        Set<Id> transactionSet = new Set<Id>();
+        for(Commission__c comm : scope){
+            transactionSet.add(comm.Transaction_No__c);
+        }
+        Map<Id, Commission__c> mapCommission = new Map<Id, Commission__c>();
+        for(Opportunity opp : [SELECT Id, transactionkey__c FROM Opportunity WHERE Id IN: transactionSet and transactionkey__c!=null]) {
+            mapCommission.put(opp.Id, new Commission__c(Transaction_Key__c=opp.transactionkey__c));
+        }
+        for(Commission__c comm : scope){
+            if(mapCommission.get(comm.Transaction_No__c)!=null)
+                mapCommission.get(comm.Transaction_No__c).Id=comm.Id;
+        }
+        
+        if(mapCommission.values().size()>0){
+            List<Database.SaveResult> saveResults = Database.update(mapCommission.values(), false);
+            for(Database.SaveResult saveResult:saveResults) {
+                if(!saveResult.isSuccess()) {
+                    for(Database.Error saveError : saveResult.getErrors()) 
+                        System.debug('CommissionKeyBatch - Update Error: ' + saveError.getMessage());
+                }
+            }
+        }
+        
+    }
+    
+    global void finish(Database.BatchableContext BC){
+        system.debug('##finish CommissionKeyBatch');
+    }
+}
