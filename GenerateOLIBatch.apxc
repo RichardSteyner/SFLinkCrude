@@ -1,0 +1,105 @@
+global class GenerateOLIBatch implements Database.Batchable<sObject>, Database.Stateful{
+    Integer l;
+    
+    global GenerateOLIBatch(Integer l){
+        this.l=l;
+    }
+    
+    global Database.QueryLocator start(Database.BatchableContext BC){
+        system.debug('##start GenerateOLIBatch');
+        String query = 'Select Id, TransactionKey__c, QuantityOLI__c, UnitPriceOLI__c, ProductOLI__c, Pricebook2Id From Opportunity WHERE transactionkey__c != null and ProductOLI__c!=null and GenerateOLI__c=false ' + (l==0?'':'limit ' + l);
+        return Database.getQueryLocator(query);
+    }
+    
+    global void execute(Database.BatchableContext BC, List<Opportunity> scope){
+        try{
+            system.debug('##execute GenerateOLIBatch');
+            List<Pricebook2> pbs = [SELECT Id FROM Pricebook2 WHERE IsStandard = true];
+            String standardBookId;
+            for(Pricebook2 p : pbs){
+                standardBookId=p.Id;
+            }
+            Set<String> productsName = new Set<String>();
+            for(Opportunity opp : scope){
+                productsName.add(opp.ProductOLI__c);
+            }
+            Map<String, Product2> products = new Map<String, Product2>();
+            for(Product2 prod2 : [SELECT Id, Name FROM Product2 WHERE Name IN: productsName and IsActive=true]) {
+                products.put(prod2.Name.toLowerCase(), new Product2(Id=prod2.Id));
+            }
+            List<OpportunityLineItem> opi;
+            List<PricebookEntry> lpe;
+            PricebookEntry pe;
+            Opportunity aux;
+    		Boolean sw=false;
+            for(Opportunity opp : scope){
+                opi = [select Id, Transaction_Key__c from OpportunityLineItem where OpportunityId=:opp.Id];
+                
+                if(opi.size()>0){
+                    System.debug('OPI delete inicio');
+                	delete opi;
+                	System.debug('OPI delete fin');
+                }
+                
+                lpe = [select Id, IsActive, Pricebook2Id from PricebookEntry where (Pricebook2Id=:opp.Pricebook2Id or Pricebook2Id=:standardBookId) and Product2Id=:products.get(opp.ProductOLI__c.toLowerCase()).Id limit 1];
+                if(lpe.size()==0){
+                    if(opp.Pricebook2Id==null){
+                        pe = new PricebookEntry(Pricebook2Id=standardBookId,
+                                                Product2Id=products.get(opp.ProductOLI__c.toLowerCase()).Id,
+                                                UnitPrice=opp.UnitPriceOLI__c,
+                                                IsActive=true);
+                        sw=true;
+                        
+                    }else
+                    	pe = new PricebookEntry(Pricebook2Id=opp.Pricebook2Id,
+                                                Product2Id=products.get(opp.ProductOLI__c.toLowerCase()).Id,
+                                                UnitPrice=opp.UnitPriceOLI__c,
+                                                IsActive=true);
+                    System.debug('Test');
+                    insert pe;
+                    if(sw){
+                        aux = new Opportunity();
+                		aux.Id = opp.Id;
+                		aux.Pricebook2Id = standardBookId;
+                        update aux;
+                        System.debug('HIIII1');
+                    }
+                }else{
+                    pe=lpe.get(0);
+                    if(pe.Pricebook2Id!=opp.Pricebook2Id && lpe.size()>1){
+                    	pe=lpe.get(1);
+                        System.debug('HIIII2');
+                   	}
+                    if(pe.Pricebook2Id!=opp.Pricebook2Id){
+                        aux = new Opportunity();
+                		aux.Id = opp.Id;
+                		aux.Pricebook2Id = standardBookId;
+                        update aux;
+                    }
+                    if(pe.IsActive==false){
+                        pe.IsActive=true;
+                        update pe;
+                    }
+                }
+                System.debug('OPI insert inicio');
+                insert new OpportunityLineItem(Product2=products.get(opp.ProductOLI__c.toLowerCase()),
+                                                   OpportunityId=opp.Id,
+                                                   UnitPrice=opp.UnitPriceOLI__c,
+                                                   Quantity=opp.QuantityOLI__c,
+                                                   PricebookentryId=pe.Id,
+                                              		Transaction_Key__c=opp.transactionkey__c);
+                aux = new Opportunity();
+                aux.Id = opp.Id;
+                aux.GenerateOLI__c = true;
+                update aux;
+                System.debug('OPI insert fin: ' + opp.Id);
+            }
+        }catch(Exception e){
+            System.debug('Exception: '+ e.getMessage());
+        }
+    }
+    
+    global void finish(Database.BatchableContext BC){
+        system.debug('##finish GenerateOLIBatch');
+    }
+}
