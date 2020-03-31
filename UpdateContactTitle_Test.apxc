@@ -1,0 +1,12 @@
+@isTest
+public class UpdateContactTitle_Test {
+    
+    public static testmethod void test01(){
+        Contact c = new Contact(LastName='Test',Title__c = 'Trader');
+        Test.startTest();
+        insert c;
+        Test.stopTest();
+        Contact contactAssert = [Select Id,Title From Contact WHERE Id=:c.Id];
+		system.assertEquals(c.Title__c, contactAssert.Title);     
+    }
+}
