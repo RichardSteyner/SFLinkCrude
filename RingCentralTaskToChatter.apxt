@@ -1,0 +1,91 @@
+trigger RingCentralTaskToChatter on Task (after insert, after update) {
+    System.debug('### RingCentralTaskToChatter has been trigger');
+    if( ApexUtil.isRingCentralTrigger == false ) {
+        List <String> pacc = new List <String>();
+        for (Task t : Trigger.new) {
+            pacc.add(t.AccountId);
+        }
+
+        Map <String, String> map_acc = new Map <String, String>();
+        List <Account> list_acc = [SELECT Id, Name FROM Account WHERE Id IN :pacc];
+        for (Account acc : list_acc) {
+            map_acc.put(acc.Id, acc.Name);
+        }
+        //smarsh@linkcrude.com
+
+        List <User> userParent = [SELECT Id FROM User WHERE username = 'smarsh@linkcrude.com'];
+        String curUser = UserInfo.getUserId();
+        if( userParent.size() > 0 ){
+            curUser = userParent.get(0).Id;
+        }
+
+        //List <FeedItem> fi_list = RingCentralClass.createCallFeedItem(Trigger.new, map_acc);
+        List <FeedItem> fi_list = new List<FeedItem>();
+        for (Task t : Trigger.New) {
+            FeedItem post = new FeedItem();
+            if (t.Subject.contains('SMS') && Trigger.isUpdate ) {
+                System.debug('SMS text: ' + t);
+                if( t.OwnerId != null ) {
+                    //post.parentId = t.OwnerId;
+                    post.CreatedById = t.OwnerId;
+                }
+                post.parentId = curUser;
+                if( t.Subject != null ) {
+                    post.Body = t.Subject + '\n';
+                }
+
+                if( t.ActivityDate != null ) {
+                    post.Body += 'ACTIVITY DATE: ' + t.ActivityDate + '\n';
+                }
+                if( t.Priority != null ) {
+                    post.Body += 'PRIORITY: ' + t.Priority + '\n';
+                }
+                if( t.Description != null ) {
+                    post.Body += 'SMS DETAILS: ' + t.Description + '\n';
+                }
+            }else if (t.Subject.contains('Outbound') && Trigger.isInsert) {
+                if( t.OwnerId != null ) {
+                    //post.parentId = t.OwnerId;
+                    post.CreatedById = t.OwnerId;
+                }
+                post.parentId = curUser;
+                if( t.Subject != null ) {
+                    post.Body = t.Subject + '\n';
+                }
+                if( t.CreatedDate != null ) {
+                    post.Body += 'CREATED DATE: ' + t.CreatedDate + '\n';
+                }
+                if( t.Priority != null ) {
+                    post.Body += 'PRIORITY: ' + t.Priority + '\n';
+                }
+                if( t.CallDurationInSeconds != null ) {
+                    post.Body += 'CALL DURATION: ' + DateTime.valueOf(t.CallDurationInSeconds * 1000).formatGMT('HH:mm:ss') + '\n';
+                }
+                if( t.CallDisposition != null ) {
+                    post.Body += 'CALL RESULT: ' + t.CallDisposition + '\n';
+                }
+                if( t.CallType != null ) {
+                    post.Body += 'CALL TYPE: ' + t.CallType + '\n';
+                }
+                if (t.AccountId != null) {
+                    post.Body += 'COMPANY: ' + map_acc.get(t.AccountId) + '\n';
+                }
+                post.Body += 'CALL IDENTIFIER: ' + t.CallObject + '\n';
+                if (t.Description != null) {
+                    post.Body += 'DESCRIPTION: ' + t.Description + '\n';
+                }
+            }
+            fi_list.add(post);
+        }
+
+        try {
+            if (fi_list.size() > 0) {
+                ApexUtil.isRingCentralTrigger = true;
+                insert fi_list;
+                ApexUtil.isRingCentralTrigger = false;
+            }
+        }catch(Exception e){
+            System.debug('Handle Error: ' + e);
+        }
+    }
+}
