@@ -1,0 +1,166 @@
+global class LockRecords {
+    @AuraEnabled
+    public static String transactionLockLightning(ID oppId, Boolean lock){
+        Opportunity opp = new Opportunity();
+        opp.Id = oppId;
+        opp.Lock__c = lock;
+        //Products
+        List<OpportunityLineItem> oliList = new List<OpportunityLineItem>();
+        for(OpportunityLineItem oli : [Select Id From OpportunityLineItem WHERE OpportunityId=:opp.Id]){
+            oli.Lock__c = lock;
+            oliList.add(oli);
+        }
+        //Invoices
+        List<Invoice__c> invList = new List<Invoice__c>();
+        for(Invoice__c inv : [Select Id From Invoice__c WHERE Transaction_Number__c=:opp.Id]){
+            inv.Lock__c = lock;
+            invList.add(inv);
+        }
+        //Commissions
+        List<Commission__c> comList = new List<Commission__c>();
+        for(Commission__c c : [Select Id From Commission__c WHERE Transaction_No__c=:opp.Id]){
+            c.Lock__c = lock;
+            comList.add(c);
+        }
+        try{
+            ApexUtil.OpportunityTrigger_Is_Enabled = false;
+            ApexUtil.OpportunityProductTrigger_Is_Enabled = false;
+            ApexUtil.InvoiceTrigger_Is_Enabled = false;
+            ApexUtil.isUpdateComm = true;
+            update opp;
+            update oliList;
+            update invList;
+            update comList;
+        }catch(DMLException e){
+            return 'Error: ' + e.getMessage();
+        }
+        return 'Ok';
+    }
+
+    webservice static String transactionsLockLightning(String[] oppsId, Boolean lock){
+        system.debug(oppsId);
+        List<Opportunity> oppList = new List<Opportunity>();
+        Opportunity opp;
+        List<OpportunityLineItem> oliList = [Select Id From OpportunityLineItem WHERE OpportunityId IN: oppsId];
+        List<Invoice__c> invList = [Select Id From Invoice__c WHERE Transaction_Number__c IN: oppsId];
+        List<Commission__c> comList = [Select Id From Commission__c WHERE Transaction_No__c IN: oppsId];
+        for(String oppId : oppsId){
+            opp = new Opportunity();
+            opp.Id = oppId;
+            opp.Lock__c = lock;
+            oppList.add(opp);
+        }
+        //Products
+        for(OpportunityLineItem oli : oliList) oli.Lock__c = lock;
+        //Invoices
+        for(Invoice__c inv : invList) inv.Lock__c = lock;
+        //Commissions
+        for(Commission__c c : comList) c.Lock__c = lock;
+        try{
+            ApexUtil.OpportunityTrigger_Is_Enabled = false;
+            ApexUtil.OpportunityProductTrigger_Is_Enabled = false;
+            ApexUtil.InvoiceTrigger_Is_Enabled = false;
+            ApexUtil.isUpdateComm = true;
+            update oppList;
+            update oliList;
+            update invList;
+            update comList;
+        }catch(DMLException e){
+            return 'Error: ' + e.getMessage();
+        }
+        return 'Ok';
+    }
+    
+    @AuraEnabled
+    public static String statementLockLightning(ID statementId, Boolean lock){
+        Statement__c st = [Select Id, Opportunity__c From Statement__c WHERE Id=:statementId];
+        st.Id = statementId;
+        st.Lock__c = lock;
+        
+        Opportunity opp;
+        List<OpportunityLineItem> oliList = new List<OpportunityLineItem>();
+        List<Invoice__c> invList = new List<Invoice__c>();
+        List<Commission__c> comList = new List<Commission__c>();
+        if(st.Opportunity__c != null){
+            opp = new Opportunity();
+            opp.Id = st.Opportunity__c;
+            opp.Lock__c = lock;
+            //Products
+            for(OpportunityLineItem oli : [Select Id From OpportunityLineItem WHERE OpportunityId=:opp.Id]){
+                oli.Lock__c = lock;
+                oliList.add(oli);
+            }
+            //Invoices
+            for(Invoice__c inv : [Select Id From Invoice__c WHERE Transaction_Number__c=:opp.Id]){
+                inv.Lock__c = lock;
+                invList.add(inv);
+            }
+            //Commissions
+            for(Commission__c c : [Select Id From Commission__c WHERE Transaction_No__c=:opp.Id]){
+                c.Lock__c = lock;
+                comList.add(c);
+            }
+        }
+
+        try{
+            ApexUtil.StatementTrigger_Is_Enabled = false;
+            ApexUtil.OpportunityTrigger_Is_Enabled = false;
+            ApexUtil.OpportunityProductTrigger_Is_Enabled = false;
+            ApexUtil.InvoiceTrigger_Is_Enabled = false;
+            ApexUtil.isUpdateComm = true;
+            update st;
+            if(opp != null) update opp;
+            if(oliList.size()>0) update oliList;
+            if(invList.size()>0) update invList;
+            if(comList.size()>0) update comList;
+        }catch(DMLException e){
+            return 'Error: ' + e.getMessage();
+        }
+        return 'Ok';
+    }
+    
+    webservice static String statementsLockLightning(String[] statementsId, Boolean lock){
+        system.debug(statementsId);
+        List<Statement__c> statementList = new List<Statement__c>();
+        Statement__c st;
+        Set<Id> oppsId = new Set<Id>();
+        for(Statement__c stAux : [Select Id, Opportunity__c From Statement__c WHERE Id IN: statementsId]){
+            stAux.Lock__c = lock;
+            statementList.add(stAux);
+            if(stAux.Opportunity__c != null) oppsId.add(stAux.Opportunity__c);
+        }
+        
+        List<Opportunity> oppList = new List<Opportunity>();
+        Opportunity opp;
+        List<OpportunityLineItem> oliList = [Select Id From OpportunityLineItem WHERE OpportunityId IN: oppsId];
+        List<Invoice__c> invList = [Select Id From Invoice__c WHERE Transaction_Number__c IN: oppsId];
+        List<Commission__c> comList = [Select Id From Commission__c WHERE Transaction_No__c IN: oppsId];
+        for(String oppId : oppsId){
+            opp = new Opportunity();
+            opp.Id = oppId;
+            opp.Lock__c = lock;
+            oppList.add(opp);
+        }
+        //Products
+        for(OpportunityLineItem oli : oliList) oli.Lock__c = lock;
+        //Invoices
+        for(Invoice__c inv : invList) inv.Lock__c = lock;
+        //Commissions
+        for(Commission__c c : comList) c.Lock__c = lock;
+        try{
+            ApexUtil.StatementTrigger_Is_Enabled = false;
+            ApexUtil.OpportunityTrigger_Is_Enabled = false;
+            ApexUtil.OpportunityProductTrigger_Is_Enabled = false;
+            ApexUtil.InvoiceTrigger_Is_Enabled = false;
+            ApexUtil.isUpdateComm = true;
+            update statementList;
+            update oppList;
+            update oliList;
+            update invList;
+            update comList;
+        }catch(DMLException e){
+            return 'Error: ' + e.getMessage();
+        }
+        return 'Ok';
+    }
+}
