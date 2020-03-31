@@ -1,0 +1,20 @@
+global class AggregateResultMergeIterator3 implements Iterator<AggregateResult> {
+   AggregateResult [] results {get;set;}
+   Integer index {get; set;}    
+         
+   global AggregateResultMergeIterator3(Set<Id> setIdConBatch) {
+      	index = 0;
+	  	// Fire query here to load the results
+      	String query = 'Select Email, COUNT(Id) cantidad From Contact WHERE Id IN: setIdConBatch and Namekey__c<>null and Email<>null and Check_Merge_Email__c=false GROUP BY Email';
+      	results = Database.query(query);            
+		system.debug('###results: '+results);
+   } 
+   
+   global boolean hasNext(){ 
+      return results != null && !results.isEmpty() && index < results.size(); 
+   }    
+   
+   global AggregateResult next(){        
+      return results[index++];            
+   }       
+}
