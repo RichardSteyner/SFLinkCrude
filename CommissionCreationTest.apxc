@@ -1,0 +1,1510 @@
+@isTest
+public class CommissionCreationTest {
+    
+    public static testmethod void createCommision01(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='Wilmington, CA', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='CMA + ARGUS ROLL VERBIAGE',
+                                          Contract_Terms__c='BP / CASTLETON MASTER AGREEMENT', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='swap pmt',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Closed Won', CloseDate=System.today(), RecordTypeId=oppLinkCrudeRT);
+        insert opp;
+    }
+    
+    public static testmethod void createCommision02(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='10 DAYS  (Bender Cargo Deals)', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Closed Won', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+    }
+    
+    public static testmethod void createCommision03(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc2.Id, Title='Broker');
+        insert con2;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr2;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        CheckingContactRolesBatchScheduler b = new CheckingContactRolesBatchScheduler();
+        String schdl = '0 0 20 * * ? *';
+        System.schedule('Checking Contact Role Batch Schedule', schdl, b);
+        
+        Database.executeBatch(new CheckingContactRolesBatch(), 50);
+    }
+    
+    public static testmethod void createCommision04(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc2.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc2.Id, Title='Broker');
+        insert con4;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr4;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        CheckingContactRolesBatchScheduler b = new CheckingContactRolesBatchScheduler();
+        String schdl = '0 0 20 * * ? *';
+        System.schedule('Checking Contact Role Batch Schedule', schdl, b);
+        
+        Database.executeBatch(new CheckingContactRolesBatch(), 50);
+    }
+    
+    public static testmethod void createCommision05(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc2.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        CheckingContactRolesBatchScheduler b = new CheckingContactRolesBatchScheduler();
+        String schdl = '0 0 20 * * ? *';
+        System.schedule('Checking Contact Role Batch Schedule', schdl, b);
+        
+        Database.executeBatch(new CheckingContactRolesBatch(), 50);
+    }
+    
+    public static testmethod void createCommision06(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr7;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        CheckingContactRolesBatchScheduler b = new CheckingContactRolesBatchScheduler();
+        String schdl = '0 0 20 * * ? *';
+        System.schedule('Checking Contact Role Batch Schedule', schdl, b);
+        
+        Database.executeBatch(new CheckingContactRolesBatch(), 50);
+    }
+    
+    public static testmethod void createCommision07(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr7;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        CheckingContactRolesBatchScheduler b = new CheckingContactRolesBatchScheduler();
+        String schdl = '0 0 20 * * ? *';
+        System.schedule('Checking Contact Role Batch Schedule', schdl, b);
+        
+        Database.executeBatch(new CheckingContactRolesBatch(), 50);
+    }
+    
+    public static testmethod void confirmationControllerTest(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title__c='Trader', Email='msialer@cloudcreations.com');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc2.Id, Title__c='Trader', Email='msialer2@cloudcreations.com');
+        insert con2;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr2;
+        
+        PageReference pageRef = Page.LC_ConfirmationVFP;	
+        pageRef.getParameters().put('Id', opp.Id);
+        Test.setCurrentPage(pageRef);
+        
+        Test.startTest();
+        Apexpages.StandardController sc = new Apexpages.StandardController(opp);
+        LC_ConfirmationController contr = new LC_ConfirmationController(sc);
+        
+        SendConfirmationEmail.emailConfirmationSellerPdf(opp.Id, 'LC');
+        SendConfirmationEmail.emailConfirmationSellerPdf(opp.Id, 'LF');
+        SendConfirmationEmail.emailConfirmationBuyerPdf(opp.Id, 'LC');
+        SendConfirmationEmail.emailConfirmationBuyerPdf(opp.Id, 'LF');
+        
+        SendConfirmationEmail.emailConfirmationBuyerPdfLightning(opp.Id, 'LC');
+        SendConfirmationEmail.emailConfirmationBuyerPdfLightning(opp.Id, 'LF');
+        SendConfirmationEmail.emailConfirmationSellerPdfLightning(opp.Id, 'LC');
+        SendConfirmationEmail.emailConfirmationSellerPdfLightning(opp.Id, 'LF');
+        
+		Test.stopTest();
+    }
+    
+    public static testmethod void invoiceControllerTest(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title__c='Trader', Email='msialer@cloudcreations.com');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc2.Id, Title__c='Trader', Email='msialer2@cloudcreations.com');
+        insert con2;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr2;
+        
+        opp.StageName = 'Closed Won';
+        update opp;
+        
+        Invoice__c inv = [SELECT Id, Name FROM Invoice__c LIMIT 1];
+        
+        PageReference pageRef = Page.LC_InvoiceVFP;	
+        pageRef.getParameters().put('Id', inv.Id);
+        pageRef.getParameters().put('type', 'buyer');
+        Test.setCurrentPage(pageRef);
+        
+        Test.startTest();
+        Apexpages.StandardController sc = new Apexpages.StandardController(inv);
+        LF_InvoiceController contr = new LF_InvoiceController(sc);
+        
+        SendInvoiceEmail.emailInvoiceSellerPdf(inv.Id, 'LC');
+        SendInvoiceEmail.emailInvoiceSellerPdf(inv.Id, 'LF');
+        SendInvoiceEmail.emailInvoiceBuyerPdf(inv.Id, 'LC');
+        SendInvoiceEmail.emailInvoiceBuyerPdf(inv.Id, 'LF');
+        
+        SendInvoiceEmail.emailInvoiceBuyerPdfLightning(inv.Id, 'LC');
+        SendInvoiceEmail.emailInvoiceBuyerPdfLightning(inv.Id, 'LF');
+        SendInvoiceEmail.emailInvoiceSellerPdfLightning(inv.Id, 'LC');
+        SendInvoiceEmail.emailInvoiceSellerPdfLightning(inv.Id, 'LF');
+        
+		Test.stopTest();
+    }
+    
+    public static testmethod void createOpportunity(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', Start_Date__c=System.today(), End_Date__c=System.today()+121,
+                                          Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting', Transaction__c='Master (Strip Master)',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='10 DAYS  (Bender Cargo Deals)', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Closed Won', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+    }
+    
+    public static testmethod void updatePercentages01(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr7;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        Commission__c com = [SELECT Id, Name, Buyer_Side_Commission_1__c FROM Commission__c LIMIT 1];
+        
+        com.Buyer_Side_Commission_1__c = 10.00;
+        com.Buyer_Side_Commission_3__c = 0.00;
+        com.Buyer_Side_Commission_Split_4__c = 0.00;
+        
+        update com;
+    }
+    
+    public static testmethod void updatePercentages02(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr7;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        Commission__c com = [SELECT Id, Name, Buyer_Side_Commission_1__c FROM Commission__c LIMIT 1];
+        
+        com.Buyer_Side_Commission_1__c = 10.00;
+        com.Buyer_Side_Commission_2__c = 0.00;
+        com.Buyer_Side_Commission_Split_4__c = 0.00;
+        
+        update com;
+    }
+    
+    public static testmethod void updatePercentages03(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr7;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        Commission__c com = [SELECT Id, Name, Buyer_Side_Commission_1__c FROM Commission__c LIMIT 1];
+        
+        com.Buyer_Side_Commission_1__c = 10.00;
+        com.Buyer_Side_Commission_2__c = 0.00;
+        com.Buyer_Side_Commission_3__c = 0.00;
+        
+        update com;
+    }
+    
+    public static testmethod void updatePercentages04(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr7;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        Commission__c com = [SELECT Id, Name, Buyer_Side_Commission_1__c FROM Commission__c LIMIT 1];
+        
+        com.Buyer_Side_Commission_1__c = 10.00;
+        com.Buyer_Side_Commission_2__c = 0.00;
+        
+        update com;
+    }
+    
+    public static testmethod void updatePercentages05(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr7;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        Commission__c com = [SELECT Id, Name, Buyer_Side_Commission_1__c FROM Commission__c LIMIT 1];
+        
+        com.Buyer_Side_Commission_1__c = 10.00;
+        com.Buyer_Side_Commission_3__c = 0.00;
+        
+        update com;
+    }
+    
+    public static testmethod void updatePercentages06(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr7;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        Commission__c com = [SELECT Id, Name, Buyer_Side_Commission_1__c FROM Commission__c LIMIT 1];
+        
+        com.Buyer_Side_Commission_1__c = 10.00;
+        com.Buyer_Side_Commission_Split_4__c = 0.00;
+        
+        update com;
+    }
+    
+    public static testmethod void updatePercentages07(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr7;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        Commission__c com = [SELECT Id, Name, Buyer_Side_Commission_1__c FROM Commission__c LIMIT 1];
+        
+        com.Buyer_Side_Commission_1__c = 10.00;
+        
+        update com;
+    }
+    
+    public static testmethod void updatePercentages08(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr7;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        Commission__c com = [SELECT Id, Name, Buyer_Side_Commission_1__c FROM Commission__c LIMIT 1];
+        
+        com.Buyer_Side_Commission_2__c = 10.00;
+        com.Buyer_Side_Commission_3__c = 0.00;
+        com.Buyer_Side_Commission_Split_4__c = 0.00;
+        
+        update com;
+    }
+    
+    public static testmethod void updatePercentages09(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr7;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        Commission__c com = [SELECT Id, Name, Buyer_Side_Commission_1__c FROM Commission__c LIMIT 1];
+        
+        com.Buyer_Side_Commission_2__c = 10.00;
+        com.Buyer_Side_Commission_1__c = 0.00;
+        com.Buyer_Side_Commission_Split_4__c = 0.00;
+        
+        update com;
+    }
+    
+    public static testmethod void updatePercentages10(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr7;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        Commission__c com = [SELECT Id, Name, Buyer_Side_Commission_1__c FROM Commission__c LIMIT 1];
+        
+        com.Buyer_Side_Commission_2__c = 10.00;
+        com.Buyer_Side_Commission_1__c = 0.00;
+        com.Buyer_Side_Commission_3__c = 0.00;
+        
+        update com;
+    }
+    
+    public static testmethod void updatePercentages11(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr7;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        Commission__c com = [SELECT Id, Name, Buyer_Side_Commission_1__c FROM Commission__c LIMIT 1];
+        
+        com.Buyer_Side_Commission_2__c = 10.00;
+        com.Buyer_Side_Commission_1__c = 0.00;
+        
+        update com;
+    }
+    
+    public static testmethod void updatePercentages12(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr7;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        Commission__c com = [SELECT Id, Name, Buyer_Side_Commission_1__c FROM Commission__c LIMIT 1];
+        
+        com.Buyer_Side_Commission_2__c = 10.00;
+        com.Buyer_Side_Commission_3__c = 0.00;
+        
+        update com;
+    }
+    
+    public static testmethod void updatePercentages13(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr7;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        Commission__c com = [SELECT Id, Name, Buyer_Side_Commission_1__c FROM Commission__c LIMIT 1];
+        
+        com.Buyer_Side_Commission_2__c = 10.00;
+        com.Buyer_Side_Commission_Split_4__c = 0.00;
+        
+        update com;
+    }
+    
+    public static testmethod void updatePercentages14(){
+        Account acc = new Account(Rate_N__c=0.005, Name='Test');
+        insert acc;
+        
+        Account acc2 = new Account(Rate_N__c=0.005, Name='Test 2');
+        insert acc2;
+        
+        Contact con1 = new Contact(LastName='Test', AccountId=acc.Id, Title='Broker');
+        insert con1;
+        
+        Contact con2 = new Contact(LastName='Test 2', AccountId=acc.Id, Title='Broker');
+        insert con2;
+        
+        Contact con3 = new Contact(LastName='Test 3', AccountId=acc.Id, Title='Broker');
+        insert con3;
+        
+        Contact con4 = new Contact(LastName='Test 4', AccountId=acc.Id, Title='Broker');
+        insert con4;
+        
+        Contact con5 = new Contact(LastName='Test 5', AccountId=acc2.Id, Title='Broker');
+        insert con5;
+        
+        Contact con6 = new Contact(LastName='Test 6', AccountId=acc2.Id, Title='Broker');
+        insert con6;
+        
+        Contact con7 = new Contact(LastName='Test 7', AccountId=acc2.Id, Title='Broker');
+        insert con7;
+        
+        Contact con8 = new Contact(LastName='Test 8', AccountId=acc2.Id, Title='Broker');
+        insert con8;
+        
+        String oppLinkCrudeRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Crude Opportunities' AND SObjectType='Opportunity'].Id;
+        String oppLinkFutureRT = [SELECT Id, Name, SObjectType FROM RecordType WHERE Name='Link Futures Opportunities' AND SObjectType='Opportunity'].Id;
+        
+        Opportunity opp = new Opportunity(Name='Test', AccountId=acc.Id, Seller__c=acc2.Id, Delivery__c=System.today(), Location__c='ICE BLOCK', 
+                                          Volume__c='Total Volume', Cost_Per_Unit__c='75.00', Price_Type__c='Formula Price', Cost_Per_Unit_Formula__c='Conoco Posting',
+                                          Contract_Terms__c='EFP (List In Additional Terms)', Payment_Terms__c='On/ Before 20th', Commission_Terms__c='Commission Terms Physical/ NYMEX CLEARPORT/ ICE',
+                                          Pipeline_Link__c='Alberta Oil Sands', Total_Volume_BBL__c='50000.00', StageName='Proposal', CloseDate=System.today(), RecordTypeId=oppLinkFutureRT);
+        insert opp;
+        
+        OpportunityContactRole ocr1 = new OpportunityContactRole(ContactId=con1.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr1;
+        
+        OpportunityContactRole ocr2 = new OpportunityContactRole(ContactId=con2.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr2;
+        
+        OpportunityContactRole ocr3 = new OpportunityContactRole(ContactId=con3.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr3;
+        
+        OpportunityContactRole ocr4 = new OpportunityContactRole(ContactId=con4.Id, OpportunityId=opp.Id, Role='Buyer');
+        insert ocr4;
+        
+        OpportunityContactRole ocr5 = new OpportunityContactRole(ContactId=con5.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr5;
+        
+        OpportunityContactRole ocr6 = new OpportunityContactRole(ContactId=con6.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr6;
+        
+        OpportunityContactRole ocr7 = new OpportunityContactRole(ContactId=con7.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr7;
+        
+        OpportunityContactRole ocr8 = new OpportunityContactRole(ContactId=con8.Id, OpportunityId=opp.Id, Role='Seller');
+        insert ocr8;
+        
+        opp.StageName='Closed Won';
+        update opp;
+        
+        Commission__c com = [SELECT Id, Name, Buyer_Side_Commission_1__c FROM Commission__c LIMIT 1];
+        
+        com.Buyer_Side_Commission_2__c = 10.00;
+        
+        update com;
+    }
+}
