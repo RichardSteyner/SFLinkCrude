@@ -1,0 +1,1376 @@
+global class ReportsController {
+    //Batch
+    public Report__c report {get;set;}
+    public Id strBatchId {get;set;}
+    public String batchStatus{get;set;}
+    public Boolean batchStatusBool {get;set;}
+    public Boolean pollerBool {get;set;}
+    
+    public String RecordTypeCrudeId {get;set;}
+    public String RecordTypeFutureId {get;set;}
+    
+    //Report 1
+    public List<SelectOption> recordTypeList {get;set;}
+    public Opportunity helperData {get;set;} 
+    public String recordTypeId {get;set;}
+    public Map<String,List<cWrapperReport1>> reportMap {get;set;}
+    public Map<String,List<cWrapperReport1>> reportMapAdditional2 {get;set;}
+    public Map<String,List<cWrapperReport1>> reportMapAdditional3 {get;set;}
+    public Map<String,List<cWrapperReport1>> reportMapAdditional4 {get;set;}
+    public List<String> sortList {get;set;}
+    public Integer myMapSize {get { return reportMap.size(); } }
+    public Map<String,String> brokerMap {get;set;}
+    public Integer brokerMapSize {get { return brokerMap.size(); } }
+
+    //Report 3
+    public List<SelectOption> reportTypeList {get;set;}
+    public String reportType {get;set;}
+    public List<SelectOption> yearList {get;set;}
+    public Integer yearReport {get;set;}
+    public List<cWrapperReport3> reportList3 {get;set;}
+    public Integer myListSize3 {get { return reportList3.size(); } }
+    
+    //Report 5
+    public Map<String,Decimal> minus90Map {get;set;}
+    public Map<String,Decimal> minus60Map {get;set;}
+    public Map<String,Decimal> minus30Map {get;set;}
+    public Map<String,Decimal> currentMap {get;set;}
+    public Map<String,Decimal> plus1Map {get;set;}
+    public Map<String,Decimal> plus2Map {get;set;}
+    public Map<String,Decimal> plus3Map {get;set;}
+    public Map<String,Decimal> plus4Map {get;set;}
+    public Map<String,Decimal> plus5Map {get;set;}
+    public Map<String,Decimal> plus6orMoreMap {get;set;}
+    
+    
+    public boolean isAdministrator {get;set;}
+    public boolean isRole {get;set;}
+
+    public ReportsController(){
+         Init();
+    }
+    
+    public void Init(){
+        RecordTypeCrudeId = [Select Id From RecordType WHERE Name = 'Link Crude Opportunities' AND sObjectType = 'Opportunity'].Id;
+        RecordTypeFutureId = [Select Id From RecordType WHERE Name = 'Link Futures Opportunities' AND sObjectType = 'Opportunity'].Id;
+        
+        report = new Report__c();
+        
+        reportMap = new Map<String,List<cWrapperReport1>>();
+        reportMapAdditional2 = new Map<String,List<cWrapperReport1>>();
+        reportMapAdditional3 = new Map<String,List<cWrapperReport1>>();
+        reportMapAdditional4 = new Map<String,List<cWrapperReport1>>();
+        //Report 1
+        brokerMap = new Map<String,String>();
+        helperData = new Opportunity();
+        helperData.Start_Date__c = system.today().addMonths(-1);
+        helperData.End_Date__c = system.today();
+        
+        recordTypeList = new List<SelectOption>();
+        Schema.DescribeSObjectResult R = Opportunity.SObjectType.getDescribe();
+		List<Schema.RecordTypeInfo> RT = R.getRecordTypeInfos();
+        recordTypeList.add(new SelectOption('','--None--'));
+        for(Schema.RecordTypeInfo pickListVal : RT){
+            if(!pickListVal.isMaster()) recordTypeList.add(new SelectOption(pickListVal.getRecordTypeId(),pickListVal.getName()));
+        }
+        
+        //Report 3
+        reportList3 = new List<cWrapperReport3>();
+        
+        reportTypeList = new List<SelectOption>();
+        reportTypeList.add(new SelectOption('','--None--'));
+        reportTypeList.add(new SelectOption('Historical','Historical'));
+        reportTypeList.add(new SelectOption('Future','Future'));
+        
+        yearList = new List<SelectOption>();
+        yearReport = 2019;
+        for(Integer i = 2003; i <= system.today().year() + 10; i++){
+            yearList.add(new SelectOption(String.valueOf(i),String.valueOf(i)));
+        }
+        
+        User auxUser = [select Id, Name, Profile.Name, UserRole.Name from User where ID=:UserInfo.getUserId()];
+        isAdministrator = auxUser.Profile.Name.equalsIgnoreCase('System Administrator') ? true : auxUser.Profile.Name.equalsIgnoreCase('Smarsh Chatter Archiving') ? true : false;
+        System.debug('User Info: ' + auxUser.Name + ' - ' + auxUser.Profile.Name + ' - ' + auxUser.UserRole.Name + '\nAdministrator: ' + isAdministrator);
+        if(auxUser.UserRole.Name!=null){
+        	if(auxUser.UserRole.Name.equalsIgnoreCase('Link Crude Role')) { System.debug('Link Crude Role'); recordTypeId = RecordTypeCrudeId; isRole = true;}
+            else if(auxUser.UserRole.Name.equalsIgnoreCase('Link Future Role')) { System.debug('Link Future Role'); recordTypeId = RecordTypeFutureId; isRole = true;}
+        }else
+        	System.debug('You do not have an assigned role:');
+        //isAdministrator = false;
+    }
+    
+    public void sortItems(){
+        //SORT
+        sortList = new List<String>();
+        for(String b : brokerMap.keySet()){
+            sortList.add(brokerMap.get(b).toLowerCase() + '--' + b);
+            system.debug(brokerMap.get(b).toLowerCase() + '--' + b);
+        }
+        sortList.sort();
+    }
+    
+    public void search1(){
+        Boolean excludedBrokers = false;
+        if(helperData.Lock__c) excludedBrokers = true;
+        
+        reportMap = new Map<String,List<cWrapperReport1>>();
+        brokerMap = new Map<String,String>();
+        Set<String> transactionSet = new Set<String>();
+        
+        for(Invoice__c inv : [Select Id, Account__c, Transaction_Number__c From Invoice__c WHERE Transaction_Number__r.RecordTypeId =:recordTypeId  AND Invoice_Date__c >=: helperData.Start_Date__c AND Invoice_Date__c <=: helperData.End_Date__c LIMIT 50000]){
+            if(inv.Transaction_Number__c != null) transactionSet.add(inv.Transaction_Number__c);
+        }
+
+        Map<String,OpportunityLineItem> oliMap = new Map<String,OpportunityLineItem>();
+        for(OpportunityLineItem oli : [Select Id, OpportunityId, Product2.Name From OpportunityLineItem WHERE OpportunityId IN: transactionSet LIMIT 50000]){
+            oliMap.put(oli.OpportunityId,oli);
+        }
+        
+        for(String tId : transactionSet){
+            if(oliMap.get(tId) == null) oliMap.put(tId,new OpportunityLineItem());
+        }
+        
+        List<Commission__c> commissionList = [Select Id, Transaction_No__c, Transaction_No__r.Name, Transaction_No__r.CloseDate, Buyer__c, Buyer__r.Name, Seller__c, Seller__r.Name, Buyer_Commission__c, Seller_Commission__c,
+                               Transaction_No__r.Seller__r.Name, Transaction_No__r.Account.Name,
+                               Buyer_Side_Broker_1__c, Buyer_Side_Broker_2__c, Buyer_Side_Broker_3__c, Buyer_Side_Broker_4__c, Buyer_Side_Broker_1__r.Name, Buyer_Side_Broker_2__r.Name, Buyer_Side_Broker_3__r.Name, Buyer_Side_Broker_4__r.Name,
+                               Buyer_Side_Broker_1__r.Account.Name, Buyer_Side_Broker_2__r.Account.Name, Buyer_Side_Broker_3__r.Account.Name, Buyer_Side_Broker_4__r.Account.Name,
+                               Seller_Side_Broker_1__c, Seller_Side_Broker_2__c, Seller_Side_Broker_3__c, Seller_Side_Broker_4__c, Seller_Side_Broker_1__r.Name, Seller_Side_Broker_2__r.Name, Seller_Side_Broker_3__r.Name, Seller_Side_Broker_4__r.Name,
+                               Seller_Side_Broker_1__r.Account.Name, Seller_Side_Broker_2__r.Account.Name, Seller_Side_Broker_3__r.Account.Name, Seller_Side_Broker_4__r.Account.Name,
+                               Buyer_Broker_1_Overhead_Rate__c, Buyer_Broker_2_Overhead_Rate__c, Buyer_Broker_3_Overhead_Rate__c, Buyer_Broker_4_Overhead_Rate__c,
+                               Seller_Broker_1_Overhead_Rate__c, Seller_Broker_2_Overhead_Rate__c, Seller_Broker_3_Overhead_Rate__c, Seller_Broker_4_Overhead_Rate__c,
+                               Buyer_Side_Commission_1__c, Buyer_Side_Commission_2__c, Buyer_Side_Commission_3__c, Buyer_Side_Commission_Split_4__c, 
+                               Seller_Side_Commission_1__c, Seller_Side_Commission_2__c, Seller_Side_Commission_3__c, Seller_Side_Commission_Split_4__c,
+                               Buyer_1_Commission__c, Buyer_2_Commission__c, Buyer_3_Commission__c, Buyer_4_Commission__c,
+                               Seller_1_Commission__c, Seller_2_Commission__c, Seller_3_Commission__c, Seller_4_Commission__c,
+                               Buyer_Commission_Amount_Paid__c, Seller_Commission_Amount_Paid__c,
+                               Buyer_1_Paid__c, Buyer_2_Paid__c, Buyer_3_Paid__c, Buyer_4_Paid__c, Seller_1_Paid__c, Seller_2_Paid__c, Seller_3_Paid__c, Seller_4_Paid__c,
+                               Buyer_1_Not_Paid__c, Buyer_2_Not_Paid__c, Buyer_3_Not_Paid__c, Buyer_4_Not_Paid__c, Seller_1_Not_Paid__c, Seller_2_Not_Paid__c, Seller_3_Not_Paid__c, Seller_4_Not_Paid__c,
+                               Buyer_Side_Broker_1__r.Broker_Deactivated__c,Buyer_Side_Broker_2__r.Broker_Deactivated__c,Buyer_Side_Broker_3__r.Broker_Deactivated__c,Buyer_Side_Broker_4__r.Broker_Deactivated__c,
+                               Seller_Side_Broker_1__r.Broker_Deactivated__c,Seller_Side_Broker_2__r.Broker_Deactivated__c,Seller_Side_Broker_3__r.Broker_Deactivated__c,Seller_Side_Broker_4__r.Broker_Deactivated__c
+                               From Commission__c 
+                               WHERE Transaction_No__c IN: transactionSet LIMIT 50000];
+        
+        Set<String> commissionIds = new Set<String>();
+        for(Commission__c c : commissionList) commissionIds.add(c.Id);
+
+        List<cWrapperReport1> wrapper1List;
+        for(Commission__c c : commissionList){
+            if(c.Buyer_Commission_Amount_Paid__c > 0 || c.Seller_Commission_Amount_Paid__c > 0){
+                //BUYER
+                if((c.Buyer_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Buyer_Side_Broker_1__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Buyer_Side_Broker_1__c))){
+                    if(c.Buyer_1_Not_Paid__c > 0){
+                        brokerMap.put(c.Buyer_Side_Broker_1__c,c.Buyer_Side_Broker_1__r.Name);
+                        if(reportMap.get(c.Buyer_Side_Broker_1__c) != null){
+                            wrapper1List = reportMap.get(c.Buyer_Side_Broker_1__c);
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_1_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_1__c != null ? c.Buyer_Side_Commission_1__c/100 : null),c.Buyer_1_Not_Paid__c));
+                            reportMap.put(c.Buyer_Side_Broker_1__c,wrapper1List.clone());
+                        }else{
+                            wrapper1List = new List<cWrapperReport1>();
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_1_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_1__c != null ? c.Buyer_Side_Commission_1__c/100 : null),c.Buyer_1_Not_Paid__c));
+                            reportMap.put(c.Buyer_Side_Broker_1__c,wrapper1List.clone());
+                        }
+                    }
+                }
+                if((c.Buyer_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Buyer_Side_Broker_2__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Buyer_Side_Broker_2__c))){
+                    if(c.Buyer_2_Not_Paid__c > 0){
+                        brokerMap.put(c.Buyer_Side_Broker_2__c,c.Buyer_Side_Broker_2__r.Name);
+                        if(reportMap.get(c.Buyer_Side_Broker_2__c) != null){
+                            wrapper1List = reportMap.get(c.Buyer_Side_Broker_2__c);
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_2_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_2__c != null ? c.Buyer_Side_Commission_2__c/100 : null),c.Buyer_2_Not_Paid__c));
+                            reportMap.put(c.Buyer_Side_Broker_2__c,wrapper1List.clone());
+                        }else{
+                            wrapper1List = new List<cWrapperReport1>();
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_2_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_2__c != null ? c.Buyer_Side_Commission_2__c/100 : null),c.Buyer_2_Not_Paid__c));
+                            reportMap.put(c.Buyer_Side_Broker_2__c,wrapper1List.clone());
+                        }
+                    }
+                }
+                if((c.Buyer_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Buyer_Side_Broker_3__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Buyer_Side_Broker_3__c))){
+                    if(c.Buyer_3_Not_Paid__c > 0){
+                        brokerMap.put(c.Buyer_Side_Broker_3__c,c.Buyer_Side_Broker_3__r.Name);
+                        if(reportMap.get(c.Buyer_Side_Broker_3__c) != null){
+                            wrapper1List = reportMap.get(c.Buyer_Side_Broker_3__c);
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_3_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_3__c != null ? c.Buyer_Side_Commission_3__c/100 : null),c.Buyer_3_Not_Paid__c));
+                            reportMap.put(c.Buyer_Side_Broker_3__c,wrapper1List.clone());
+                        }else{
+                            wrapper1List = new List<cWrapperReport1>();
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_3_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_3__c != null ? c.Buyer_Side_Commission_3__c/100 : null),c.Buyer_3_Not_Paid__c));
+                            reportMap.put(c.Buyer_Side_Broker_3__c,wrapper1List.clone());
+                        }
+                    }
+                }
+                if((c.Buyer_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Buyer_Side_Broker_4__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Buyer_Side_Broker_4__c))){
+                    if(c.Buyer_4_Not_Paid__c > 0){
+                        brokerMap.put(c.Buyer_Side_Broker_4__c,c.Buyer_Side_Broker_4__r.Name);
+                        if(reportMap.get(c.Buyer_Side_Broker_4__c) != null){
+                            wrapper1List = reportMap.get(c.Buyer_Side_Broker_4__c);
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_4_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_Split_4__c != null ? c.Buyer_Side_Commission_Split_4__c/100 : null),c.Buyer_4_Not_Paid__c));
+                            reportMap.put(c.Buyer_Side_Broker_4__c,wrapper1List.clone());
+                        }else{
+                            wrapper1List = new List<cWrapperReport1>();
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_4_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_Split_4__c != null ? c.Buyer_Side_Commission_Split_4__c/100 : null),c.Buyer_4_Not_Paid__c));
+                            reportMap.put(c.Buyer_Side_Broker_4__c,wrapper1List.clone());
+                        }
+                    }
+                }
+                //SELLER
+                if((c.Seller_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Seller_Side_Broker_1__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Seller_Side_Broker_1__c))){
+                    if(c.Seller_1_Not_Paid__c > 0){
+                        brokerMap.put(c.Seller_Side_Broker_1__c,c.Seller_Side_Broker_1__r.Name);
+                        if(reportMap.get(c.Seller_Side_Broker_1__c) != null){
+                            wrapper1List = reportMap.get(c.Seller_Side_Broker_1__c);
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_1_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_1__c != null ? c.Seller_Side_Commission_1__c/100 : null),c.Seller_1_Not_Paid__c));
+                            reportMap.put(c.Seller_Side_Broker_1__c,wrapper1List.clone());
+                        }else{
+                            wrapper1List = new List<cWrapperReport1>();
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_1_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_1__c != null ? c.Seller_Side_Commission_1__c/100 : null),c.Seller_1_Not_Paid__c));
+                            reportMap.put(c.Seller_Side_Broker_1__c,wrapper1List.clone());
+                        }
+                    }
+                }
+                if((c.Seller_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Seller_Side_Broker_2__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Seller_Side_Broker_2__c))){
+                    if(c.Seller_2_Not_Paid__c > 0){
+                        brokerMap.put(c.Seller_Side_Broker_2__c,c.Seller_Side_Broker_2__r.Name);
+                        if(reportMap.get(c.Seller_Side_Broker_2__c) != null){
+                            wrapper1List = reportMap.get(c.Seller_Side_Broker_2__c);
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_2_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_2__c != null ? c.Seller_Side_Commission_2__c/100 : null),c.Seller_2_Not_Paid__c));
+                            reportMap.put(c.Seller_Side_Broker_2__c,wrapper1List.clone());
+                        }else{
+                            wrapper1List = new List<cWrapperReport1>();
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_2_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_2__c != null ? c.Seller_Side_Commission_2__c/100 : null),c.Seller_2_Not_Paid__c));
+                            reportMap.put(c.Seller_Side_Broker_2__c,wrapper1List.clone());
+                        }
+                    }
+                }
+                if((c.Seller_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Seller_Side_Broker_3__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Seller_Side_Broker_3__c))){
+                    if(c.Seller_3_Not_Paid__c > 0){
+                        brokerMap.put(c.Seller_Side_Broker_3__c,c.Seller_Side_Broker_3__r.Name);
+                        if(reportMap.get(c.Seller_Side_Broker_3__c) != null){
+                            wrapper1List = reportMap.get(c.Seller_Side_Broker_3__c);
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_3_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_3__c != null ? c.Seller_Side_Commission_3__c/100 : null),c.Seller_3_Not_Paid__c));
+                            reportMap.put(c.Seller_Side_Broker_3__c,wrapper1List.clone());
+                        }else{
+                            wrapper1List = new List<cWrapperReport1>();
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_3_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_3__c != null ? c.Seller_Side_Commission_3__c/100 : null),c.Seller_3_Not_Paid__c));
+                            reportMap.put(c.Seller_Side_Broker_3__c,wrapper1List.clone());
+                        }
+                    }
+                }
+                if((c.Seller_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Seller_Side_Broker_4__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Seller_Side_Broker_4__c))){
+                    if(c.Seller_4_Not_Paid__c > 0){
+                        brokerMap.put(c.Seller_Side_Broker_4__c,c.Seller_Side_Broker_4__r.Name);
+                        if(reportMap.get(c.Seller_Side_Broker_4__c) != null){
+                            wrapper1List = reportMap.get(c.Seller_Side_Broker_4__c);
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_4_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_Split_4__c != null ? c.Seller_Side_Commission_Split_4__c/100 : null),c.Seller_4_Not_Paid__c));
+                            reportMap.put(c.Seller_Side_Broker_4__c,wrapper1List.clone());
+                        }else{
+                            wrapper1List = new List<cWrapperReport1>();
+                            wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_4_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_Split_4__c != null ? c.Seller_Side_Commission_Split_4__c/100 : null),c.Seller_4_Not_Paid__c));
+                            reportMap.put(c.Seller_Side_Broker_4__c,wrapper1List.clone());
+                        }
+                    }
+                }
+            }
+        }
+        
+        sortItems();
+    }
+
+    public void search2(){
+        Boolean excludedBrokers = false;
+        if(helperData.Lock__c) excludedBrokers = true;
+        
+        reportMap = new Map<String,List<cWrapperReport1>>();
+        brokerMap = new Map<String,String>();
+        Set<String> transactionSet = new Set<String>();
+        
+        for(Invoice__c inv : [Select Id, Account__c, Transaction_Number__c From Invoice__c WHERE Transaction_Number__r.RecordTypeId =:recordTypeId  AND Invoice_Date__c >=: helperData.Start_Date__c AND Invoice_Date__c <=: helperData.End_Date__c LIMIT 50000]){
+            if(inv.Transaction_Number__c != null) transactionSet.add(inv.Transaction_Number__c);
+        }
+
+        Map<String,OpportunityLineItem> oliMap = new Map<String,OpportunityLineItem>();
+        for(OpportunityLineItem oli : [Select Id, OpportunityId, Product2.Name From OpportunityLineItem WHERE OpportunityId IN: transactionSet LIMIT 50000]){
+            oliMap.put(oli.OpportunityId,oli);
+        }
+        
+        for(String tId : transactionSet){
+            if(oliMap.get(tId) == null) oliMap.put(tId,new OpportunityLineItem());
+        }
+        
+        List<Commission__c> commissionList = [Select Id, Transaction_No__c, Transaction_No__r.Name, Transaction_No__r.CloseDate, Buyer__c, Buyer__r.Name, Seller__c, Seller__r.Name, Buyer_Commission__c, Seller_Commission__c,
+                               Transaction_No__r.Seller__r.Name, Transaction_No__r.Account.Name,
+                               Buyer_Side_Broker_1__c, Buyer_Side_Broker_2__c, Buyer_Side_Broker_3__c, Buyer_Side_Broker_4__c, Buyer_Side_Broker_1__r.Name, Buyer_Side_Broker_2__r.Name, Buyer_Side_Broker_3__r.Name, Buyer_Side_Broker_4__r.Name,
+                               Buyer_Side_Broker_1__r.Account.Name, Buyer_Side_Broker_2__r.Account.Name, Buyer_Side_Broker_3__r.Account.Name, Buyer_Side_Broker_4__r.Account.Name,
+                               Seller_Side_Broker_1__c, Seller_Side_Broker_2__c, Seller_Side_Broker_3__c, Seller_Side_Broker_4__c, Seller_Side_Broker_1__r.Name, Seller_Side_Broker_2__r.Name, Seller_Side_Broker_3__r.Name, Seller_Side_Broker_4__r.Name,
+                               Seller_Side_Broker_1__r.Account.Name, Seller_Side_Broker_2__r.Account.Name, Seller_Side_Broker_3__r.Account.Name, Seller_Side_Broker_4__r.Account.Name,
+                               Buyer_Broker_1_Overhead_Rate__c, Buyer_Broker_2_Overhead_Rate__c, Buyer_Broker_3_Overhead_Rate__c, Buyer_Broker_4_Overhead_Rate__c,
+                               Seller_Broker_1_Overhead_Rate__c, Seller_Broker_2_Overhead_Rate__c, Seller_Broker_3_Overhead_Rate__c, Seller_Broker_4_Overhead_Rate__c,
+                               Buyer_Side_Commission_1__c, Buyer_Side_Commission_2__c, Buyer_Side_Commission_3__c, Buyer_Side_Commission_Split_4__c, 
+                               Seller_Side_Commission_1__c, Seller_Side_Commission_2__c, Seller_Side_Commission_3__c, Seller_Side_Commission_Split_4__c,
+                               Buyer_1_Commission__c, Buyer_2_Commission__c, Buyer_3_Commission__c, Buyer_4_Commission__c,
+                               Seller_1_Commission__c, Seller_2_Commission__c, Seller_3_Commission__c, Seller_4_Commission__c,
+                               Buyer_Commission_Amount_Paid__c, Seller_Commission_Amount_Paid__c,
+                               Buyer_1_Paid__c, Buyer_2_Paid__c, Buyer_3_Paid__c, Buyer_4_Paid__c, Seller_1_Paid__c, Seller_2_Paid__c, Seller_3_Paid__c, Seller_4_Paid__c,
+                               Buyer_1_Not_Paid__c, Buyer_2_Not_Paid__c, Buyer_3_Not_Paid__c, Buyer_4_Not_Paid__c, Seller_1_Not_Paid__c, Seller_2_Not_Paid__c, Seller_3_Not_Paid__c, Seller_4_Not_Paid__c,
+                               Buyer_Side_Broker_1__r.Broker_Deactivated__c,Buyer_Side_Broker_2__r.Broker_Deactivated__c,Buyer_Side_Broker_3__r.Broker_Deactivated__c,Buyer_Side_Broker_4__r.Broker_Deactivated__c,
+                               Seller_Side_Broker_1__r.Broker_Deactivated__c,Seller_Side_Broker_2__r.Broker_Deactivated__c,Seller_Side_Broker_3__r.Broker_Deactivated__c,Seller_Side_Broker_4__r.Broker_Deactivated__c
+                               From Commission__c 
+                               WHERE Transaction_No__c IN: transactionSet LIMIT 50000];
+        
+        Set<String> commissionIds = new Set<String>();
+        for(Commission__c c : commissionList) commissionIds.add(c.Id);
+        
+        Map<String,String> commissionPaymentMap = new Map<String,String>();
+        Map<String,Decimal> commissionPaymentBrokerMap = new Map<String,Decimal>();
+        String keyCP;
+        for(Commission_Payments__c cp : [Select Id, Commission__c, Broker__c, Amount__c From Commission_Payments__c WHERE Commission__c IN: commissionIds LIMIT 50000]){
+            commissionPaymentMap.put(cp.Commission__c,cp.Id);
+            if(cp.Broker__c != null && cp.Amount__c != null){
+                keyCP = cp.Commission__c +'-'+ cp.Broker__c;
+                if(commissionPaymentBrokerMap.get(keyCP) != null){
+                    commissionPaymentBrokerMap.put(keyCP, commissionPaymentBrokerMap.get(keyCP) + cp.Amount__c);
+                }else{
+                    commissionPaymentBrokerMap.put(keyCP, cp.Amount__c);
+                }
+            }
+        }
+        
+        List<cWrapperReport1> wrapper1List;
+        for(Commission__c c : commissionList){
+            if(commissionPaymentMap.get(c.Id) != null){
+                //BUYER
+                if((c.Buyer_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Buyer_Side_Broker_1__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Buyer_Side_Broker_1__c))){
+                    keyCP = c.Id +'-'+ c.Buyer_Side_Broker_1__c;
+                    if(commissionPaymentBrokerMap.get(keyCP) != null && commissionPaymentBrokerMap.get(keyCP) > 0){
+                        if((c.Buyer_1_Commission__c - commissionPaymentBrokerMap.get(keyCP)) > 0){
+                            brokerMap.put(c.Buyer_Side_Broker_1__c,c.Buyer_Side_Broker_1__r.Name);
+                            if(reportMap.get(c.Buyer_Side_Broker_1__c) != null){
+                                wrapper1List = reportMap.get(c.Buyer_Side_Broker_1__c);
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_1_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_1__c != null ? c.Buyer_Side_Commission_1__c/100 : null),(c.Buyer_1_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Buyer_Side_Broker_1__c,wrapper1List.clone());
+                            }else{
+                                wrapper1List = new List<cWrapperReport1>();
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_1_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_1__c != null ? c.Buyer_Side_Commission_1__c/100 : null),(c.Buyer_1_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Buyer_Side_Broker_1__c,wrapper1List.clone());
+                            }
+                        }
+                    }
+                }
+                if((c.Buyer_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Buyer_Side_Broker_2__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Buyer_Side_Broker_2__c))){
+                    keyCP = c.Id +'-'+ c.Buyer_Side_Broker_2__c;
+                    if(commissionPaymentBrokerMap.get(keyCP) != null && commissionPaymentBrokerMap.get(keyCP) > 0){
+                        if((c.Buyer_2_Commission__c - commissionPaymentBrokerMap.get(keyCP)) > 0){
+                            brokerMap.put(c.Buyer_Side_Broker_2__c,c.Buyer_Side_Broker_2__r.Name);
+                            if(reportMap.get(c.Buyer_Side_Broker_2__c) != null){
+                                wrapper1List = reportMap.get(c.Buyer_Side_Broker_2__c);
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_2_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_2__c != null ? c.Buyer_Side_Commission_2__c/100 : null),(c.Buyer_2_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Buyer_Side_Broker_2__c,wrapper1List.clone());
+                            }else{
+                                wrapper1List = new List<cWrapperReport1>();
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_2_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_2__c != null ? c.Buyer_Side_Commission_2__c/100 : null),(c.Buyer_2_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Buyer_Side_Broker_2__c,wrapper1List.clone());
+                            }
+                        }
+                    }
+                }
+                if((c.Buyer_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Buyer_Side_Broker_3__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Buyer_Side_Broker_3__c))){
+                    keyCP = c.Id +'-'+ c.Buyer_Side_Broker_3__c;
+                    if(commissionPaymentBrokerMap.get(keyCP) != null && commissionPaymentBrokerMap.get(keyCP) > 0){
+                        if((c.Buyer_3_Commission__c - commissionPaymentBrokerMap.get(keyCP)) > 0){
+                            brokerMap.put(c.Buyer_Side_Broker_3__c,c.Buyer_Side_Broker_3__r.Name);
+                            if(reportMap.get(c.Buyer_Side_Broker_3__c) != null){
+                                wrapper1List = reportMap.get(c.Buyer_Side_Broker_3__c);
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_3_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_3__c != null ? c.Buyer_Side_Commission_3__c/100 : null),(c.Buyer_3_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Buyer_Side_Broker_3__c,wrapper1List.clone());
+                            }else{
+                                wrapper1List = new List<cWrapperReport1>();
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_3_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_3__c != null ? c.Buyer_Side_Commission_3__c/100 : null),(c.Buyer_3_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Buyer_Side_Broker_3__c,wrapper1List.clone());
+                            }
+                        }
+                    }
+                }
+                if((c.Buyer_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Buyer_Side_Broker_4__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Buyer_Side_Broker_4__c))){
+                    keyCP = c.Id +'-'+ c.Buyer_Side_Broker_4__c;
+                    if(commissionPaymentBrokerMap.get(keyCP) != null && commissionPaymentBrokerMap.get(keyCP) > 0){
+                        if((c.Buyer_4_Commission__c - commissionPaymentBrokerMap.get(keyCP)) > 0){
+                            brokerMap.put(c.Buyer_Side_Broker_4__c,c.Buyer_Side_Broker_4__r.Name);
+                            if(reportMap.get(c.Buyer_Side_Broker_4__c) != null){
+                                wrapper1List = reportMap.get(c.Buyer_Side_Broker_4__c);
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_4_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_Split_4__c != null ? c.Buyer_Side_Commission_Split_4__c/100 : null),(c.Buyer_4_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Buyer_Side_Broker_4__c,wrapper1List.clone());
+                            }else{
+                                wrapper1List = new List<cWrapperReport1>();
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_4_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_Split_4__c != null ? c.Buyer_Side_Commission_Split_4__c/100 : null),(c.Buyer_4_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Buyer_Side_Broker_4__c,wrapper1List.clone());
+                            }
+                        }
+                    }
+                }
+                //SELLER
+                if((c.Seller_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Seller_Side_Broker_1__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Seller_Side_Broker_1__c))){
+                    keyCP = c.Id +'-'+ c.Seller_Side_Broker_1__c;
+                    if(commissionPaymentBrokerMap.get(keyCP) != null && commissionPaymentBrokerMap.get(keyCP) > 0){
+                        if((c.Seller_1_Commission__c - commissionPaymentBrokerMap.get(keyCP)) > 0){
+                            brokerMap.put(c.Seller_Side_Broker_1__c,c.Seller_Side_Broker_1__r.Name);
+                            if(reportMap.get(c.Seller_Side_Broker_1__c) != null){
+                                wrapper1List = reportMap.get(c.Seller_Side_Broker_1__c);
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_1_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_1__c != null ? c.Seller_Side_Commission_1__c/100 : null),(c.Seller_1_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Seller_Side_Broker_1__c,wrapper1List.clone());
+                            }else{
+                                wrapper1List = new List<cWrapperReport1>();
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_1_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_1__c != null ? c.Seller_Side_Commission_1__c/100 : null),(c.Seller_1_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Seller_Side_Broker_1__c,wrapper1List.clone());
+                            }
+                        }
+                    }
+                }
+                if((c.Seller_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Seller_Side_Broker_2__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Seller_Side_Broker_2__c))){
+                    keyCP = c.Id +'-'+ c.Seller_Side_Broker_2__c;
+                    if(commissionPaymentBrokerMap.get(keyCP) != null && commissionPaymentBrokerMap.get(keyCP) > 0){
+                        if((c.Seller_2_Commission__c - commissionPaymentBrokerMap.get(keyCP)) > 0){
+                            brokerMap.put(c.Seller_Side_Broker_2__c,c.Seller_Side_Broker_2__r.Name);
+                            if(reportMap.get(c.Seller_Side_Broker_2__c) != null){
+                                wrapper1List = reportMap.get(c.Seller_Side_Broker_2__c);
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_2_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_2__c != null ? c.Seller_Side_Commission_2__c/100 : null),(c.Seller_2_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Seller_Side_Broker_2__c,wrapper1List.clone());
+                            }else{
+                                wrapper1List = new List<cWrapperReport1>();
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_2_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_2__c != null ? c.Seller_Side_Commission_2__c/100 : null),(c.Seller_2_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Seller_Side_Broker_2__c,wrapper1List.clone());
+                            }
+                        }
+                    }
+                }
+                if((c.Seller_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Seller_Side_Broker_3__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Seller_Side_Broker_3__c))){
+                    keyCP = c.Id +'-'+ c.Seller_Side_Broker_3__c;
+                    if(commissionPaymentBrokerMap.get(keyCP) != null && commissionPaymentBrokerMap.get(keyCP) > 0){
+                        if((c.Seller_3_Commission__c - commissionPaymentBrokerMap.get(keyCP)) > 0){
+                            brokerMap.put(c.Seller_Side_Broker_3__c,c.Seller_Side_Broker_3__r.Name);
+                            if(reportMap.get(c.Seller_Side_Broker_3__c) != null){
+                                wrapper1List = reportMap.get(c.Seller_Side_Broker_3__c);
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_3_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_3__c != null ? c.Seller_Side_Commission_3__c/100 : null),(c.Seller_3_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Seller_Side_Broker_3__c,wrapper1List.clone());
+                            }else{
+                                wrapper1List = new List<cWrapperReport1>();
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_3_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_3__c != null ? c.Seller_Side_Commission_3__c/100 : null),(c.Seller_3_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Seller_Side_Broker_3__c,wrapper1List.clone());
+                            }
+                        }
+                    }
+                }
+                if((c.Seller_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && ((c.Seller_Side_Broker_4__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Seller_Side_Broker_4__c))){
+                    keyCP = c.Id +'-'+ c.Seller_Side_Broker_4__c;
+                    if(commissionPaymentBrokerMap.get(keyCP) != null && commissionPaymentBrokerMap.get(keyCP) > 0){
+                        if((c.Seller_4_Commission__c - commissionPaymentBrokerMap.get(keyCP)) > 0){
+                            brokerMap.put(c.Seller_Side_Broker_4__c,c.Seller_Side_Broker_4__r.Name);
+                            if(reportMap.get(c.Seller_Side_Broker_4__c) != null){
+                                wrapper1List = reportMap.get(c.Seller_Side_Broker_4__c);
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_4_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_Split_4__c != null ? c.Seller_Side_Commission_Split_4__c/100 : null),(c.Seller_4_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Seller_Side_Broker_4__c,wrapper1List.clone());
+                            }else{
+                                wrapper1List = new List<cWrapperReport1>();
+                                wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_4_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_Split_4__c != null ? c.Seller_Side_Commission_Split_4__c/100 : null),(c.Seller_4_Commission__c - commissionPaymentBrokerMap.get(keyCP))));
+                                reportMap.put(c.Seller_Side_Broker_4__c,wrapper1List.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        sortItems();
+    }
+    
+    public void checkBatchStatusSearch3(){
+        AsyncApexJob job = [SELECT Id, Status FROM AsyncApexJob WHERE Id =: strBatchId];
+        batchStatus = job.Status;
+        if(job!=null){
+            if(batchStatus == 'Completed' || batchStatus == 'Aborted'){
+                pollerBool = false;
+                reportList3 = new List<cWrapperReport3>();
+                for(Report_Data__c rp : [SELECT Id, Report__c, Broker__r.Name, Address__c, Amount__c FROM Report_Data__c WHERE Report__c=:report.Id]){
+                    reportList3.add(new cWrapperReport3(rp.Broker__r.Name,rp.Address__c,rp.Amount__c));
+                    reportList3.sort();
+                }
+            }else{
+                pollerBool = true;
+            }
+        }
+	}
+    
+    public void search3(){
+        Boolean excludedBrokers = false;
+        if(helperData.Lock__c) excludedBrokers = true;
+        
+        batchStatusBool = true;
+        upsert report;
+
+        delete [SELECT Id FROM Report_Data__c WHERE Report__c=:report.Id];
+        
+        strBatchId = Database.executeBatch(new Report3Batch(report.Id,yearReport,recordTypeId,excludedBrokers,reportType),50);
+        checkBatchStatusSearch3();
+    }
+    
+    public void search4(){
+        Boolean excludedBrokers = false;
+        if(helperData.Lock__c) excludedBrokers = true;
+        
+        reportMap = new Map<String,List<cWrapperReport1>>();
+        brokerMap = new Map<String,String>();
+        Set<String> transactionSet = new Set<String>();
+        
+        for(Invoice__c inv : [Select Id, Account__c, Transaction_Number__c From Invoice__c WHERE Transaction_Number__r.RecordTypeId =:recordTypeId  AND Invoice_Date__c >=: helperData.Start_Date__c AND Invoice_Date__c <=: helperData.End_Date__c LIMIT 50000]){
+            if(inv.Transaction_Number__c != null) transactionSet.add(inv.Transaction_Number__c);
+        }
+
+        Map<String,OpportunityLineItem> oliMap = new Map<String,OpportunityLineItem>();
+        for(OpportunityLineItem oli : [Select Id, OpportunityId, Product2.Name From OpportunityLineItem WHERE OpportunityId IN: transactionSet LIMIT 50000]){
+            oliMap.put(oli.OpportunityId,oli);
+        }
+        
+        for(String tId : transactionSet){
+            if(oliMap.get(tId) == null) oliMap.put(tId,new OpportunityLineItem());
+        }
+        
+        List<Commission__c> commissionList = [Select Id, Transaction_No__c, Transaction_No__r.Name, Transaction_No__r.CloseDate, Buyer__c, Buyer__r.Name, Seller__c, Seller__r.Name, Buyer_Commission__c, Seller_Commission__c,
+                               Transaction_No__r.Seller__r.Name, Transaction_No__r.Account.Name,
+                               Buyer_Side_Broker_1__c, Buyer_Side_Broker_2__c, Buyer_Side_Broker_3__c, Buyer_Side_Broker_4__c, Buyer_Side_Broker_1__r.Name, Buyer_Side_Broker_2__r.Name, Buyer_Side_Broker_3__r.Name, Buyer_Side_Broker_4__r.Name,
+                               Buyer_Side_Broker_1__r.Account.Name, Buyer_Side_Broker_2__r.Account.Name, Buyer_Side_Broker_3__r.Account.Name, Buyer_Side_Broker_4__r.Account.Name,
+                               Seller_Side_Broker_1__c, Seller_Side_Broker_2__c, Seller_Side_Broker_3__c, Seller_Side_Broker_4__c, Seller_Side_Broker_1__r.Name, Seller_Side_Broker_2__r.Name, Seller_Side_Broker_3__r.Name, Seller_Side_Broker_4__r.Name,
+                               Seller_Side_Broker_1__r.Account.Name, Seller_Side_Broker_2__r.Account.Name, Seller_Side_Broker_3__r.Account.Name, Seller_Side_Broker_4__r.Account.Name,
+                               Buyer_Broker_1_Overhead_Rate__c, Buyer_Broker_2_Overhead_Rate__c, Buyer_Broker_3_Overhead_Rate__c, Buyer_Broker_4_Overhead_Rate__c,
+                               Seller_Broker_1_Overhead_Rate__c, Seller_Broker_2_Overhead_Rate__c, Seller_Broker_3_Overhead_Rate__c, Seller_Broker_4_Overhead_Rate__c,
+                               Buyer_Side_Commission_1__c, Buyer_Side_Commission_2__c, Buyer_Side_Commission_3__c, Buyer_Side_Commission_Split_4__c, 
+                               Seller_Side_Commission_1__c, Seller_Side_Commission_2__c, Seller_Side_Commission_3__c, Seller_Side_Commission_Split_4__c,
+                               Buyer_1_Commission__c, Buyer_2_Commission__c, Buyer_3_Commission__c, Buyer_4_Commission__c,
+                               Seller_1_Commission__c, Seller_2_Commission__c, Seller_3_Commission__c, Seller_4_Commission__c,
+                               Buyer_Commission_Amount_Paid__c, Seller_Commission_Amount_Paid__c,
+                               Buyer_Side_Broker_1__r.Broker_Deactivated__c,Buyer_Side_Broker_2__r.Broker_Deactivated__c,Buyer_Side_Broker_3__r.Broker_Deactivated__c,Buyer_Side_Broker_4__r.Broker_Deactivated__c,
+                               Seller_Side_Broker_1__r.Broker_Deactivated__c,Seller_Side_Broker_2__r.Broker_Deactivated__c,Seller_Side_Broker_3__r.Broker_Deactivated__c,Seller_Side_Broker_4__r.Broker_Deactivated__c
+                               From Commission__c 
+                               WHERE Transaction_No__c IN: transactionSet AND (Buyer_Commission_Amount_Paid__c = null OR Buyer_Commission_Amount_Paid__c = 0) AND (Seller_Commission_Amount_Paid__c = null OR Seller_Commission_Amount_Paid__c = 0) LIMIT 50000];
+        
+        Set<String> commissionIds = new Set<String>();
+        for(Commission__c c : commissionList) commissionIds.add(c.Id);
+        
+        Map<String,String> commissionPaymentMap = new Map<String,String>();
+        for(Commission_Payments__c cp : [Select Id, Commission__c From Commission_Payments__c WHERE Commission__c IN: commissionIds LIMIT 50000]) commissionPaymentMap.put(cp.Commission__c,cp.Id);
+        
+        List<cWrapperReport1> wrapper1List;
+        for(Commission__c c : commissionList){
+            if(commissionPaymentMap.get(c.Id) == null){
+                //BUYER
+                if((c.Buyer_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && c.Buyer_1_Commission__c > 0 && ((c.Buyer_Side_Broker_1__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Buyer_Side_Broker_1__c))){
+                    brokerMap.put(c.Buyer_Side_Broker_1__c,c.Buyer_Side_Broker_1__r.Name);
+                    if(reportMap.get(c.Buyer_Side_Broker_1__c) != null){
+                        wrapper1List = reportMap.get(c.Buyer_Side_Broker_1__c);
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_1_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_1__c != null ? c.Buyer_Side_Commission_1__c/100 : null),c.Buyer_1_Commission__c));
+                        reportMap.put(c.Buyer_Side_Broker_1__c,wrapper1List.clone());
+                    }else{
+                        wrapper1List = new List<cWrapperReport1>();
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_1_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_1__c != null ? c.Buyer_Side_Commission_1__c/100 : null),c.Buyer_1_Commission__c));
+                        reportMap.put(c.Buyer_Side_Broker_1__c,wrapper1List.clone());
+                    }
+                }
+                if((c.Buyer_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && c.Buyer_2_Commission__c > 0 && ((c.Buyer_Side_Broker_2__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Buyer_Side_Broker_2__c))){
+                    brokerMap.put(c.Buyer_Side_Broker_2__c,c.Buyer_Side_Broker_2__r.Name);
+                    if(reportMap.get(c.Buyer_Side_Broker_2__c) != null){
+                        wrapper1List = reportMap.get(c.Buyer_Side_Broker_2__c);
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_2_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_2__c != null ? c.Buyer_Side_Commission_2__c/100 : null),c.Buyer_2_Commission__c));
+                        reportMap.put(c.Buyer_Side_Broker_2__c,wrapper1List.clone());
+                        
+                    }else{
+                        wrapper1List = new List<cWrapperReport1>();
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_2_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_2__c != null ? c.Buyer_Side_Commission_2__c/100 : null),c.Buyer_2_Commission__c));
+                        reportMap.put(c.Buyer_Side_Broker_2__c,wrapper1List.clone());
+                    }
+                }
+                if((c.Buyer_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && c.Buyer_3_Commission__c > 0 && ((c.Buyer_Side_Broker_3__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Buyer_Side_Broker_3__c))){
+                    brokerMap.put(c.Buyer_Side_Broker_3__c,c.Buyer_Side_Broker_3__r.Name);
+                    if(reportMap.get(c.Buyer_Side_Broker_3__c) != null){
+                        wrapper1List = reportMap.get(c.Buyer_Side_Broker_3__c);
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_3_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_3__c != null ? c.Buyer_Side_Commission_3__c/100 : null),c.Buyer_3_Commission__c));
+                        reportMap.put(c.Buyer_Side_Broker_3__c,wrapper1List.clone());
+                    }else{
+                        wrapper1List = new List<cWrapperReport1>();
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_3_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_3__c != null ? c.Buyer_Side_Commission_3__c/100 : null),c.Buyer_3_Commission__c));
+                        reportMap.put(c.Buyer_Side_Broker_3__c,wrapper1List.clone());
+                    }
+                }
+                if((c.Buyer_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && c.Buyer_4_Commission__c > 0 && ((c.Buyer_Side_Broker_4__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Buyer_Side_Broker_4__c))){
+                    brokerMap.put(c.Buyer_Side_Broker_4__c,c.Buyer_Side_Broker_4__r.Name);
+                    if(reportMap.get(c.Buyer_Side_Broker_4__c) != null){
+                        wrapper1List = reportMap.get(c.Buyer_Side_Broker_4__c);
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_4_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_Split_4__c != null ? c.Buyer_Side_Commission_Split_4__c/100 : null),c.Buyer_4_Commission__c));
+                        reportMap.put(c.Buyer_Side_Broker_4__c,wrapper1List.clone());
+                        
+                    }else{
+                        wrapper1List = new List<cWrapperReport1>();
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'B',c.Transaction_No__r.Account.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Buyer_Broker_4_Overhead_Rate__c,c.Buyer_Commission__c,(c.Buyer_Side_Commission_Split_4__c != null ? c.Buyer_Side_Commission_Split_4__c/100 : null),c.Buyer_4_Commission__c));
+                        reportMap.put(c.Buyer_Side_Broker_4__c,wrapper1List.clone());
+                    }
+                }
+                //SELLER
+                if((c.Seller_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && c.Seller_1_Commission__c > 0 && ((c.Seller_Side_Broker_1__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Seller_Side_Broker_1__c))){
+                    brokerMap.put(c.Seller_Side_Broker_1__c,c.Seller_Side_Broker_1__r.Name);
+                    if(reportMap.get(c.Seller_Side_Broker_1__c) != null){
+                        wrapper1List = reportMap.get(c.Seller_Side_Broker_1__c);
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_1_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_1__c != null ? c.Seller_Side_Commission_1__c/100 : null),c.Seller_1_Commission__c));
+                        reportMap.put(c.Seller_Side_Broker_1__c,wrapper1List.clone());
+                    }else{
+                        wrapper1List = new List<cWrapperReport1>();
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_1_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_1__c != null ? c.Seller_Side_Commission_1__c/100 : null),c.Seller_1_Commission__c));
+                        reportMap.put(c.Seller_Side_Broker_1__c,wrapper1List.clone());
+                    }
+                }
+                if((c.Seller_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && c.Seller_2_Commission__c > 0 && ((c.Seller_Side_Broker_2__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Seller_Side_Broker_2__c))){
+                    brokerMap.put(c.Seller_Side_Broker_2__c,c.Seller_Side_Broker_2__r.Name);
+                    if(reportMap.get(c.Seller_Side_Broker_2__c) != null){
+                        wrapper1List = reportMap.get(c.Seller_Side_Broker_2__c);
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_2_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_2__c != null ? c.Seller_Side_Commission_2__c/100 : null),c.Seller_2_Commission__c));
+                        reportMap.put(c.Seller_Side_Broker_2__c,wrapper1List.clone());
+                    }else{
+                        wrapper1List = new List<cWrapperReport1>();
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_2_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_2__c != null ? c.Seller_Side_Commission_2__c/100 : null),c.Seller_2_Commission__c));
+                        reportMap.put(c.Seller_Side_Broker_2__c,wrapper1List.clone());
+                    }
+                }
+                if((c.Seller_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && c.Seller_3_Commission__c > 0 && ((c.Seller_Side_Broker_3__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Seller_Side_Broker_3__c))){
+                    brokerMap.put(c.Seller_Side_Broker_3__c,c.Seller_Side_Broker_3__r.Name);
+                    if(reportMap.get(c.Seller_Side_Broker_3__c) != null){
+                        wrapper1List = reportMap.get(c.Seller_Side_Broker_3__c);
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_3_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_3__c != null ? c.Seller_Side_Commission_3__c/100 : null),c.Seller_3_Commission__c));
+                        reportMap.put(c.Seller_Side_Broker_3__c,wrapper1List.clone());
+                    }else{
+                        wrapper1List = new List<cWrapperReport1>();
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_3_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_3__c != null ? c.Seller_Side_Commission_3__c/100 : null),c.Seller_3_Commission__c));
+                        reportMap.put(c.Seller_Side_Broker_3__c,wrapper1List.clone());
+                    }
+                }
+                if((c.Seller_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers) && c.Seller_4_Commission__c > 0 && ((c.Seller_Side_Broker_4__c != null && helperData.Invoice_Buyer__c == null) || (helperData.Invoice_Buyer__c!=null && helperData.Invoice_Buyer__c == c.Seller_Side_Broker_4__c))){
+                    brokerMap.put(c.Seller_Side_Broker_4__c,c.Seller_Side_Broker_4__r.Name);
+                    if(reportMap.get(c.Seller_Side_Broker_4__c) != null){
+                        wrapper1List = reportMap.get(c.Seller_Side_Broker_4__c);
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_4_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_Split_4__c != null ? c.Seller_Side_Commission_Split_4__c/100 : null),c.Seller_4_Commission__c));
+                        reportMap.put(c.Seller_Side_Broker_4__c,wrapper1List.clone());
+                    }else{
+                        wrapper1List = new List<cWrapperReport1>();
+                        wrapper1List.add(new cWrapperReport1(c.Transaction_No__r.CloseDate,c.Transaction_No__r.Name,c.Transaction_No__c,'S',c.Transaction_No__r.Seller__r.Name,oliMap.get(c.Transaction_No__c).Product2.Name,c.Seller_Broker_4_Overhead_Rate__c,c.Seller_Commission__c,(c.Seller_Side_Commission_Split_4__c != null ? c.Seller_Side_Commission_Split_4__c/100 : null),c.Seller_4_Commission__c));
+                        reportMap.put(c.Seller_Side_Broker_4__c,wrapper1List.clone());
+                    }
+                }
+            }
+        }
+        
+        sortItems();
+        resizeCollection();
+    }
+    
+    public void resizeCollection(){
+        List<cWrapperReport1> wrapper1List;
+        List<cWrapperReport1> wrapper1ListAux;
+        List<cWrapperReport1> wrapper2ListAux;
+        List<cWrapperReport1> wrapper3ListAux;
+        List<cWrapperReport1> wrapper4ListAux;
+        Integer cont;
+        Map<String,List<cWrapperReport1>> reportMapTemp = reportMap.clone();
+        reportMap = new Map<String,List<cWrapperReport1>>();
+        reportMapAdditional2 = new Map<String,List<cWrapperReport1>>();
+        reportMapAdditional3 = new Map<String,List<cWrapperReport1>>();
+        reportMapAdditional4 = new Map<String,List<cWrapperReport1>>();
+        for(String key : reportMapTemp.keySet()){
+            wrapper1List = reportMapTemp.get(key);
+            wrapper1ListAux = new List<cWrapperReport1>();
+            wrapper2ListAux = new List<cWrapperReport1>();
+            wrapper3ListAux = new List<cWrapperReport1>();
+            wrapper4ListAux = new List<cWrapperReport1>();
+            if(wrapper1List.size() > 1000){
+                cont = 1;
+                for(cWrapperReport1 c1 : wrapper1List){
+                    if(cont <= 1000){
+                        wrapper1ListAux.add(c1);
+                    }else if(cont > 1000 && cont <= 2000){
+                        wrapper2ListAux.add(c1);
+                    }else if(cont > 2000 && cont <= 3000){
+                    	wrapper3ListAux.add(c1);
+                    }else if(cont > 3000 && cont <= 4000){
+                        wrapper4ListAux.add(c1);
+                    }
+                    cont++;
+                }
+            }else{
+                wrapper1ListAux = wrapper1List.clone();
+            }
+            reportMap.put(key,wrapper1ListAux.clone());
+            reportMapAdditional2.put(key,wrapper2ListAux.clone());
+            reportMapAdditional3.put(key,wrapper3ListAux.clone());
+            reportMapAdditional4.put(key,wrapper4ListAux.clone());
+        }
+    }
+    
+    public void search5(){
+        Boolean excludedBrokers = false;
+        if(helperData.Lock__c) excludedBrokers = true;
+        
+        Map<String,Invoice__c> invoiceMap = new Map<String,Invoice__c>();
+        Set<String> transactionSet = new Set<String>();
+        for(Invoice__c inv : [Select Id, Name, Account__c, Transaction_Number__c, Invoice_Date__c, Balance_Due__c From Invoice__c WHERE Transaction_Number__r.RecordTypeId =:recordTypeId  AND Invoice_Date__c >=: system.today().addDays(-90) LIMIT 50000]){
+            if(inv.Transaction_Number__c != null && inv.Account__c != null){
+                transactionSet.add(inv.Transaction_Number__c);
+                invoiceMap.put(inv.Transaction_Number__c+'-'+inv.Account__c,inv);
+            }
+        }
+        
+        Set<String> transactionPaid = new Set<String>();
+        for(Payment__c pay : [Select Id, Distribuited_Amount__c, From__c, Transaction__c  From Payment__c WHERE Transaction__c IN: transactionSet]){
+            transactionPaid.add(pay.Transaction__c);
+        }
+ 
+        Set<String> transactionNotPaid = new Set<String>();
+        for(String transId : transactionSet){
+            if(!transactionPaid.contains(transId)) transactionNotPaid.add(transId);
+        }
+        
+        brokerMap = new Map<String,String>();
+        minus90Map = new Map<String,Decimal>();
+        minus60Map = new Map<String,Decimal>();
+        minus30Map = new Map<String,Decimal>();
+        currentMap = new Map<String,Decimal>();
+        plus1Map = new Map<String,Decimal>();
+        plus2Map = new Map<String,Decimal>();
+        plus3Map = new Map<String,Decimal>();
+        plus4Map = new Map<String,Decimal>();
+        plus5Map = new Map<String,Decimal>();
+        plus6orMoreMap = new Map<String,Decimal>();
+        for(Commission__c c : [Select Id, Transaction_No__c, Transaction_No__r.Name, Transaction_No__r.CloseDate, Buyer__c, Buyer__r.Name, Seller__c, Seller__r.Name, Buyer_Commission__c, Seller_Commission__c,
+                               Transaction_No__r.Seller__r.Name, Transaction_No__r.Account.Name, Transaction_No__r.Seller__c, Transaction_No__r.AccountId,
+                               Buyer_Side_Broker_1__c, Buyer_Side_Broker_2__c, Buyer_Side_Broker_3__c, Buyer_Side_Broker_4__c, Buyer_Side_Broker_1__r.Name, Buyer_Side_Broker_2__r.Name, Buyer_Side_Broker_3__r.Name, Buyer_Side_Broker_4__r.Name,
+                               Buyer_Side_Broker_1__r.Account.Name, Buyer_Side_Broker_2__r.Account.Name, Buyer_Side_Broker_3__r.Account.Name, Buyer_Side_Broker_4__r.Account.Name,
+                               Seller_Side_Broker_1__c, Seller_Side_Broker_2__c, Seller_Side_Broker_3__c, Seller_Side_Broker_4__c, Seller_Side_Broker_1__r.Name, Seller_Side_Broker_2__r.Name, Seller_Side_Broker_3__r.Name, Seller_Side_Broker_4__r.Name,
+                               Seller_Side_Broker_1__r.Account.Name, Seller_Side_Broker_2__r.Account.Name, Seller_Side_Broker_3__r.Account.Name, Seller_Side_Broker_4__r.Account.Name,
+                               Buyer_Broker_1_Overhead_Rate__c, Buyer_Broker_2_Overhead_Rate__c, Buyer_Broker_3_Overhead_Rate__c, Buyer_Broker_4_Overhead_Rate__c,
+                               Seller_Broker_1_Overhead_Rate__c, Seller_Broker_2_Overhead_Rate__c, Seller_Broker_3_Overhead_Rate__c, Seller_Broker_4_Overhead_Rate__c,
+                               Buyer_Side_Commission_1__c, Buyer_Side_Commission_2__c, Buyer_Side_Commission_3__c, Buyer_Side_Commission_Split_4__c, 
+                               Seller_Side_Commission_1__c, Seller_Side_Commission_2__c, Seller_Side_Commission_3__c, Seller_Side_Commission_Split_4__c,
+                               Buyer_1_Commission__c, Buyer_2_Commission__c, Buyer_3_Commission__c, Buyer_4_Commission__c,
+                               Seller_1_Commission__c, Seller_2_Commission__c, Seller_3_Commission__c, Seller_4_Commission__c,
+                               Buyer_Commission_Amount_Paid__c, Seller_Commission_Amount_Paid__c,
+                               Buyer_1_Paid__c, Buyer_2_Paid__c, Buyer_3_Paid__c, Buyer_4_Paid__c, Seller_1_Paid__c, Seller_2_Paid__c, Seller_3_Paid__c, Seller_4_Paid__c,
+                               Buyer_1_Not_Paid__c, Buyer_2_Not_Paid__c, Buyer_3_Not_Paid__c, Buyer_4_Not_Paid__c, Seller_1_Not_Paid__c, Seller_2_Not_Paid__c, Seller_3_Not_Paid__c, Seller_4_Not_Paid__c,
+                               Buyer_Side_Broker_1__r.Broker_Deactivated__c,Buyer_Side_Broker_2__r.Broker_Deactivated__c,Buyer_Side_Broker_3__r.Broker_Deactivated__c,Buyer_Side_Broker_4__r.Broker_Deactivated__c,
+                               Seller_Side_Broker_1__r.Broker_Deactivated__c,Seller_Side_Broker_2__r.Broker_Deactivated__c,Seller_Side_Broker_3__r.Broker_Deactivated__c,Seller_Side_Broker_4__r.Broker_Deactivated__c
+                               From Commission__c 
+                               WHERE Transaction_No__c IN: transactionNotPaid LIMIT 50000]){
+            //BUYER
+            if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId) != null){
+                if(c.Buyer_Side_Broker_1__c != null) brokerMap.put(c.Buyer_Side_Broker_1__c,c.Buyer_Side_Broker_1__r.Name);
+                if(c.Buyer_Side_Broker_2__c != null) brokerMap.put(c.Buyer_Side_Broker_2__c,c.Buyer_Side_Broker_2__r.Name);
+                if(c.Buyer_Side_Broker_3__c != null) brokerMap.put(c.Buyer_Side_Broker_3__c,c.Buyer_Side_Broker_3__r.Name);
+                if(c.Buyer_Side_Broker_4__c != null) brokerMap.put(c.Buyer_Side_Broker_4__c,c.Buyer_Side_Broker_4__r.Name);
+                
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c >= system.today().addDays(-90) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c <= system.today().addDays(-61)){
+                    if(c.Buyer_Side_Broker_1__c != null && (c.Buyer_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus90Map.get(c.Buyer_Side_Broker_1__c) != null){
+                            minus90Map.put(c.Buyer_Side_Broker_1__c,minus90Map.get(c.Buyer_Side_Broker_1__c) + c.Buyer_1_Commission__c);
+                        }else{
+                            minus90Map.put(c.Buyer_Side_Broker_1__c,c.Buyer_1_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_2__c != null && (c.Buyer_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus90Map.get(c.Buyer_Side_Broker_2__c) != null){
+                            minus90Map.put(c.Buyer_Side_Broker_2__c,minus90Map.get(c.Buyer_Side_Broker_2__c) + c.Buyer_2_Commission__c);
+                        }else{
+                            minus90Map.put(c.Buyer_Side_Broker_2__c,c.Buyer_2_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_3__c != null && (c.Buyer_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus90Map.get(c.Buyer_Side_Broker_3__c) != null){
+                            minus90Map.put(c.Buyer_Side_Broker_3__c,minus90Map.get(c.Buyer_Side_Broker_3__c) + c.Buyer_3_Commission__c);
+                        }else{
+                            minus90Map.put(c.Buyer_Side_Broker_3__c,c.Buyer_3_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_4__c != null && (c.Buyer_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus90Map.get(c.Buyer_Side_Broker_4__c) != null){
+                            minus90Map.put(c.Buyer_Side_Broker_4__c,minus90Map.get(c.Buyer_Side_Broker_4__c) + c.Buyer_4_Commission__c);
+                        }else{
+                            minus90Map.put(c.Buyer_Side_Broker_4__c,c.Buyer_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c >= system.today().addDays(-60) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c <= system.today().addDays(-31)){
+                    if(c.Buyer_Side_Broker_1__c != null && (c.Buyer_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus60Map.get(c.Buyer_Side_Broker_1__c) != null){
+                            minus60Map.put(c.Buyer_Side_Broker_1__c,minus60Map.get(c.Buyer_Side_Broker_1__c) + c.Buyer_1_Commission__c);
+                        }else{
+                            minus60Map.put(c.Buyer_Side_Broker_1__c,c.Buyer_1_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_2__c != null && (c.Buyer_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus60Map.get(c.Buyer_Side_Broker_2__c) != null){ minus60Map.put(c.Buyer_Side_Broker_2__c,minus60Map.get(c.Buyer_Side_Broker_2__c) + c.Buyer_2_Commission__c);
+                        }else{
+                            minus60Map.put(c.Buyer_Side_Broker_2__c,c.Buyer_2_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_3__c != null && (c.Buyer_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus60Map.get(c.Buyer_Side_Broker_3__c) != null){ minus60Map.put(c.Buyer_Side_Broker_3__c,minus60Map.get(c.Buyer_Side_Broker_3__c) + c.Buyer_3_Commission__c);
+                        }else{
+                            minus60Map.put(c.Buyer_Side_Broker_3__c,c.Buyer_3_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_4__c != null && (c.Buyer_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus60Map.get(c.Buyer_Side_Broker_4__c) != null){ minus60Map.put(c.Buyer_Side_Broker_4__c,minus60Map.get(c.Buyer_Side_Broker_4__c) + c.Buyer_4_Commission__c);
+                        }else{
+                            minus60Map.put(c.Buyer_Side_Broker_4__c,c.Buyer_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c >= system.today().addDays(-30) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c <= system.today().addDays(-1)){
+                    if(c.Buyer_Side_Broker_1__c != null && (c.Buyer_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus30Map.get(c.Buyer_Side_Broker_1__c) != null){ minus30Map.put(c.Buyer_Side_Broker_1__c,minus30Map.get(c.Buyer_Side_Broker_1__c) + c.Buyer_1_Commission__c);
+                        }else{
+                            minus30Map.put(c.Buyer_Side_Broker_1__c,c.Buyer_1_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_2__c != null && (c.Buyer_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus30Map.get(c.Buyer_Side_Broker_2__c) != null){ minus30Map.put(c.Buyer_Side_Broker_2__c,minus30Map.get(c.Buyer_Side_Broker_2__c) + c.Buyer_2_Commission__c);
+                        }else{
+                            minus30Map.put(c.Buyer_Side_Broker_2__c,c.Buyer_2_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_3__c != null && (c.Buyer_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus30Map.get(c.Buyer_Side_Broker_3__c) != null){ minus30Map.put(c.Buyer_Side_Broker_3__c,minus30Map.get(c.Buyer_Side_Broker_3__c) + c.Buyer_3_Commission__c);
+                        }else{
+                            minus30Map.put(c.Buyer_Side_Broker_3__c,c.Buyer_3_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_4__c != null && (c.Buyer_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus30Map.get(c.Buyer_Side_Broker_4__c) != null){ minus30Map.put(c.Buyer_Side_Broker_4__c,minus30Map.get(c.Buyer_Side_Broker_4__c) + c.Buyer_4_Commission__c);
+                        }else{
+                            minus30Map.put(c.Buyer_Side_Broker_4__c,c.Buyer_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c >= system.today() && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c < system.today().addMonths(1)){
+                    if(c.Buyer_Side_Broker_1__c != null && (c.Buyer_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(currentMap.get(c.Buyer_Side_Broker_1__c) != null){  currentMap.put(c.Buyer_Side_Broker_1__c,currentMap.get(c.Buyer_Side_Broker_1__c) + c.Buyer_1_Commission__c);
+                        }else{
+                            currentMap.put(c.Buyer_Side_Broker_1__c,c.Buyer_1_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_2__c != null && (c.Buyer_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(currentMap.get(c.Buyer_Side_Broker_2__c) != null){ currentMap.put(c.Buyer_Side_Broker_2__c,currentMap.get(c.Buyer_Side_Broker_2__c) + c.Buyer_2_Commission__c);
+                        }else{
+                            currentMap.put(c.Buyer_Side_Broker_2__c,c.Buyer_2_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_3__c != null && (c.Buyer_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(currentMap.get(c.Buyer_Side_Broker_3__c) != null){ currentMap.put(c.Buyer_Side_Broker_3__c,currentMap.get(c.Buyer_Side_Broker_3__c) + c.Buyer_3_Commission__c);
+                        }else{
+                            currentMap.put(c.Buyer_Side_Broker_3__c,c.Buyer_3_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_4__c != null && (c.Buyer_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(currentMap.get(c.Buyer_Side_Broker_4__c) != null){ currentMap.put(c.Buyer_Side_Broker_4__c,currentMap.get(c.Buyer_Side_Broker_4__c) + c.Buyer_4_Commission__c);
+                        }else{
+                            currentMap.put(c.Buyer_Side_Broker_4__c,c.Buyer_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c >= system.today().addMonths(1) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c < system.today().addMonths(2)){
+                    if(c.Buyer_Side_Broker_1__c != null && (c.Buyer_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus1Map.get(c.Buyer_Side_Broker_1__c) != null){ plus1Map.put(c.Buyer_Side_Broker_1__c,plus1Map.get(c.Buyer_Side_Broker_1__c) + c.Buyer_1_Commission__c);
+                        }else{
+                            plus1Map.put(c.Buyer_Side_Broker_1__c,c.Buyer_1_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_2__c != null && (c.Buyer_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus1Map.get(c.Buyer_Side_Broker_2__c) != null){ plus1Map.put(c.Buyer_Side_Broker_2__c,plus1Map.get(c.Buyer_Side_Broker_2__c) + c.Buyer_2_Commission__c);
+                        }else{
+                            plus1Map.put(c.Buyer_Side_Broker_2__c,c.Buyer_2_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_3__c != null && (c.Buyer_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus1Map.get(c.Buyer_Side_Broker_3__c) != null){ plus1Map.put(c.Buyer_Side_Broker_3__c,plus1Map.get(c.Buyer_Side_Broker_3__c) + c.Buyer_3_Commission__c);
+                        }else{
+                            plus1Map.put(c.Buyer_Side_Broker_3__c,c.Buyer_3_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_4__c != null && (c.Buyer_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus1Map.get(c.Buyer_Side_Broker_4__c) != null){ plus1Map.put(c.Buyer_Side_Broker_4__c,plus1Map.get(c.Buyer_Side_Broker_4__c) + c.Buyer_4_Commission__c);
+                        }else{
+                            plus1Map.put(c.Buyer_Side_Broker_4__c,c.Buyer_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c >= system.today().addMonths(2) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c < system.today().addMonths(3)){
+                    if(c.Buyer_Side_Broker_1__c != null && (c.Buyer_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus2Map.get(c.Buyer_Side_Broker_1__c) != null){ plus2Map.put(c.Buyer_Side_Broker_1__c,plus2Map.get(c.Buyer_Side_Broker_1__c) + c.Buyer_1_Commission__c);
+                        }else{
+                            plus2Map.put(c.Buyer_Side_Broker_1__c,c.Buyer_1_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_2__c != null && (c.Buyer_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus2Map.get(c.Buyer_Side_Broker_2__c) != null){ plus2Map.put(c.Buyer_Side_Broker_2__c,plus2Map.get(c.Buyer_Side_Broker_2__c) + c.Buyer_2_Commission__c);
+                        }else{
+                            plus2Map.put(c.Buyer_Side_Broker_2__c,c.Buyer_2_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_3__c != null && (c.Buyer_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus2Map.get(c.Buyer_Side_Broker_3__c) != null){ plus2Map.put(c.Buyer_Side_Broker_3__c,plus2Map.get(c.Buyer_Side_Broker_3__c) + c.Buyer_3_Commission__c);
+                        }else{
+                            plus2Map.put(c.Buyer_Side_Broker_3__c,c.Buyer_3_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_4__c != null && (c.Buyer_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus2Map.get(c.Buyer_Side_Broker_4__c) != null){ plus2Map.put(c.Buyer_Side_Broker_4__c,plus2Map.get(c.Buyer_Side_Broker_4__c) + c.Buyer_4_Commission__c);
+                        }else{
+                            plus2Map.put(c.Buyer_Side_Broker_4__c,c.Buyer_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c >= system.today().addMonths(3) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c < system.today().addMonths(4)){
+                    if(c.Buyer_Side_Broker_1__c != null && (c.Buyer_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus3Map.get(c.Buyer_Side_Broker_1__c) != null){  plus3Map.put(c.Buyer_Side_Broker_1__c,plus3Map.get(c.Buyer_Side_Broker_1__c) + c.Buyer_1_Commission__c);
+                        }else{
+                            plus3Map.put(c.Buyer_Side_Broker_1__c,c.Buyer_1_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_2__c != null && (c.Buyer_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus3Map.get(c.Buyer_Side_Broker_2__c) != null){ plus3Map.put(c.Buyer_Side_Broker_2__c,plus3Map.get(c.Buyer_Side_Broker_2__c) + c.Buyer_2_Commission__c);
+                        }else{
+                            plus3Map.put(c.Buyer_Side_Broker_2__c,c.Buyer_2_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_3__c != null && (c.Buyer_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus3Map.get(c.Buyer_Side_Broker_3__c) != null){ plus3Map.put(c.Buyer_Side_Broker_3__c,plus3Map.get(c.Buyer_Side_Broker_3__c) + c.Buyer_3_Commission__c);
+                        }else{
+                            plus3Map.put(c.Buyer_Side_Broker_3__c,c.Buyer_3_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_4__c != null && (c.Buyer_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus3Map.get(c.Buyer_Side_Broker_4__c) != null){ plus3Map.put(c.Buyer_Side_Broker_4__c,plus3Map.get(c.Buyer_Side_Broker_4__c) + c.Buyer_4_Commission__c);
+                        }else{
+                            plus3Map.put(c.Buyer_Side_Broker_4__c,c.Buyer_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c >= system.today().addMonths(4) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c < system.today().addMonths(5)){
+                    if(c.Buyer_Side_Broker_1__c != null && (c.Buyer_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus4Map.get(c.Buyer_Side_Broker_1__c) != null){plus4Map.put(c.Buyer_Side_Broker_1__c,plus4Map.get(c.Buyer_Side_Broker_1__c) + c.Buyer_1_Commission__c);
+                        }else{
+                            plus4Map.put(c.Buyer_Side_Broker_1__c,c.Buyer_1_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_2__c != null && (c.Buyer_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus4Map.get(c.Buyer_Side_Broker_2__c) != null){ plus4Map.put(c.Buyer_Side_Broker_2__c,plus4Map.get(c.Buyer_Side_Broker_2__c) + c.Buyer_2_Commission__c);
+                        }else{
+                            plus4Map.put(c.Buyer_Side_Broker_2__c,c.Buyer_2_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_3__c != null && (c.Buyer_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus4Map.get(c.Buyer_Side_Broker_3__c) != null){ plus4Map.put(c.Buyer_Side_Broker_3__c,plus4Map.get(c.Buyer_Side_Broker_3__c) + c.Buyer_3_Commission__c);
+                        }else{
+                            plus4Map.put(c.Buyer_Side_Broker_3__c,c.Buyer_3_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_4__c != null && (c.Buyer_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus4Map.get(c.Buyer_Side_Broker_4__c) != null){ plus4Map.put(c.Buyer_Side_Broker_4__c,plus4Map.get(c.Buyer_Side_Broker_4__c) + c.Buyer_4_Commission__c);
+                        }else{
+                            plus4Map.put(c.Buyer_Side_Broker_4__c,c.Buyer_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c >= system.today().addMonths(5) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c < system.today().addMonths(6)){
+                    if(c.Buyer_Side_Broker_1__c != null && (c.Buyer_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus5Map.get(c.Buyer_Side_Broker_1__c) != null){plus5Map.put(c.Buyer_Side_Broker_1__c,plus5Map.get(c.Buyer_Side_Broker_1__c) + c.Buyer_1_Commission__c);
+                        }else{
+                            plus5Map.put(c.Buyer_Side_Broker_1__c,c.Buyer_1_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_2__c != null && (c.Buyer_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus5Map.get(c.Buyer_Side_Broker_2__c) != null){ plus5Map.put(c.Buyer_Side_Broker_2__c,plus5Map.get(c.Buyer_Side_Broker_2__c) + c.Buyer_2_Commission__c);
+                        }else{
+                            plus5Map.put(c.Buyer_Side_Broker_2__c,c.Buyer_2_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_3__c != null && (c.Buyer_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus5Map.get(c.Buyer_Side_Broker_3__c) != null){plus5Map.put(c.Buyer_Side_Broker_3__c,plus5Map.get(c.Buyer_Side_Broker_3__c) + c.Buyer_3_Commission__c);
+                        }else{
+                            plus5Map.put(c.Buyer_Side_Broker_3__c,c.Buyer_3_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_4__c != null && (c.Buyer_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus5Map.get(c.Buyer_Side_Broker_4__c) != null){ plus5Map.put(c.Buyer_Side_Broker_4__c,plus5Map.get(c.Buyer_Side_Broker_4__c) + c.Buyer_4_Commission__c);
+                        }else{
+                            plus5Map.put(c.Buyer_Side_Broker_4__c,c.Buyer_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.AccountId).Invoice_Date__c >= system.today().addMonths(6)){
+                    if(c.Buyer_Side_Broker_1__c != null && (c.Buyer_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus6orMoreMap.get(c.Buyer_Side_Broker_1__c) != null){ plus6orMoreMap.put(c.Buyer_Side_Broker_1__c,plus6orMoreMap.get(c.Buyer_Side_Broker_1__c) + c.Buyer_1_Commission__c);
+                        }else{
+                            plus6orMoreMap.put(c.Buyer_Side_Broker_1__c,c.Buyer_1_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_2__c != null && (c.Buyer_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus6orMoreMap.get(c.Buyer_Side_Broker_2__c) != null){ plus6orMoreMap.put(c.Buyer_Side_Broker_2__c,plus6orMoreMap.get(c.Buyer_Side_Broker_2__c) + c.Buyer_2_Commission__c);
+                        }else{
+                            plus6orMoreMap.put(c.Buyer_Side_Broker_2__c,c.Buyer_2_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_3__c != null && (c.Buyer_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus6orMoreMap.get(c.Buyer_Side_Broker_3__c) != null){ plus6orMoreMap.put(c.Buyer_Side_Broker_3__c,plus6orMoreMap.get(c.Buyer_Side_Broker_3__c) + c.Buyer_3_Commission__c);
+                        }else{
+                            plus6orMoreMap.put(c.Buyer_Side_Broker_3__c,c.Buyer_3_Commission__c);
+                        }
+                    }
+                    if(c.Buyer_Side_Broker_4__c != null && (c.Buyer_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus6orMoreMap.get(c.Buyer_Side_Broker_4__c) != null){ plus6orMoreMap.put(c.Buyer_Side_Broker_4__c,plus6orMoreMap.get(c.Buyer_Side_Broker_4__c) + c.Buyer_4_Commission__c);
+                        }else{
+                            plus6orMoreMap.put(c.Buyer_Side_Broker_4__c,c.Buyer_4_Commission__c);
+                        }
+                    }
+                }
+            }
+            
+            //SELLER
+            if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c) != null){
+                if(c.Seller_Side_Broker_1__c != null) brokerMap.put(c.Seller_Side_Broker_1__c,c.Seller_Side_Broker_1__r.Name);
+                if(c.Seller_Side_Broker_2__c != null) brokerMap.put(c.Seller_Side_Broker_2__c,c.Seller_Side_Broker_2__r.Name);
+                if(c.Seller_Side_Broker_3__c != null) brokerMap.put(c.Seller_Side_Broker_3__c,c.Seller_Side_Broker_3__r.Name);
+                if(c.Seller_Side_Broker_4__c != null) brokerMap.put(c.Seller_Side_Broker_4__c,c.Seller_Side_Broker_4__r.Name);
+                
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c >= system.today().addDays(-90) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c <= system.today().addDays(-61)){
+                    if(c.Seller_Side_Broker_1__c != null && (c.Seller_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus90Map.get(c.Seller_Side_Broker_1__c) != null){
+                            minus90Map.put(c.Seller_Side_Broker_1__c,minus90Map.get(c.Seller_Side_Broker_1__c) + c.Seller_1_Commission__c);
+                        }else{
+                            minus90Map.put(c.Seller_Side_Broker_1__c,c.Seller_1_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_2__c != null && (c.Seller_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus90Map.get(c.Seller_Side_Broker_2__c) != null){
+                            minus90Map.put(c.Seller_Side_Broker_2__c,minus90Map.get(c.Seller_Side_Broker_2__c) + c.Seller_2_Commission__c);
+                        }else{
+                            minus90Map.put(c.Seller_Side_Broker_2__c,c.Seller_2_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_3__c != null && (c.Seller_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus90Map.get(c.Seller_Side_Broker_3__c) != null){
+                            minus90Map.put(c.Seller_Side_Broker_3__c,minus90Map.get(c.Seller_Side_Broker_3__c) + c.Seller_3_Commission__c);
+                        }else{
+                            minus90Map.put(c.Seller_Side_Broker_3__c,c.Seller_3_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_4__c != null && (c.Seller_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus90Map.get(c.Seller_Side_Broker_4__c) != null){
+                            minus90Map.put(c.Seller_Side_Broker_4__c,minus90Map.get(c.Seller_Side_Broker_4__c) + c.Seller_4_Commission__c);
+                        }else{
+                            minus90Map.put(c.Seller_Side_Broker_4__c,c.Seller_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c >= system.today().addDays(-60) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c <= system.today().addDays(-31)){
+                    if(c.Seller_Side_Broker_1__c != null && (c.Seller_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus60Map.get(c.Seller_Side_Broker_1__c) != null){ minus60Map.put(c.Seller_Side_Broker_1__c,minus60Map.get(c.Seller_Side_Broker_1__c) + c.Seller_1_Commission__c);
+                        }else{
+                            minus60Map.put(c.Seller_Side_Broker_1__c,c.Seller_1_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_2__c != null && (c.Seller_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus60Map.get(c.Seller_Side_Broker_2__c) != null){ minus60Map.put(c.Seller_Side_Broker_2__c,minus60Map.get(c.Seller_Side_Broker_2__c) + c.Seller_2_Commission__c);
+                        }else{
+                            minus60Map.put(c.Seller_Side_Broker_2__c,c.Seller_2_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_3__c != null && (c.Seller_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus60Map.get(c.Seller_Side_Broker_3__c) != null){  minus60Map.put(c.Seller_Side_Broker_3__c,minus60Map.get(c.Seller_Side_Broker_3__c) + c.Seller_3_Commission__c);
+                        }else{
+                            minus60Map.put(c.Seller_Side_Broker_3__c,c.Seller_3_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_4__c != null && (c.Seller_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus60Map.get(c.Seller_Side_Broker_4__c) != null){ minus60Map.put(c.Seller_Side_Broker_4__c,minus60Map.get(c.Seller_Side_Broker_4__c) + c.Seller_4_Commission__c);
+                        }else{
+                            minus60Map.put(c.Seller_Side_Broker_4__c,c.Seller_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c >= system.today().addDays(-30) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c <= system.today().addDays(-1)){
+                    if(c.Seller_Side_Broker_1__c != null && (c.Seller_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus30Map.get(c.Seller_Side_Broker_1__c) != null){  minus30Map.put(c.Seller_Side_Broker_1__c,minus30Map.get(c.Seller_Side_Broker_1__c) + c.Seller_1_Commission__c);
+                        }else{
+                            minus30Map.put(c.Seller_Side_Broker_1__c,c.Seller_1_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_2__c != null && (c.Seller_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus30Map.get(c.Seller_Side_Broker_2__c) != null){ minus30Map.put(c.Seller_Side_Broker_2__c,minus30Map.get(c.Seller_Side_Broker_2__c) + c.Seller_2_Commission__c);
+                        }else{
+                            minus30Map.put(c.Seller_Side_Broker_2__c,c.Seller_2_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_3__c != null && (c.Seller_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus30Map.get(c.Seller_Side_Broker_3__c) != null){  minus30Map.put(c.Seller_Side_Broker_3__c,minus30Map.get(c.Seller_Side_Broker_3__c) + c.Seller_3_Commission__c);
+                        }else{
+                            minus30Map.put(c.Seller_Side_Broker_3__c,c.Seller_3_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_4__c != null && (c.Seller_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(minus30Map.get(c.Seller_Side_Broker_4__c) != null){  minus30Map.put(c.Seller_Side_Broker_4__c,minus30Map.get(c.Seller_Side_Broker_4__c) + c.Seller_4_Commission__c);
+                        }else{
+                            minus30Map.put(c.Seller_Side_Broker_4__c,c.Seller_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c >= system.today() && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c < system.today().addMonths(1)){
+                    if(c.Seller_Side_Broker_1__c != null && (c.Seller_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(currentMap.get(c.Seller_Side_Broker_1__c) != null){ currentMap.put(c.Seller_Side_Broker_1__c,currentMap.get(c.Seller_Side_Broker_1__c) + c.Seller_1_Commission__c);
+                        }else{
+                            currentMap.put(c.Seller_Side_Broker_1__c,c.Seller_1_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_2__c != null && (c.Seller_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(currentMap.get(c.Seller_Side_Broker_2__c) != null){ currentMap.put(c.Seller_Side_Broker_2__c,currentMap.get(c.Seller_Side_Broker_2__c) + c.Seller_2_Commission__c);
+                        }else{
+                            currentMap.put(c.Seller_Side_Broker_2__c,c.Seller_2_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_3__c != null && (c.Seller_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(currentMap.get(c.Seller_Side_Broker_3__c) != null){ currentMap.put(c.Seller_Side_Broker_3__c,currentMap.get(c.Seller_Side_Broker_3__c) + c.Seller_3_Commission__c);
+                        }else{
+                            currentMap.put(c.Seller_Side_Broker_3__c,c.Seller_3_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_4__c != null && (c.Seller_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(currentMap.get(c.Seller_Side_Broker_4__c) != null){ currentMap.put(c.Seller_Side_Broker_4__c,currentMap.get(c.Seller_Side_Broker_4__c) + c.Seller_4_Commission__c);
+                        }else{
+                            currentMap.put(c.Seller_Side_Broker_4__c,c.Seller_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c >= system.today().addMonths(1) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c < system.today().addMonths(2)){
+                    if(c.Seller_Side_Broker_1__c != null && (c.Seller_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus1Map.get(c.Seller_Side_Broker_1__c) != null){ plus1Map.put(c.Seller_Side_Broker_1__c,plus1Map.get(c.Seller_Side_Broker_1__c) + c.Seller_1_Commission__c);
+                        }else{
+                            plus1Map.put(c.Seller_Side_Broker_1__c,c.Seller_1_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_2__c != null && (c.Seller_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus1Map.get(c.Seller_Side_Broker_2__c) != null){ plus1Map.put(c.Seller_Side_Broker_2__c,plus1Map.get(c.Seller_Side_Broker_2__c) + c.Seller_2_Commission__c);
+                        }else{
+                            plus1Map.put(c.Seller_Side_Broker_2__c,c.Seller_2_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_3__c != null && (c.Seller_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus1Map.get(c.Seller_Side_Broker_3__c) != null){ plus1Map.put(c.Seller_Side_Broker_3__c,plus1Map.get(c.Seller_Side_Broker_3__c) + c.Seller_3_Commission__c);
+                        }else{
+                            plus1Map.put(c.Seller_Side_Broker_3__c,c.Seller_3_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_4__c != null && (c.Seller_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus1Map.get(c.Seller_Side_Broker_4__c) != null){  plus1Map.put(c.Seller_Side_Broker_4__c,plus1Map.get(c.Seller_Side_Broker_4__c) + c.Seller_4_Commission__c);
+                        }else{
+                            plus1Map.put(c.Seller_Side_Broker_4__c,c.Seller_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c >= system.today().addMonths(2) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c < system.today().addMonths(3)){
+                    if(c.Seller_Side_Broker_1__c != null && (c.Seller_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus2Map.get(c.Seller_Side_Broker_1__c) != null){ plus2Map.put(c.Seller_Side_Broker_1__c,plus2Map.get(c.Seller_Side_Broker_1__c) + c.Seller_1_Commission__c);
+                        }else{
+                            plus2Map.put(c.Seller_Side_Broker_1__c,c.Seller_1_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_2__c != null && (c.Seller_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus2Map.get(c.Seller_Side_Broker_2__c) != null){ plus2Map.put(c.Seller_Side_Broker_2__c,plus2Map.get(c.Seller_Side_Broker_2__c) + c.Seller_2_Commission__c);
+                        }else{
+                            plus2Map.put(c.Seller_Side_Broker_2__c,c.Seller_2_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_3__c != null && (c.Seller_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus2Map.get(c.Seller_Side_Broker_3__c) != null){  plus2Map.put(c.Seller_Side_Broker_3__c,plus2Map.get(c.Seller_Side_Broker_3__c) + c.Seller_3_Commission__c);
+                        }else{
+                            plus2Map.put(c.Seller_Side_Broker_3__c,c.Seller_3_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_4__c != null && (c.Seller_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus2Map.get(c.Seller_Side_Broker_4__c) != null){ plus2Map.put(c.Seller_Side_Broker_4__c,plus2Map.get(c.Seller_Side_Broker_4__c) + c.Seller_4_Commission__c);
+                        }else{
+                            plus2Map.put(c.Seller_Side_Broker_4__c,c.Seller_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c >= system.today().addMonths(3) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c < system.today().addMonths(4)){
+                    if(c.Seller_Side_Broker_1__c != null && (c.Seller_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus3Map.get(c.Seller_Side_Broker_1__c) != null){ plus3Map.put(c.Seller_Side_Broker_1__c,plus3Map.get(c.Seller_Side_Broker_1__c) + c.Seller_1_Commission__c);
+                        }else{
+                            plus3Map.put(c.Seller_Side_Broker_1__c,c.Seller_1_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_2__c != null && (c.Seller_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus3Map.get(c.Seller_Side_Broker_2__c) != null){ plus3Map.put(c.Seller_Side_Broker_2__c,plus3Map.get(c.Seller_Side_Broker_2__c) + c.Seller_2_Commission__c);
+                        }else{
+                            plus3Map.put(c.Seller_Side_Broker_2__c,c.Seller_2_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_3__c != null && (c.Seller_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus3Map.get(c.Seller_Side_Broker_3__c) != null){ plus3Map.put(c.Seller_Side_Broker_3__c,plus3Map.get(c.Seller_Side_Broker_3__c) + c.Seller_3_Commission__c);
+                        }else{
+                            plus3Map.put(c.Seller_Side_Broker_3__c,c.Seller_3_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_4__c != null && (c.Seller_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus3Map.get(c.Seller_Side_Broker_4__c) != null){ plus3Map.put(c.Seller_Side_Broker_4__c,plus3Map.get(c.Seller_Side_Broker_4__c) + c.Seller_4_Commission__c);
+                        }else{
+                            plus3Map.put(c.Seller_Side_Broker_4__c,c.Seller_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c >= system.today().addMonths(4) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c < system.today().addMonths(5)){
+                    if(c.Seller_Side_Broker_1__c != null && (c.Seller_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus4Map.get(c.Seller_Side_Broker_1__c) != null){ plus4Map.put(c.Seller_Side_Broker_1__c,plus4Map.get(c.Seller_Side_Broker_1__c) + c.Seller_1_Commission__c);
+                        }else{
+                            plus4Map.put(c.Seller_Side_Broker_1__c,c.Seller_1_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_2__c != null && (c.Seller_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus4Map.get(c.Seller_Side_Broker_2__c) != null){ plus4Map.put(c.Seller_Side_Broker_2__c,plus4Map.get(c.Seller_Side_Broker_2__c) + c.Seller_2_Commission__c);
+                        }else{
+                            plus4Map.put(c.Seller_Side_Broker_2__c,c.Seller_2_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_3__c != null && (c.Seller_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus4Map.get(c.Seller_Side_Broker_3__c) != null){ plus4Map.put(c.Seller_Side_Broker_3__c,plus4Map.get(c.Seller_Side_Broker_3__c) + c.Seller_3_Commission__c);
+                        }else{
+                            plus4Map.put(c.Seller_Side_Broker_3__c,c.Seller_3_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_4__c != null && (c.Seller_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus4Map.get(c.Seller_Side_Broker_4__c) != null){ plus4Map.put(c.Seller_Side_Broker_4__c,plus4Map.get(c.Seller_Side_Broker_4__c) + c.Seller_4_Commission__c);
+                        }else{
+                            plus4Map.put(c.Seller_Side_Broker_4__c,c.Seller_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c >= system.today().addMonths(5) && invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c < system.today().addMonths(6)){
+                    if(c.Seller_Side_Broker_1__c != null && (c.Seller_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus5Map.get(c.Seller_Side_Broker_1__c) != null){ plus5Map.put(c.Seller_Side_Broker_1__c,plus5Map.get(c.Seller_Side_Broker_1__c) + c.Seller_1_Commission__c);
+                        }else{
+                            plus5Map.put(c.Seller_Side_Broker_1__c,c.Seller_1_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_2__c != null && (c.Seller_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus5Map.get(c.Seller_Side_Broker_2__c) != null){  plus5Map.put(c.Seller_Side_Broker_2__c,plus5Map.get(c.Seller_Side_Broker_2__c) + c.Seller_2_Commission__c);
+                        }else{
+                            plus5Map.put(c.Seller_Side_Broker_2__c,c.Seller_2_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_3__c != null && (c.Seller_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus5Map.get(c.Seller_Side_Broker_3__c) != null){  plus5Map.put(c.Seller_Side_Broker_3__c,plus5Map.get(c.Seller_Side_Broker_3__c) + c.Seller_3_Commission__c);
+                        }else{
+                            plus5Map.put(c.Seller_Side_Broker_3__c,c.Seller_3_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_4__c != null && (c.Seller_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus5Map.get(c.Seller_Side_Broker_4__c) != null){ plus5Map.put(c.Seller_Side_Broker_4__c,plus5Map.get(c.Seller_Side_Broker_4__c) + c.Seller_4_Commission__c);
+                        }else{
+                            plus5Map.put(c.Seller_Side_Broker_4__c,c.Seller_4_Commission__c);
+                        }
+                    }
+                }
+                if(invoiceMap.get(c.Transaction_No__c+'-'+c.Transaction_No__r.Seller__c).Invoice_Date__c >= system.today().addMonths(6)){
+                    if(c.Seller_Side_Broker_1__c != null && (c.Seller_Side_Broker_1__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus6orMoreMap.get(c.Seller_Side_Broker_1__c) != null){ plus6orMoreMap.put(c.Seller_Side_Broker_1__c,plus6orMoreMap.get(c.Seller_Side_Broker_1__c) + c.Seller_1_Commission__c);
+                        }else{
+                            plus6orMoreMap.put(c.Seller_Side_Broker_1__c,c.Seller_1_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_2__c != null && (c.Seller_Side_Broker_2__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus6orMoreMap.get(c.Seller_Side_Broker_2__c) != null){ plus6orMoreMap.put(c.Seller_Side_Broker_2__c,plus6orMoreMap.get(c.Seller_Side_Broker_2__c) + c.Seller_2_Commission__c);
+                        }else{
+                            plus6orMoreMap.put(c.Seller_Side_Broker_2__c,c.Seller_2_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_3__c != null && (c.Seller_Side_Broker_3__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus6orMoreMap.get(c.Seller_Side_Broker_3__c) != null){ plus6orMoreMap.put(c.Seller_Side_Broker_3__c,plus6orMoreMap.get(c.Seller_Side_Broker_3__c) + c.Seller_3_Commission__c);
+                        }else{
+                            plus6orMoreMap.put(c.Seller_Side_Broker_3__c,c.Seller_3_Commission__c);
+                        }
+                    }
+                    if(c.Seller_Side_Broker_4__c != null && (c.Seller_Side_Broker_4__r.Broker_Deactivated__c != excludedBrokers || !excludedBrokers)){
+                        if(plus6orMoreMap.get(c.Seller_Side_Broker_4__c) != null){ plus6orMoreMap.put(c.Seller_Side_Broker_4__c,plus6orMoreMap.get(c.Seller_Side_Broker_4__c) + c.Seller_4_Commission__c);
+                        }else{
+                            plus6orMoreMap.put(c.Seller_Side_Broker_4__c,c.Seller_4_Commission__c);
+                        }
+                    }
+                }
+            }
+        }
+        
+        for(String bKey : brokerMap.keySet()){
+            if(minus90Map.get(bKey) > 0 || minus60Map.get(bKey) > 0 || minus30Map.get(bKey) > 0 || currentMap.get(bKey) > 0 || plus1Map.get(bKey) > 0 || plus2Map.get(bKey) > 0 || plus3Map.get(bKey) > 0 || plus4Map.get(bKey) > 0 || plus5Map.get(bKey) > 0 || plus6orMoreMap.get(bKey) > 0){
+                if(minus90Map.get(bKey) == null) minus90Map.put(bKey,0);
+                if(minus60Map.get(bKey) == null) minus60Map.put(bKey,0);
+                if(minus30Map.get(bKey) == null) minus30Map.put(bKey,0);
+                if(currentMap.get(bKey) == null) currentMap.put(bKey,0);
+                if(plus1Map.get(bKey) == null) plus1Map.put(bKey,0);
+                if(plus2Map.get(bKey) == null) plus2Map.put(bKey,0);
+                if(plus3Map.get(bKey) == null) plus3Map.put(bKey,0);
+                if(plus4Map.get(bKey) == null) plus4Map.put(bKey,0);
+                if(plus5Map.get(bKey) == null) plus5Map.put(bKey,0);
+                if(plus6orMoreMap.get(bKey) == null) plus6orMoreMap.put(bKey,0);
+            }else{
+                brokerMap.remove(bKey);
+            }
+        }
+		sortItems();
+    }
+    
+    global class cWrapperReport3 implements Comparable{
+        public String broker {get;set;}
+        public String address {get;set;}
+        public Decimal amount {get;set;}
+        public cWrapperReport3(String zbroker, String zaddress, Decimal zamount){
+            broker = zbroker;
+            address = zaddress;
+            amount = zamount;
+        }
+        
+        public Integer compareTo(Object instance)
+        {
+            cWrapperReport3 that = (cWrapperReport3)instance;
+            if (this.broker.toLowerCase() == that.broker.toLowerCase()) return 0;
+            if (this.broker.toLowerCase() > that.broker.toLowerCase()) return 1;
+            return -1;
+        }
+    }
+    
+    global class cWrapperReport1{
+        public Date date_z {get;set;}
+        public String trans {get;set;}
+        public String trans_id {get;set;}
+        public String type_z {get;set;}
+        public String commission_payer {get;set;}
+        public String product {get;set;}
+        public Decimal overhead_rate {get;set;}
+        public Decimal commission_basis {get;set;}
+        public Decimal share {get;set;}
+        public Decimal amount_to_pay {get;set;}
+        
+        public cWrapperReport1(Date vdate_z,  String vtrans, String vtrans_id, String vtype_z, String vcommission_payer, String vproduct, Decimal voverhead_rate, Decimal vcommission_basis, Decimal vshare, Decimal vamount_to_pay){
+            date_z = vdate_z;
+            trans = vtrans;
+            trans_id = vtrans_id;
+            type_z = vtype_z;
+            commission_payer = vcommission_payer;
+            product = vproduct;
+            overhead_rate = voverhead_rate;
+            commission_basis = vcommission_basis;
+            share = vshare;
+            amount_to_pay = vamount_to_pay;
+        }
+    }
+}
