@@ -1,0 +1,30 @@
+trigger OliToOppTrigger on OpportunityLineItem (before update, after insert, after update) {
+    if(ApexUtil.OpportunityProductTrigger_Is_Enabled){
+        system.debug('----#ENTER OliToOppTrigger');
+        if(trigger.isBefore){
+            for(OpportunityLineItem oli : trigger.new){ if(oli.Lock__c) oli.addError('This record is locked and no updates can be made. Please speak to your system administrator if you have questions.'); }
+        }
+        
+        if(trigger.isAfter){
+            Map<Id,Decimal> oppMap = new Map<Id,Decimal>();
+            for(OpportunityLineItem oli : trigger.new){
+                oppMap.put(oli.OpportunityId,oli.UnitPrice);
+            }
+            
+            Opportunity opp;
+            List<Opportunity> oppList = new List<Opportunity>();
+            for(Id key : oppMap.keySet()){
+                opp = new Opportunity();
+                opp.Id = key;
+                opp.Cost_Per_Unit__c = String.valueOf(oppMap.get(key));
+                oppList.add(opp);
+            }
+            
+            if(oppList.size()>0){
+                ApexUtil.OpportunityTrigger_Is_Enabled = false;
+                update oppList;
+                //ApexUtil.OpportunityTrigger_Is_Enabled = true;
+            }
+        }
+    }
+}
