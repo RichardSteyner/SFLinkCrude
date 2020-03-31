@@ -1,0 +1,672 @@
+@isTest
+public class ReportsController_Test {
+    
+    static void createData(Date closeDate){
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        tn.Number_Crude__c = 1;
+        tn.Number_Future__c = 1;
+        insert tn;
+        
+        Pricebook2 pb1 = new Pricebook2(Name='Link Crude');
+        insert pb1;
+        Pricebook2 pb2 = new Pricebook2(Name='Link Future');
+        insert pb2;
+        
+        Account buyer1 = new Account(Name='Test Buyer',Rate_N__c=0.05);
+        insert buyer1;
+        Account seller1 = new Account(Name='Test Seller',Rate_N__c=0.05);
+        insert seller1;
+        
+        Contact con1 = new Contact(LastName='Test Contact 1',AccountId=buyer1.Id,Role__c = 'Invoice;Confirmation');
+        insert con1;
+        Contact con2 = new Contact(LastName='Test Contact 2',AccountId=seller1.Id,Role__c = 'Invoice;Confirmation');
+        insert con2;
+
+		Product2 pro = new Product2(Name='Test',isActive=true);
+        insert pro;       
+        
+        PricebookEntry pbe1 = new PricebookEntry(Product2Id=pro.Id,isActive=true,UnitPrice=10,Pricebook2Id=Test.getStandardPricebookId());
+        insert pbe1;
+        
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        Opportunity opp = new Opportunity(RecordTypeId=recordTypeId,Name='test',CloseDate=closeDate,StageName='Closed Won', AccountId=buyer1.Id, Seller__c=seller1.Id, Delivery__c = system.today(), Volume_Method__c = 'BPD', Volume_BBL_Day_New__c = 20, Price_Type__c = 'Formula Price', Cost_Per_Unit_formula__c = 'Conoco Posting');
+        insert opp;
+        OpportunityLineItem oli = new OpportunityLineItem(OpportunityId=opp.Id,PricebookEntryId=pbe1.Id,UnitPrice=10,Quantity=1);
+        insert oli;
+    } 
+    
+    public static testmethod void test01(){
+        ApexUtil.isUpdateComm = true;
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        createData(system.today());
+        List<Contact> conList = new List<Contact>();
+        Contact b1 = new Contact(LastName='B1'); conList.add(b1);
+        Contact b2 = new Contact(LastName='B2'); conList.add(b2);
+        Contact b3 = new Contact(LastName='B3'); conList.add(b3);
+        Contact b4 = new Contact(LastName='B4'); conList.add(b4);
+        Contact s1 = new Contact(LastName='S1'); conList.add(s1);
+        Contact s2 = new Contact(LastName='S2'); conList.add(s2);
+        Contact s3 = new Contact(LastName='S3'); conList.add(s3);
+        Contact s4 = new Contact(LastName='S4'); conList.add(s4);
+        insert conList;
+        
+        Commission__c c = [Select Id From Commission__c LIMIT 1];
+        c.Buyer_Commission__c = 150;
+        c.Seller_Commission__c = 150;
+        c.Buyer_Commission_Amount_Paid__c = 100;
+        c.Seller_Commission_Amount_Paid__c = 100;
+        c.Buyer_Side_Broker_1__c = conList[0].Id;
+        c.Buyer_Side_Broker_2__c = conList[1].Id;
+        c.Buyer_Side_Broker_3__c = conList[2].Id;
+        c.Buyer_Side_Broker_4__c = conList[3].Id;
+        c.Seller_Side_Broker_1__c = conList[4].Id;
+        c.Seller_Side_Broker_2__c = conList[5].Id;
+        c.Seller_Side_Broker_3__c = conList[6].Id;
+        c.Seller_Side_Broker_4__c = conList[7].Id;
+        c.Buyer_Side_Commission_1__c = 25;
+        c.Buyer_Side_Commission_2__c = 25;
+        c.Buyer_Side_Commission_3__c = 25;
+        c.Buyer_Side_Commission_Split_4__c = 25;
+        c.Seller_Side_Commission_1__c = 25;
+        c.Seller_Side_Commission_2__c = 25;
+        c.Seller_Side_Commission_3__c = 25;
+        c.Seller_Side_Commission_Split_4__c = 25;
+        c.Buyer_Broker_1_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_2_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_3_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_4_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_1_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_2_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_3_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_4_Overhead_Rate__c = 0.005;
+        update c;
+        
+        Test.startTest();
+        ReportsController controller = new ReportsController();
+        controller.helperData.Start_Date__c = system.today().addMonths(-1);
+        controller.helperData.End_Date__c = system.today().addMonths(1);
+        controller.recordTypeId = recordTypeId;
+        controller.search1();
+        controller.yearReport = system.today().year();
+        controller.reportType = 'Historical';
+        controller.search3();
+        Test.stopTest();
+    }
+    
+    public static testmethod void test02(){
+        ApexUtil.isUpdateComm = true;
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        createData(system.today());
+        List<Contact> conList = new List<Contact>();
+        Contact b1 = new Contact(LastName='B1'); conList.add(b1);
+        Contact b2 = new Contact(LastName='B2'); conList.add(b2);
+        Contact b3 = new Contact(LastName='B3'); conList.add(b3);
+        Contact b4 = new Contact(LastName='B4'); conList.add(b4);
+        Contact s1 = new Contact(LastName='S1'); conList.add(s1);
+        Contact s2 = new Contact(LastName='S2'); conList.add(s2);
+        Contact s3 = new Contact(LastName='S3'); conList.add(s3);
+        Contact s4 = new Contact(LastName='S4'); conList.add(s4);
+        insert conList;
+        
+        Commission__c c = [Select Id From Commission__c LIMIT 1];
+        c.Buyer_Commission__c = 150;
+        c.Seller_Commission__c = 150;
+        c.Buyer_Side_Broker_1__c = conList[0].Id;
+        c.Buyer_Side_Broker_2__c = conList[1].Id;
+        c.Buyer_Side_Broker_3__c = conList[2].Id;
+        c.Buyer_Side_Broker_4__c = conList[3].Id;
+        c.Seller_Side_Broker_1__c = conList[4].Id;
+        c.Seller_Side_Broker_2__c = conList[5].Id;
+        c.Seller_Side_Broker_3__c = conList[6].Id;
+        c.Seller_Side_Broker_4__c = conList[7].Id;
+        c.Buyer_Side_Commission_1__c = 25;
+        c.Buyer_Side_Commission_2__c = 25;
+        c.Buyer_Side_Commission_3__c = 25;
+        c.Buyer_Side_Commission_Split_4__c = 25;
+        c.Seller_Side_Commission_1__c = 25;
+        c.Seller_Side_Commission_2__c = 25;
+        c.Seller_Side_Commission_3__c = 25;
+        c.Seller_Side_Commission_Split_4__c = 25;
+        c.Buyer_Broker_1_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_2_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_3_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_4_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_1_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_2_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_3_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_4_Overhead_Rate__c = 0.005;
+        update c;
+        
+        Commission_Payments__c cp1 = new Commission_Payments__c(Amount__c=10,Broker__c=b1.Id,Commission__c=c.Id); insert cp1;
+        Commission_Payments__c cp2 = new Commission_Payments__c(Amount__c=10,Broker__c=b2.Id,Commission__c=c.Id); insert cp2;
+        Commission_Payments__c cp3 = new Commission_Payments__c(Amount__c=10,Broker__c=b3.Id,Commission__c=c.Id); insert cp3;
+        Commission_Payments__c cp4 = new Commission_Payments__c(Amount__c=10,Broker__c=b4.Id,Commission__c=c.Id); insert cp4;
+        Commission_Payments__c cp5 = new Commission_Payments__c(Amount__c=10,Broker__c=s1.Id,Commission__c=c.Id); insert cp5;
+        Commission_Payments__c cp6 = new Commission_Payments__c(Amount__c=10,Broker__c=s2.Id,Commission__c=c.Id); insert cp6;
+        Commission_Payments__c cp7 = new Commission_Payments__c(Amount__c=10,Broker__c=s3.Id,Commission__c=c.Id); insert cp7;
+        Commission_Payments__c cp8 = new Commission_Payments__c(Amount__c=10,Broker__c=s4.Id,Commission__c=c.Id); insert cp8;
+        
+        Test.startTest();
+        ReportsController controller = new ReportsController();
+        controller.helperData.Start_Date__c = system.today().addMonths(-2);
+        controller.helperData.End_Date__c = system.today().addMonths(2);
+        controller.recordTypeId = recordTypeId;
+        controller.search2();
+        controller.yearReport = system.today().year();
+        controller.reportType = 'Future';
+        controller.search3();
+        Test.stopTest();
+    }
+    
+    public static testmethod void test04(){
+        ApexUtil.isUpdateComm = true;
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        createData(system.today());
+        List<Contact> conList = new List<Contact>();
+        Contact b1 = new Contact(LastName='B1'); conList.add(b1);
+        Contact b2 = new Contact(LastName='B2'); conList.add(b2);
+        Contact b3 = new Contact(LastName='B3'); conList.add(b3);
+        Contact b4 = new Contact(LastName='B4'); conList.add(b4);
+        Contact s1 = new Contact(LastName='S1'); conList.add(s1);
+        Contact s2 = new Contact(LastName='S2'); conList.add(s2);
+        Contact s3 = new Contact(LastName='S3'); conList.add(s3);
+        Contact s4 = new Contact(LastName='S4'); conList.add(s4);
+        insert conList;
+        
+        Commission__c c = [Select Id From Commission__c LIMIT 1];
+        c.Buyer_Commission__c = 150;
+        c.Seller_Commission__c = 150;
+        c.Buyer_Side_Broker_1__c = conList[0].Id;
+        c.Buyer_Side_Broker_2__c = conList[1].Id;
+        c.Buyer_Side_Broker_3__c = conList[2].Id;
+        c.Buyer_Side_Broker_4__c = conList[3].Id;
+        c.Seller_Side_Broker_1__c = conList[4].Id;
+        c.Seller_Side_Broker_2__c = conList[5].Id;
+        c.Seller_Side_Broker_3__c = conList[6].Id;
+        c.Seller_Side_Broker_4__c = conList[7].Id;
+        c.Buyer_Side_Commission_1__c = 25;
+        c.Buyer_Side_Commission_2__c = 25;
+        c.Buyer_Side_Commission_3__c = 25;
+        c.Buyer_Side_Commission_Split_4__c = 25;
+        c.Seller_Side_Commission_1__c = 25;
+        c.Seller_Side_Commission_2__c = 25;
+        c.Seller_Side_Commission_3__c = 25;
+        c.Seller_Side_Commission_Split_4__c = 25;
+        c.Buyer_Broker_1_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_2_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_3_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_4_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_1_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_2_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_3_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_4_Overhead_Rate__c = 0.005;
+        update c;
+
+        Test.startTest();
+        ReportsController controller = new ReportsController();
+        controller.helperData.Start_Date__c = system.today().addMonths(-2);
+        controller.helperData.End_Date__c = system.today().addMonths(2);
+        controller.recordTypeId = recordTypeId;
+        controller.search4();
+        Test.stopTest();
+    }
+    
+    public static testmethod void test05_01(){
+        ApexUtil.isUpdateComm = true;
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        createData(system.today());
+        List<Contact> conList = new List<Contact>();
+        Contact b1 = new Contact(LastName='B1'); conList.add(b1);
+        Contact b2 = new Contact(LastName='B2'); conList.add(b2);
+        Contact b3 = new Contact(LastName='B3'); conList.add(b3);
+        Contact b4 = new Contact(LastName='B4'); conList.add(b4);
+        Contact s1 = new Contact(LastName='S1'); conList.add(s1);
+        Contact s2 = new Contact(LastName='S2'); conList.add(s2);
+        Contact s3 = new Contact(LastName='S3'); conList.add(s3);
+        Contact s4 = new Contact(LastName='S4'); conList.add(s4);
+        insert conList;
+        
+        Commission__c c = [Select Id From Commission__c LIMIT 1];
+        c.Buyer_Commission__c = 150;
+        c.Seller_Commission__c = 150;
+        c.Buyer_Side_Broker_1__c = conList[0].Id;
+        c.Buyer_Side_Broker_2__c = conList[1].Id;
+        c.Buyer_Side_Broker_3__c = conList[2].Id;
+        c.Buyer_Side_Broker_4__c = conList[3].Id;
+        c.Seller_Side_Broker_1__c = conList[4].Id;
+        c.Seller_Side_Broker_2__c = conList[5].Id;
+        c.Seller_Side_Broker_3__c = conList[6].Id;
+        c.Seller_Side_Broker_4__c = conList[7].Id;
+        c.Buyer_Side_Commission_1__c = 25;
+        c.Buyer_Side_Commission_2__c = 25;
+        c.Buyer_Side_Commission_3__c = 25;
+        c.Buyer_Side_Commission_Split_4__c = 25;
+        c.Seller_Side_Commission_1__c = 25;
+        c.Seller_Side_Commission_2__c = 25;
+        c.Seller_Side_Commission_3__c = 25;
+        c.Seller_Side_Commission_Split_4__c = 25;
+        c.Buyer_Broker_1_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_2_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_3_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_4_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_1_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_2_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_3_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_4_Overhead_Rate__c = 0.005;
+        update c;
+        
+        Test.startTest();
+        ReportsController controller = new ReportsController();
+        controller.recordTypeId = recordTypeId;
+        controller.search5();
+        Test.stopTest();
+    }
+    
+    public static testmethod void test05_02(){
+        ApexUtil.isUpdateComm = true;
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        createData(system.today().addMonths(-1));
+        List<Contact> conList = new List<Contact>();
+        Contact b1 = new Contact(LastName='B1'); conList.add(b1);
+        Contact b2 = new Contact(LastName='B2'); conList.add(b2);
+        Contact b3 = new Contact(LastName='B3'); conList.add(b3);
+        Contact b4 = new Contact(LastName='B4'); conList.add(b4);
+        Contact s1 = new Contact(LastName='S1'); conList.add(s1);
+        Contact s2 = new Contact(LastName='S2'); conList.add(s2);
+        Contact s3 = new Contact(LastName='S3'); conList.add(s3);
+        Contact s4 = new Contact(LastName='S4'); conList.add(s4);
+        insert conList;
+        
+        Commission__c c = [Select Id From Commission__c LIMIT 1];
+        c.Buyer_Commission__c = 150;
+        c.Seller_Commission__c = 150;
+        c.Buyer_Side_Broker_1__c = conList[0].Id;
+        c.Buyer_Side_Broker_2__c = conList[1].Id;
+        c.Buyer_Side_Broker_3__c = conList[2].Id;
+        c.Buyer_Side_Broker_4__c = conList[3].Id;
+        c.Seller_Side_Broker_1__c = conList[4].Id;
+        c.Seller_Side_Broker_2__c = conList[5].Id;
+        c.Seller_Side_Broker_3__c = conList[6].Id;
+        c.Seller_Side_Broker_4__c = conList[7].Id;
+        c.Buyer_Side_Commission_1__c = 25;
+        c.Buyer_Side_Commission_2__c = 25;
+        c.Buyer_Side_Commission_3__c = 25;
+        c.Buyer_Side_Commission_Split_4__c = 25;
+        c.Seller_Side_Commission_1__c = 25;
+        c.Seller_Side_Commission_2__c = 25;
+        c.Seller_Side_Commission_3__c = 25;
+        c.Seller_Side_Commission_Split_4__c = 25;
+        c.Buyer_Broker_1_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_2_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_3_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_4_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_1_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_2_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_3_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_4_Overhead_Rate__c = 0.005;
+        update c;
+
+        Test.startTest();
+        ReportsController controller = new ReportsController();
+        controller.recordTypeId = recordTypeId;
+        controller.search5();
+        Test.stopTest();
+    }
+    
+    public static testmethod void test05_03(){
+        ApexUtil.isUpdateComm = true;
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        createData(system.today().addMonths(-2).addDays(-1));
+        List<Contact> conList = new List<Contact>();
+        Contact b1 = new Contact(LastName='B1'); conList.add(b1);
+        Contact b2 = new Contact(LastName='B2'); conList.add(b2);
+        Contact b3 = new Contact(LastName='B3'); conList.add(b3);
+        Contact b4 = new Contact(LastName='B4'); conList.add(b4);
+        Contact s1 = new Contact(LastName='S1'); conList.add(s1);
+        Contact s2 = new Contact(LastName='S2'); conList.add(s2);
+        Contact s3 = new Contact(LastName='S3'); conList.add(s3);
+        Contact s4 = new Contact(LastName='S4'); conList.add(s4);
+        insert conList;
+        
+        Commission__c c = [Select Id From Commission__c LIMIT 1];
+        c.Buyer_Commission__c = 150;
+        c.Seller_Commission__c = 150;
+        c.Buyer_Side_Broker_1__c = conList[0].Id;
+        c.Buyer_Side_Broker_2__c = conList[1].Id;
+        c.Buyer_Side_Broker_3__c = conList[2].Id;
+        c.Buyer_Side_Broker_4__c = conList[3].Id;
+        c.Seller_Side_Broker_1__c = conList[4].Id;
+        c.Seller_Side_Broker_2__c = conList[5].Id;
+        c.Seller_Side_Broker_3__c = conList[6].Id;
+        c.Seller_Side_Broker_4__c = conList[7].Id;
+        c.Buyer_Side_Commission_1__c = 25;
+        c.Buyer_Side_Commission_2__c = 25;
+        c.Buyer_Side_Commission_3__c = 25;
+        c.Buyer_Side_Commission_Split_4__c = 25;
+        c.Seller_Side_Commission_1__c = 25;
+        c.Seller_Side_Commission_2__c = 25;
+        c.Seller_Side_Commission_3__c = 25;
+        c.Seller_Side_Commission_Split_4__c = 25;
+        c.Buyer_Broker_1_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_2_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_3_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_4_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_1_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_2_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_3_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_4_Overhead_Rate__c = 0.005;
+        update c;
+
+        Test.startTest();
+        ReportsController controller = new ReportsController();
+        controller.recordTypeId = recordTypeId;
+        controller.search5();
+        Test.stopTest();
+    }
+    
+    public static testmethod void test05_04(){
+        ApexUtil.isUpdateComm = true;
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        createData(system.today().addMonths(1));
+        List<Contact> conList = new List<Contact>();
+        Contact b1 = new Contact(LastName='B1'); conList.add(b1);
+        Contact b2 = new Contact(LastName='B2'); conList.add(b2);
+        Contact b3 = new Contact(LastName='B3'); conList.add(b3);
+        Contact b4 = new Contact(LastName='B4'); conList.add(b4);
+        Contact s1 = new Contact(LastName='S1'); conList.add(s1);
+        Contact s2 = new Contact(LastName='S2'); conList.add(s2);
+        Contact s3 = new Contact(LastName='S3'); conList.add(s3);
+        Contact s4 = new Contact(LastName='S4'); conList.add(s4);
+        insert conList;
+        
+        Commission__c c = [Select Id From Commission__c LIMIT 1];
+        c.Buyer_Commission__c = 150;
+        c.Seller_Commission__c = 150;
+        c.Buyer_Side_Broker_1__c = conList[0].Id;
+        c.Buyer_Side_Broker_2__c = conList[1].Id;
+        c.Buyer_Side_Broker_3__c = conList[2].Id;
+        c.Buyer_Side_Broker_4__c = conList[3].Id;
+        c.Seller_Side_Broker_1__c = conList[4].Id;
+        c.Seller_Side_Broker_2__c = conList[5].Id;
+        c.Seller_Side_Broker_3__c = conList[6].Id;
+        c.Seller_Side_Broker_4__c = conList[7].Id;
+        c.Buyer_Side_Commission_1__c = 25;
+        c.Buyer_Side_Commission_2__c = 25;
+        c.Buyer_Side_Commission_3__c = 25;
+        c.Buyer_Side_Commission_Split_4__c = 25;
+        c.Seller_Side_Commission_1__c = 25;
+        c.Seller_Side_Commission_2__c = 25;
+        c.Seller_Side_Commission_3__c = 25;
+        c.Seller_Side_Commission_Split_4__c = 25;
+        c.Buyer_Broker_1_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_2_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_3_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_4_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_1_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_2_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_3_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_4_Overhead_Rate__c = 0.005;
+        update c;
+        
+        Test.startTest();
+        ReportsController controller = new ReportsController();
+        controller.recordTypeId = recordTypeId;
+        controller.search5();
+        Test.stopTest();
+    }
+    
+    public static testmethod void test05_05(){
+        ApexUtil.isUpdateComm = true;
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        createData(system.today().addMonths(2));
+        List<Contact> conList = new List<Contact>();
+        Contact b1 = new Contact(LastName='B1'); conList.add(b1);
+        Contact b2 = new Contact(LastName='B2'); conList.add(b2);
+        Contact b3 = new Contact(LastName='B3'); conList.add(b3);
+        Contact b4 = new Contact(LastName='B4'); conList.add(b4);
+        Contact s1 = new Contact(LastName='S1'); conList.add(s1);
+        Contact s2 = new Contact(LastName='S2'); conList.add(s2);
+        Contact s3 = new Contact(LastName='S3'); conList.add(s3);
+        Contact s4 = new Contact(LastName='S4'); conList.add(s4);
+        insert conList;
+        
+        Commission__c c = [Select Id From Commission__c LIMIT 1];
+        c.Buyer_Commission__c = 150;
+        c.Seller_Commission__c = 150;
+        c.Buyer_Side_Broker_1__c = conList[0].Id;
+        c.Buyer_Side_Broker_2__c = conList[1].Id;
+        c.Buyer_Side_Broker_3__c = conList[2].Id;
+        c.Buyer_Side_Broker_4__c = conList[3].Id;
+        c.Seller_Side_Broker_1__c = conList[4].Id;
+        c.Seller_Side_Broker_2__c = conList[5].Id;
+        c.Seller_Side_Broker_3__c = conList[6].Id;
+        c.Seller_Side_Broker_4__c = conList[7].Id;
+        c.Buyer_Side_Commission_1__c = 25;
+        c.Buyer_Side_Commission_2__c = 25;
+        c.Buyer_Side_Commission_3__c = 25;
+        c.Buyer_Side_Commission_Split_4__c = 25;
+        c.Seller_Side_Commission_1__c = 25;
+        c.Seller_Side_Commission_2__c = 25;
+        c.Seller_Side_Commission_3__c = 25;
+        c.Seller_Side_Commission_Split_4__c = 25;
+        c.Buyer_Broker_1_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_2_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_3_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_4_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_1_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_2_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_3_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_4_Overhead_Rate__c = 0.005;
+        update c;
+
+        Test.startTest();
+        ReportsController controller = new ReportsController();
+        controller.recordTypeId = recordTypeId;
+        controller.search5();
+        Test.stopTest();
+    }
+    
+    public static testmethod void test05_06(){
+        ApexUtil.isUpdateComm = true;
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        createData(system.today().addMonths(3));
+        List<Contact> conList = new List<Contact>();
+        Contact b1 = new Contact(LastName='B1'); conList.add(b1);
+        Contact b2 = new Contact(LastName='B2'); conList.add(b2);
+        Contact b3 = new Contact(LastName='B3'); conList.add(b3);
+        Contact b4 = new Contact(LastName='B4'); conList.add(b4);
+        Contact s1 = new Contact(LastName='S1'); conList.add(s1);
+        Contact s2 = new Contact(LastName='S2'); conList.add(s2);
+        Contact s3 = new Contact(LastName='S3'); conList.add(s3);
+        Contact s4 = new Contact(LastName='S4'); conList.add(s4);
+        insert conList;
+        
+        Commission__c c = [Select Id From Commission__c LIMIT 1];
+        c.Buyer_Commission__c = 150;
+        c.Seller_Commission__c = 150;
+        c.Buyer_Side_Broker_1__c = conList[0].Id;
+        c.Buyer_Side_Broker_2__c = conList[1].Id;
+        c.Buyer_Side_Broker_3__c = conList[2].Id;
+        c.Buyer_Side_Broker_4__c = conList[3].Id;
+        c.Seller_Side_Broker_1__c = conList[4].Id;
+        c.Seller_Side_Broker_2__c = conList[5].Id;
+        c.Seller_Side_Broker_3__c = conList[6].Id;
+        c.Seller_Side_Broker_4__c = conList[7].Id;
+        c.Buyer_Side_Commission_1__c = 25;
+        c.Buyer_Side_Commission_2__c = 25;
+        c.Buyer_Side_Commission_3__c = 25;
+        c.Buyer_Side_Commission_Split_4__c = 25;
+        c.Seller_Side_Commission_1__c = 25;
+        c.Seller_Side_Commission_2__c = 25;
+        c.Seller_Side_Commission_3__c = 25;
+        c.Seller_Side_Commission_Split_4__c = 25;
+        c.Buyer_Broker_1_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_2_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_3_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_4_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_1_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_2_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_3_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_4_Overhead_Rate__c = 0.005;
+        update c;
+
+        Test.startTest();
+        ReportsController controller = new ReportsController();
+        controller.recordTypeId = recordTypeId;
+        controller.search5();
+        Test.stopTest();
+    }
+    
+    public static testmethod void test05_07(){
+        ApexUtil.isUpdateComm = true;
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        createData(system.today().addMonths(4));
+        List<Contact> conList = new List<Contact>();
+        Contact b1 = new Contact(LastName='B1'); conList.add(b1);
+        Contact b2 = new Contact(LastName='B2'); conList.add(b2);
+        Contact b3 = new Contact(LastName='B3'); conList.add(b3);
+        Contact b4 = new Contact(LastName='B4'); conList.add(b4);
+        Contact s1 = new Contact(LastName='S1'); conList.add(s1);
+        Contact s2 = new Contact(LastName='S2'); conList.add(s2);
+        Contact s3 = new Contact(LastName='S3'); conList.add(s3);
+        Contact s4 = new Contact(LastName='S4'); conList.add(s4);
+        insert conList;
+        
+        Commission__c c = [Select Id From Commission__c LIMIT 1];
+        c.Buyer_Commission__c = 150;
+        c.Seller_Commission__c = 150;
+        c.Buyer_Side_Broker_1__c = conList[0].Id;
+        c.Buyer_Side_Broker_2__c = conList[1].Id;
+        c.Buyer_Side_Broker_3__c = conList[2].Id;
+        c.Buyer_Side_Broker_4__c = conList[3].Id;
+        c.Seller_Side_Broker_1__c = conList[4].Id;
+        c.Seller_Side_Broker_2__c = conList[5].Id;
+        c.Seller_Side_Broker_3__c = conList[6].Id;
+        c.Seller_Side_Broker_4__c = conList[7].Id;
+        c.Buyer_Side_Commission_1__c = 25;
+        c.Buyer_Side_Commission_2__c = 25;
+        c.Buyer_Side_Commission_3__c = 25;
+        c.Buyer_Side_Commission_Split_4__c = 25;
+        c.Seller_Side_Commission_1__c = 25;
+        c.Seller_Side_Commission_2__c = 25;
+        c.Seller_Side_Commission_3__c = 25;
+        c.Seller_Side_Commission_Split_4__c = 25;
+        c.Buyer_Broker_1_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_2_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_3_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_4_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_1_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_2_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_3_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_4_Overhead_Rate__c = 0.005;
+        update c;
+
+        Test.startTest();
+        ReportsController controller = new ReportsController();
+        controller.recordTypeId = recordTypeId;
+        controller.search5();
+        Test.stopTest();
+    }
+    
+    public static testmethod void test05_08(){
+        ApexUtil.isUpdateComm = true;
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        createData(system.today().addMonths(5));
+        List<Contact> conList = new List<Contact>();
+        Contact b1 = new Contact(LastName='B1'); conList.add(b1);
+        Contact b2 = new Contact(LastName='B2'); conList.add(b2);
+        Contact b3 = new Contact(LastName='B3'); conList.add(b3);
+        Contact b4 = new Contact(LastName='B4'); conList.add(b4);
+        Contact s1 = new Contact(LastName='S1'); conList.add(s1);
+        Contact s2 = new Contact(LastName='S2'); conList.add(s2);
+        Contact s3 = new Contact(LastName='S3'); conList.add(s3);
+        Contact s4 = new Contact(LastName='S4'); conList.add(s4);
+        insert conList;
+        
+        Commission__c c = [Select Id From Commission__c LIMIT 1];
+        c.Buyer_Commission__c = 150;
+        c.Seller_Commission__c = 150;
+        c.Buyer_Side_Broker_1__c = conList[0].Id;
+        c.Buyer_Side_Broker_2__c = conList[1].Id;
+        c.Buyer_Side_Broker_3__c = conList[2].Id;
+        c.Buyer_Side_Broker_4__c = conList[3].Id;
+        c.Seller_Side_Broker_1__c = conList[4].Id;
+        c.Seller_Side_Broker_2__c = conList[5].Id;
+        c.Seller_Side_Broker_3__c = conList[6].Id;
+        c.Seller_Side_Broker_4__c = conList[7].Id;
+        c.Buyer_Side_Commission_1__c = 25;
+        c.Buyer_Side_Commission_2__c = 25;
+        c.Buyer_Side_Commission_3__c = 25;
+        c.Buyer_Side_Commission_Split_4__c = 25;
+        c.Seller_Side_Commission_1__c = 25;
+        c.Seller_Side_Commission_2__c = 25;
+        c.Seller_Side_Commission_3__c = 25;
+        c.Seller_Side_Commission_Split_4__c = 25;
+        c.Buyer_Broker_1_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_2_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_3_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_4_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_1_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_2_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_3_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_4_Overhead_Rate__c = 0.005;
+        update c;
+
+        Test.startTest();
+        ReportsController controller = new ReportsController();
+        controller.recordTypeId = recordTypeId;
+        controller.search5();
+        Test.stopTest();
+    }
+    
+    public static testmethod void test05_09(){
+        ApexUtil.isUpdateComm = true;
+        String recordTypeId = [Select Id, Name, sObjectType From RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        createData(system.today().addMonths(6));
+        List<Contact> conList = new List<Contact>();
+        Contact b1 = new Contact(LastName='B1'); conList.add(b1);
+        Contact b2 = new Contact(LastName='B2'); conList.add(b2);
+        Contact b3 = new Contact(LastName='B3'); conList.add(b3);
+        Contact b4 = new Contact(LastName='B4'); conList.add(b4);
+        Contact s1 = new Contact(LastName='S1'); conList.add(s1);
+        Contact s2 = new Contact(LastName='S2'); conList.add(s2);
+        Contact s3 = new Contact(LastName='S3'); conList.add(s3);
+        Contact s4 = new Contact(LastName='S4'); conList.add(s4);
+        insert conList;
+        
+        Commission__c c = [Select Id From Commission__c LIMIT 1];
+        c.Buyer_Commission__c = 150;
+        c.Seller_Commission__c = 150;
+        c.Buyer_Side_Broker_1__c = conList[0].Id;
+        c.Buyer_Side_Broker_2__c = conList[1].Id;
+        c.Buyer_Side_Broker_3__c = conList[2].Id;
+        c.Buyer_Side_Broker_4__c = conList[3].Id;
+        c.Seller_Side_Broker_1__c = conList[4].Id;
+        c.Seller_Side_Broker_2__c = conList[5].Id;
+        c.Seller_Side_Broker_3__c = conList[6].Id;
+        c.Seller_Side_Broker_4__c = conList[7].Id;
+        c.Buyer_Side_Commission_1__c = 25;
+        c.Buyer_Side_Commission_2__c = 25;
+        c.Buyer_Side_Commission_3__c = 25;
+        c.Buyer_Side_Commission_Split_4__c = 25;
+        c.Seller_Side_Commission_1__c = 25;
+        c.Seller_Side_Commission_2__c = 25;
+        c.Seller_Side_Commission_3__c = 25;
+        c.Seller_Side_Commission_Split_4__c = 25;
+        c.Buyer_Broker_1_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_2_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_3_Overhead_Rate__c = 0.005;
+        c.Buyer_Broker_4_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_1_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_2_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_3_Overhead_Rate__c = 0.005;
+        c.Seller_Broker_4_Overhead_Rate__c = 0.005;
+        update c;
+
+        Test.startTest();
+        ReportsController controller = new ReportsController();
+        controller.recordTypeId = recordTypeId;
+        controller.search5();
+        Test.stopTest();
+    }
+}
