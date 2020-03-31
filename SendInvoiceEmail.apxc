@@ -1,0 +1,238 @@
+global class SendInvoiceEmail {
+    
+    //SEND Seller Contact
+    webService static void emailInvoiceSellerPdf(ID invId, String typeVFP){
+        //Getting opp
+        Invoice__c inv = [SELECT Id, Name, Transaction_Number__c FROM Invoice__c WHERE Id = :invId];
+        Opportunity opp = [SELECT Id, Name, AccountId, Account.Name, Seller__c, Seller__r.Name FROM Opportunity WHERE Id = :inv.Transaction_Number__c];
+        
+        PageReference pdfPage;
+        if(typeVFP == 'LC'){
+			pdfPage = Page.LC_InvoiceVFP;
+        }else{
+            pdfPage = Page.LF_InvoiceVFP;
+        }
+        pdfPage.getParameters().put('id',invId);
+        pdfPage.getParameters().put('type','seller');
+        Blob b;
+        if(Test.isRunningTest()){
+            b = blob.valueOf('Unit.Test');
+        } else {
+            b = pdfPage.getContentAsPdf();
+        }
+        //Create Attachment Object to attach with Email
+        Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
+        efa.setFileName(inv.Name+'.pdf');
+        efa.setBody(b);
+        
+        //Seller Contact
+        List<OpportunityContactRole> sellerContact = new List<OpportunityContactRole>();
+       	List<Contact> sellectContactList = [SELECT Id, AccountId FROM Contact WHERE AccountId = :opp.Seller__c];
+        if(sellectContactList.size()>0){
+            sellerContact = [SELECT Id, Contact.Name, Contact.Email, Contact.Fax, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingPostalCode, Contact.Invoice_Email__c  
+                         FROM OpportunityContactRole WHERE ContactId = :sellectContactList.get(0).Id AND OpportunityId = :opp.Id AND (Contact.Title__c = 'Confirmation To' OR Contact.Title__c = 'Trader')];
+        }
+        
+        if(sellerContact.size()>0){
+            if(sellerContact.get(0).Contact.Invoice_Email__c!=null && sellerContact.get(0).Contact.Invoice_Email__c!=''){
+                // Define the email
+                Messaging.Singleemailmessage email= new Messaging.Singleemailmessage();
+                email.setSubject('PDF of Opportunity - '+opp.Name);
+                //email.setToAddresses( new List<String>{'msialer@cloudcreations.com'} );
+                email.setToAddresses( new List<String>{sellerContact.get(0).Contact.Invoice_Email__c} );
+                email.setHtmlBody('Hi '+opp.Seller__r.Name+',<br/><br/> '
+                                  +'Please find the attached Invoice.'
+                                  +'<br/><br/>'+'Thanks,'+'<br/>'
+                                  +UserInfo.getName()+'<br/>'
+                                  +UserInfo.getOrganizationName());
+                email.setFileAttachments(new Messaging.EmailFileAttachment[] {efa});
+                try{
+                    Messaging.SendEmailResult [] result = Messaging.sendEmail(new Messaging.SingleEmailMessage[] {email});
+                }catch(System.Exception e){
+                    System.debug('error: ' + e.getMessage());
+                }
+            }
+        }
+    }
+    
+    //SEND Buyer Contact
+    webService static void emailInvoiceBuyerPdf(ID invId, String typeVFP){
+        //Getting opp
+        Invoice__c inv = [SELECT Id, Name, Transaction_Number__c FROM Invoice__c WHERE Id = :invId];
+        Opportunity opp = [SELECT Id, Name, AccountId, Account.Name, Seller__c, Seller__r.Name FROM Opportunity WHERE Id = :inv.Transaction_Number__c];
+        
+        PageReference pdfPage;
+        if(typeVFP == 'LC'){
+			pdfPage = Page.LC_InvoiceVFP;
+        }else{
+            pdfPage = Page.LF_InvoiceVFP;
+        }
+        pdfPage.getParameters().put('id',invId);
+        pdfPage.getParameters().put('type','buyer');
+        Blob b;
+        if(Test.isRunningTest()){
+            b = blob.valueOf('Unit.Test');
+        } else {
+            b = pdfPage.getContentAsPdf();
+        }
+        //Create Attachment Object to attach with Email
+        Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
+        efa.setFileName(inv.Name+'.pdf');
+        efa.setBody(b);
+        
+        //Seller Contact
+        List<OpportunityContactRole> buyerContact = new List<OpportunityContactRole>();
+       	List<Contact> buyerContactList = [SELECT Id, AccountId FROM Contact WHERE AccountId = :opp.AccountId];
+        if(buyerContactList.size()>0){
+            buyerContact = [SELECT Id, Contact.Name, Contact.Email, Contact.Fax, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingPostalCode, Contact.Invoice_Email__c 
+                         FROM OpportunityContactRole WHERE ContactId = :buyerContactList.get(0).Id AND OpportunityId = :opp.Id AND (Contact.Title__c = 'Confirmation To' OR Contact.Title__c = 'Trader')];
+        }
+        
+        if(buyerContact.size()>0){
+            if(buyerContact.get(0).Contact.Invoice_Email__c!=null && buyerContact.get(0).Contact.Invoice_Email__c!=''){
+                // Define the email
+                Messaging.Singleemailmessage email= new Messaging.Singleemailmessage();
+                email.setSubject('PDF of Opportunity - '+opp.Name);
+                //email.setToAddresses( new List<String>{'msialer@cloudcreations.com'} );
+                email.setToAddresses( new List<String>{buyerContact.get(0).Contact.Invoice_Email__c} );
+                email.setHtmlBody('Hi '+opp.Account.Name+',<br/><br/> '
+                                  +'Please find the attached Invoice.'
+                                  +'<br/><br/>'+'Thanks,'+'<br/>'
+                                  +UserInfo.getName()+'<br/>'
+                                  +UserInfo.getOrganizationName());
+                email.setFileAttachments(new Messaging.EmailFileAttachment[] {efa});
+                try{
+                    Messaging.SendEmailResult [] result = Messaging.sendEmail(new Messaging.SingleEmailMessage[] {email});
+                }catch(System.Exception e){
+                    System.debug('error: ' + e.getMessage());
+                }
+            }
+        }
+    }
+    
+    //SEND Seller Contact
+    @AuraEnabled
+    public static String emailInvoiceSellerPdfLightning(ID invId, String typeVFP){
+        //Getting opp
+        Invoice__c inv = [SELECT Id, Name, Transaction_Number__c FROM Invoice__c WHERE Id = :invId];
+        Opportunity opp = [SELECT Id, Name, AccountId, Account.Name, Seller__c, Seller__r.Name FROM Opportunity WHERE Id = :inv.Transaction_Number__c];
+        
+        PageReference pdfPage;
+        if(typeVFP == 'LC'){
+			pdfPage = Page.LC_InvoiceVFP;
+        }else{
+            pdfPage = Page.LF_InvoiceVFP;
+        }
+        pdfPage.getParameters().put('id',invId);
+        pdfPage.getParameters().put('type','seller');
+        Blob b;
+        if(Test.isRunningTest()){
+            b = blob.valueOf('Unit.Test');
+        } else {
+            b = pdfPage.getContentAsPdf();
+        }
+        //Create Attachment Object to attach with Email
+        Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
+        efa.setFileName(inv.Name+'.pdf');
+        efa.setBody(b);
+        
+        //Seller Contact
+        List<OpportunityContactRole> sellerContact = new List<OpportunityContactRole>();
+       	List<Contact> sellectContactList = [SELECT Id, AccountId FROM Contact WHERE AccountId = :opp.Seller__c];
+        if(sellectContactList.size()>0){
+            sellerContact = [SELECT Id, Contact.Name, Contact.Email, Contact.Fax, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingPostalCode, Contact.Invoice_Email__c  
+                         FROM OpportunityContactRole WHERE ContactId = :sellectContactList.get(0).Id AND OpportunityId = :opp.Id AND (Contact.Title__c = 'Confirmation To' OR Contact.Title__c = 'Trader')];
+        }
+        
+        if(sellerContact.size()>0){
+            if(sellerContact.get(0).Contact.Invoice_Email__c!=null && sellerContact.get(0).Contact.Invoice_Email__c!=''){
+                // Define the email
+                Messaging.Singleemailmessage email= new Messaging.Singleemailmessage();
+                email.setSubject('PDF of Opportunity - '+opp.Name);
+                //email.setToAddresses( new List<String>{'msialer@cloudcreations.com'} );
+                email.setToAddresses( new List<String>{sellerContact.get(0).Contact.Invoice_Email__c} );
+                email.setHtmlBody('Hi '+opp.Seller__r.Name+',<br/><br/> '
+                                  +'Please find the attached Invoice.'
+                                  +'<br/><br/>'+'Thanks,'+'<br/>'
+                                  +UserInfo.getName()+'<br/>'
+                                  +UserInfo.getOrganizationName());
+                email.setFileAttachments(new Messaging.EmailFileAttachment[] {efa});
+                try{
+                    Messaging.SendEmailResult [] result = Messaging.sendEmail(new Messaging.SingleEmailMessage[] {email});
+                }catch(System.Exception e){
+                    System.debug('error: ' + e.getMessage());
+                    return 'Error: '+e.getMessage();
+                }
+            }else{
+                return 'Error: Seller does not have email.';
+            }
+        }else{
+            return 'Error: There is not a related contact.';
+        }
+        
+        return 'Ok';
+    }
+    
+    //SEND Buyer Contact
+    @AuraEnabled
+    public static String emailInvoiceBuyerPdfLightning(ID invId, String typeVFP){
+        //Getting opp
+        Invoice__c inv = [SELECT Id, Name, Transaction_Number__c FROM Invoice__c WHERE Id = :invId];
+        Opportunity opp = [SELECT Id, Name, AccountId, Account.Name, Seller__c, Seller__r.Name FROM Opportunity WHERE Id = :inv.Transaction_Number__c];
+        
+        PageReference pdfPage;
+        if(typeVFP == 'LC'){
+			pdfPage = Page.LC_InvoiceVFP;
+        }else{
+            pdfPage = Page.LF_InvoiceVFP;
+        }
+        pdfPage.getParameters().put('id',invId);
+        pdfPage.getParameters().put('type','buyer');
+        Blob b;
+        if(Test.isRunningTest()){
+            b = blob.valueOf('Unit.Test');
+        } else {
+            b = pdfPage.getContentAsPdf();
+        }
+        //Create Attachment Object to attach with Email
+        Messaging.EmailFileAttachment efa = new Messaging.EmailFileAttachment();
+        efa.setFileName(inv.Name+'.pdf');
+        efa.setBody(b);
+        
+        //Seller Contact
+        List<OpportunityContactRole> buyerContact = new List<OpportunityContactRole>();
+       	List<Contact> buyerContactList = [SELECT Id, AccountId FROM Contact WHERE AccountId = :opp.AccountId];
+        if(buyerContactList.size()>0){
+            buyerContact = [SELECT Id, Contact.Name, Contact.Email, Contact.Fax, Contact.MailingStreet, Contact.MailingCity, Contact.MailingState, Contact.MailingPostalCode, Contact.Invoice_Email__c  
+                         FROM OpportunityContactRole WHERE ContactId = :buyerContactList.get(0).Id AND OpportunityId = :opp.Id AND (Contact.Title__c = 'Confirmation To' OR Contact.Title__c = 'Trader')];
+        }
+        
+        if(buyerContact.size()>0){
+            if(buyerContact.get(0).Contact.Invoice_Email__c!=null && buyerContact.get(0).Contact.Invoice_Email__c!=''){
+                // Define the email
+                Messaging.Singleemailmessage email= new Messaging.Singleemailmessage();
+                email.setSubject('PDF of Opportunity - '+opp.Name);
+                //email.setToAddresses( new List<String>{'msialer@cloudcreations.com'} );
+                email.setToAddresses( new List<String>{buyerContact.get(0).Contact.Invoice_Email__c} );
+                email.setHtmlBody('Hi '+opp.Account.Name+',<br/><br/> '
+                                  +'Please find the attached Invoice.'
+                                  +'<br/><br/>'+'Thanks,'+'<br/>'
+                                  +UserInfo.getName()+'<br/>'
+                                  +UserInfo.getOrganizationName());
+                email.setFileAttachments(new Messaging.EmailFileAttachment[] {efa});
+                try{
+                    Messaging.SendEmailResult [] result = Messaging.sendEmail(new Messaging.SingleEmailMessage[] {email});
+                }catch(System.Exception e){
+                    System.debug('error: ' + e.getMessage());
+                    return 'Error: '+e.getMessage();
+                }
+            }else{
+                return 'Error: Buyer does not have email.';
+            }
+        }else{
+            return 'Error: There is not a related contact.';
+        }
+        
+        return 'Ok';
+    } 
+}
