@@ -1,0 +1,911 @@
+public class OpportunityTriggerHandler {
+    static String oppLinkCrudeId {get;set;}
+    static String oppLinkFutureId {get;set;}
+    static String invLinkCrudeId {get;set;}
+    static String invLinkFutureId {get;set;}
+    static String statementLinkCrudeId {get;set;}
+    static String statementLinkFutureId {get;set;}
+    static String comLinkCrudeId {get;set;}
+    static String comLinkFutureId {get;set;}
+    static Map<Id,String> opportunityMap {get;set;}
+    static Map<Id,String> termsMap {get;set;}
+    static Map<Id,Account> accountDataMap {get;set;}
+    static Boolean getLoadAfter {get;set;}
+    
+    private static void loadListsBeforeOnly(List<Opportunity> opps){
+        oppLinkCrudeId = [SELECT Id, Name FROM RecordType WHERE Name = 'Link Crude Opportunities'].Id;
+        oppLinkFutureId = [SELECT Id, Name FROM RecordType WHERE Name = 'Link Futures Opportunities'].Id;
+        for(RecordType rt : [SELECT Id, Name FROM RecordType WHERE (Name = 'Link Crude' OR Name = 'Link Futures') AND SobjectType = 'Invoice__c']) {
+            if(rt.Name.equalsIgnoreCase('Link Crude')) invLinkCrudeId = rt.Id;
+            else invLinkFutureId = rt.Id;
+        }
+        for(RecordType rt : [SELECT Id, Name FROM RecordType WHERE (Name = 'Link Crude' OR Name = 'Link Futures') AND SObjectType='Statement__c']){
+            if(rt.Name.equalsIgnoreCase('Link Crude')) statementLinkCrudeId = rt.Id;
+            else statementLinkFutureId = rt.Id;
+        }
+        for(RecordType rt : [SELECT Id, Name FROM RecordType WHERE (Name = 'Link Crude' OR Name = 'Link Futures') AND SObjectType='Commission__c']){
+            if(rt.Name.equalsIgnoreCase('Link Crude')) comLinkCrudeId = rt.Id;
+            else comLinkFutureId = rt.Id;
+        }
+        
+        Set<Id> setTerms = new Set<Id>();
+        Set<Id> setAccountIds = new Set<Id>();
+        for(Opportunity opp : opps){
+            if(opp.AccountId != null) setAccountIds.add(opp.AccountId);
+            if(opp.Seller__c != null) setAccountIds.add(opp.Seller__c);
+            if(opp.Payment_Terms_Lookup__c != null) setTerms.add(opp.Payment_Terms_Lookup__c);
+            if(opp.Contract_Terms_Lookup__c != null) setTerms.add(opp.Contract_Terms_Lookup__c);
+            if(opp.Commission_Terms_Lookup__c != null) setTerms.add(opp.Commission_Terms_Lookup__c);
+            if(opp.Cancellation__c != null) setTerms.add(opp.Cancellation__c);
+            if(opp.Crude_oil_specifications__c != null) setTerms.add(opp.Crude_oil_specifications__c);
+            if(opp.Receipt_Delivery_Window_Terms__c != null) setTerms.add(opp.Receipt_Delivery_Window_Terms__c);
+            if(opp.Receipt_Delivery_Terms__c != null) setTerms.add(opp.Receipt_Delivery_Terms__c);
+            if(opp.Title_and_Risk_Transfer_Terms__c != null) setTerms.add(opp.Title_and_Risk_Transfer_Terms__c);
+            if(opp.Measurement_Terms__c != null) setTerms.add(opp.Measurement_Terms__c);
+            if(opp.Allowed_Laytime_Terms__c != null) setTerms.add(opp.Allowed_Laytime_Terms__c);
+            if(opp.Demurrage_Rate_Terms__c != null) setTerms.add(opp.Demurrage_Rate_Terms__c);
+            if(opp.Public_Terminal_Terms__c != null) setTerms.add(opp.Public_Terminal_Terms__c);
+            if(opp.GTC_s_Terms__c != null) setTerms.add(opp.GTC_s_Terms__c);
+            if(opp.Special_Provisions_Terms__c != null) setTerms.add(opp.Special_Provisions_Terms__c);
+        }
+        
+        termsMap = new Map<Id,String>();
+        for(Term__c t : [Select Id,Terms_Verbiage__c From Term__c WHERE Id IN: setTerms]){termsMap.put(t.Id,t.Terms_Verbiage__c);}
+        
+        accountDataMap = new Map<Id,Account>();
+        for(Account accData : [SELECT Id, Name FROM Account WHERE Id IN: setAccountIds]) accountDataMap.put(accData.Id,accData);
+    }
+    //--------------------HANDLER METHODS----------------------
+    public static void beforeInsertUpdateActions(List<Opportunity> opps, Map<Id, Opportunity> oldOpps){
+        loadListsBeforeOnly(opps);
+
+        if (oldOpps == null){
+            System.debug('OpportunityTriggerHandler:: Calling methods Before INSERT...');
+            //call methods for Before INSERT only
+        }
+        else{
+            System.debug('OpportunityTriggerHandler::  Calling methods Before UPDATE...');
+            //call methods for Before UPDATE only
+        }
+        //call methods for Before UPDATE or INSERT
+        validationLock(opps);
+        setTerms(opps);
+    }
+
+    public static void afterInsertUpdateActions(List<Opportunity> opps, Map<Id, Opportunity> oldOpps){
+        getLoadAfter = false;
+        loadListsBeforeOnly(opps);
+        if (oldOpps == null){
+            System.debug('OpportunityTriggerHandler:: Calling methods After INSERT...');
+            //call methods for After INSERT only
+        }
+        else{
+            System.debug('OpportunityTriggerHandler::  Calling methods After UPDATE...');
+            //call methods for After UPDATE only
+        }
+        
+        getLoadAfter = changeName(opps);
+        if(getLoadAfter){
+            //call methods for After UPDATE or INSERT
+            opportunityCreation(opps,oldOpps);
+            //statementCreation(opps,oldOpps);
+            commissionCreation(opps,oldOpps);
+            invoiceCreation(opps,oldOpps);
+            createStatementWithoutInvoice(opps,oldOpps);
+        }
+    }
+    
+    public static void validationLock(List<Opportunity> opps){
+        for(Opportunity opp: opps){
+            if(opp.Lock__c && ApexUtil.OpportunityUnlock_Is_Enabled) opp.addError('This record is locked and no updates can be made. Please speak to your system administrator if you have questions.');
+        }
+    }
+    
+    public static void setTerms(List<Opportunity> opps){
+        system.debug('----#ENTER OpportunityTriggerHandler: setTerms method');
+        Integer numberOfDays;
+        Date dateAux;
+        Decimal totalvolume;
+        for(Opportunity opp : opps){
+            opp.NameUnique__c = opp.Name;
+            if(opp.Transaction__c=='Single (Single Transaction)'){ opp.Start_Date__c = null; opp.End_Date__c = null;}
+            if(opp.Volume_Method__c != null && opp.Delivery__c!=null && opp.Transaction__c != 'Member (Strip Member)'){
+                numberOfDays = Date.daysInMonth(opp.Delivery__c.year(), opp.Delivery__c.month());
+                if(opp.Volume_Method__c == 'Total Quantity' && opp.Total_Volume_BBL_New__c != null){
+                    opp.Volume_BBL_Day_New__c = opp.Total_Volume_BBL_New__c / numberOfDays;
+                }else if(opp.Volume_Method__c == 'BPD' && opp.Volume_BBL_Day_New__c != null){
+                    opp.Total_Volume_BBL_New__c = opp.Volume_BBL_Day_New__c * numberOfDays;
+                }
+            }
+            if(opp.Transaction__c == 'Master (Strip Master)' && opp.Volume_Method__c == 'BPD' && opp.Start_Date__c != null && opp.End_Date__c != null && opp.Volume_BBL_Day_New__c != null){
+                totalvolume = 0; dateAux = opp.Start_Date__c;
+                system.debug(dateAux);
+                while(dateAux <= opp.End_Date__c){ numberOfDays = Date.daysInMonth(dateAux.year(),dateAux.month()); totalvolume = totalvolume + (numberOfDays * opp.Volume_BBL_Day_New__c); system.debug(totalvolume); dateAux = dateAux.addMonths(1);}
+                opp.Total_Volume_BBL_New__c = totalvolume;
+            }
+            if(opp.Payment_Terms_Lookup__c!=null && termsMap.get(opp.Payment_Terms_Lookup__c) != null) opp.Payment_Terms_Verbiage__c = termsMap.get(opp.Payment_Terms_Lookup__c);
+            if(opp.Contract_Terms_Lookup__c!=null && termsMap.get(opp.Contract_Terms_Lookup__c) != null){
+                opp.Contract_Terms_Verbiage__c = termsMap.get(opp.Contract_Terms_Lookup__c);
+                if(opp.Contract_Terms_Verbiage__c!=null){
+                    if(opp.Seller_Will_Write__c && opp.Seller__c != null && accountDataMap.get(opp.Seller__c) != null) opp.Contract_Terms_Verbiage__c = opp.Contract_Terms_Verbiage__c.replace('[WHOWILLWRITECONTRACT]', accountDataMap.get(opp.Seller__c).Name.toUpperCase());
+                    if(opp.Buyer_Will_Write__c && opp.AccountId != null && accountDataMap.get(opp.AccountId) != null) opp.Contract_Terms_Verbiage__c = opp.Contract_Terms_Verbiage__c.replace('[WHOWILLWRITECONTRACT]', accountDataMap.get(opp.AccountId).Name.toUpperCase());
+                }
+            }
+            if(opp.Commission_Terms_Lookup__c!=null && termsMap.get(opp.Commission_Terms_Lookup__c) != null) opp.Commission_Terms_Verbiage__c = termsMap.get(opp.Commission_Terms_Lookup__c);
+            if(opp.Cancellation__c!=null && termsMap.get(opp.Cancellation__c) != null) opp.Cancellation_Verbiage__c = termsMap.get(opp.Cancellation__c);
+            if(opp.Crude_oil_specifications__c!=null && termsMap.get(opp.Crude_oil_specifications__c) != null) opp.Crude_oil_specifications_Verbiage__c = termsMap.get(opp.Crude_oil_specifications__c);
+            if(opp.Receipt_Delivery_Window_Terms__c!=null && termsMap.get(opp.Receipt_Delivery_Window_Terms__c) != null) opp.Receipt_Delivery_Window_Terms_Verbiage__c = termsMap.get(opp.Receipt_Delivery_Window_Terms__c);
+            if(opp.Receipt_Delivery_Terms__c!=null && termsMap.get(opp.Receipt_Delivery_Terms__c) != null) opp.Receipt_Delivery_Terms_Verbiage__c = termsMap.get(opp.Receipt_Delivery_Terms__c);
+            if(opp.Title_and_Risk_Transfer_Terms__c!=null && termsMap.get(opp.Title_and_Risk_Transfer_Terms__c) != null) opp.Title_and_Risk_Transfer_Verbiage__c = termsMap.get(opp.Title_and_Risk_Transfer_Terms__c);
+            if(opp.Measurement_Terms__c!=null && termsMap.get(opp.Measurement_Terms__c) != null) opp.Measurement_Terms_Verbiage__c = termsMap.get(opp.Measurement_Terms__c);
+            if(opp.Allowed_Laytime_Terms__c!=null && termsMap.get(opp.Allowed_Laytime_Terms__c) != null) opp.Allowed_Laytime_Terms_Verbiage__c = termsMap.get(opp.Allowed_Laytime_Terms__c);
+            if(opp.Demurrage_Rate_Terms__c!=null && termsMap.get(opp.Demurrage_Rate_Terms__c) != null) opp.Demurrage_Rate_Terms_Verbiage__c = termsMap.get(opp.Demurrage_Rate_Terms__c);
+            if(opp.Public_Terminal_Terms__c!=null && termsMap.get(opp.Public_Terminal_Terms__c) != null) opp.Public_Terminal_Terms_Verbiage__c = termsMap.get(opp.Public_Terminal_Terms__c);
+            if(opp.Special_Provisions_Terms__c!=null && termsMap.get(opp.Special_Provisions_Terms__c) != null) opp.Special_Provisions_Terms_Verbiage__c = termsMap.get(opp.Special_Provisions_Terms__c);
+            if(opp.GTC_s_Terms__c!=null && termsMap.get(opp.GTC_s_Terms__c) != null) opp.GTC_s_Terms_Verbiage__c = termsMap.get(opp.GTC_s_Terms__c);
+
+            if(opp.RecordTypeId==oppLinkFutureId){
+                if(opp.Cost_Per_Unit_formula__c!=null){
+                    if(opp.Cost_Per_Unit_formula__c=='CMA/ ALL DAYS Including Weekends and NYMEX Holidays') /*opp.Cost_Per_Unit_Formula_Verbiage__c=*/System.debug('THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT EFFECTIVE FOR THE CALENDAR MONTH OF DELIVERY, INCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX  (PLUS/MINUS PRICE DIFFERENTIAL).  FOR ANY DAY THE NYMEX DOES NOT ESTABLISH A SETTLEMENT PRICE, THE FIRST PREVIOUS SETTLEMENT PRICE AVAILABLE WILL BE USED.');
+                    else if(opp.Cost_Per_Unit_formula__c=='CMA/ MERC TRADE DAYS ONLY Exc. Weekends & Holidays') System.debug('THE PRICE PER BBL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT DURING THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) + '.' : ''));
+                    else if(opp.Cost_Per_Unit_formula__c=='Nymex Settlement/Window Trade') System.debug('NYMEX SETTLEMENT PRICE FOR "MONTH, YEAR" SWEET CRUDE FUTURES ON 00/00/0000 ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) : '') +' PER BARREL.');
+                    else if(opp.Cost_Per_Unit_formula__c=='ARGUS (seller side)') System.debug('THE AVERAGE OF "MONTH, YEAR" "WTD AVG" "SAID GRADE" CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DATED/DURING THE TRADE DAY(S) "MONTH, DATE, YEAR".');
+                    else if(opp.Cost_Per_Unit_formula__c=='ARGUS (buyer side)') System.debug('THE AVERAGE OF "MONTH, YEAR" "WTI FORMULA BASIS" PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DATED/DURING THE TRADE DAY(S) "MONTH, DAY YEAR".');
+                    else if(opp.Cost_Per_Unit_formula__c=='MOP') System.debug('THE MEAN QUOTE FOR WTI *MONTH* AS REPORTED BY PLATTS OILGRAM ON *MONTH, DATE, YEAR*.');
+                    else if(opp.Cost_Per_Unit_formula__c=='ARGUS EVERGREEN (seller side)') System.debug('THE AVERAGE OF THE "WTD AVG" EIC CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT FOR EACH MONTH BEGINNING ON THE 26TH DAY OF THE SECOND MONTH PRECEDING THE DELIVERY MONTH AND ENDING ON THE 25TH DAY OF THE FOLLOWING MONTH.');
+                    else if(opp.Cost_Per_Unit_formula__c=='ARGUS EVERGREEN (buyer side)') System.debug('THE AVERAGE OF THE "WTI" FORMULA BASIS PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT FOR EACH MONTH BEGINNING ON THE 26TH DAY OF THE SECOND MONTH PRECEDING THE DELIVERY MONTH AND ENDING ON THE 25TH DAY OF THE FOLLOWING MONTH.');
+                    else if(opp.Cost_Per_Unit_formula__c=='ARGUS WTI ASSESSMENT') System.debug('ARGUS ASSESSMENT FOR "MONTH" WTI FORMULA BASIS ON "MONTH, DATE, YEAR" "PLUS/MINUS" PER BARREL.');
+                    else if(opp.Cost_Per_Unit_formula__c=='Argus Term Pricing (LLS)') System.debug('THE PRICE FOR EACH MONTH IS EQUAL TO THE ARITHMETIC AVERAGE OF THE WTD AVG LLS (1ST MONTH) PRICES FROM ARGUS MEDIA FOR EACH DAY THAT IS DETERMINED DURING THE MONTH BEGINNING WITH THE FIRST DAY AFTER THE 25TH CALENDAR DAY OF THE MONTH 2 MONTHS PRIOR TO THE DELIVERY MONTH THROUGH THE 25TH CALENDAR DAY OF THE FOLLOWING MONTH.');
+                    else if(opp.Cost_Per_Unit_formula__c=='Argus Term Pricing (WTI)') System.debug('THE PRICE FOR EACH MONTH IS EQUAL TO THE ARITHMETIC AVERAGE OF THE WTI FORMULA BASIS (1ST MONTH) PRICES FROM ARGUS MEDIA EACH DAY THAT IT IS DETERMINED DURING THE MONTH BEGINNING WITH THE FIRST DAY AFTER THE 25TH CALENDAR DAY OF THE MONTH 2 MONTHS PRIOR TO THE DELIVERY MONTH THROUGH THE 25TH CALENDAR DAY OF THE FOLLOWING MONTH.');
+                    else if(opp.Cost_Per_Unit_formula__c=='MOA') System.debug('WTI FORMULA BASIS QUOTE  FOR "MONTH" AS REPORTED BY ARGUS AMERICAS CRUDE FOR THE PERIOD 00/00/0000 THRU 00/00/0000 INCLUSIVE.');
+                    else if(opp.Cost_Per_Unit_formula__c=='MID-POINT OF ARGUS') System.debug('THE MID-POINT OF ARGUS\' SPOT CRUDE PRICE ASSESSMENT FOR WTI FORMULA, MO1 CRUDE OIL AS PUBLISHED BY ARGUS AMERICAS CRUDE REPORT FOR "MONTH"; "PLUS/MINUS" U.S. PER BARREL MARKET DIFFERENTIAL.');
+                    else if(opp.Cost_Per_Unit_formula__c=='Argus CMA') System.debug('THE AVERAGE OF "MONTH" "WTD AVG" DIFF CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF " MONTH, DATE, YEAR".');
+                    else if(opp.Cost_Per_Unit_formula__c=='Argus/Nymex CMA-(trade days only)') System.debug('THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE DAILY SETTLEMENT PRICE FOR "LIGHT SWEET CRUDE OIL" "month" FUTURE CONTRACTS REPORTED BY NYMEX  FROM "00/00/000 THROUGH AND INCLUDING THE LAST DAY OF 00/00/000, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX.\n'+
+                        'THE WEIGHTED AVERAGE DIFFERENTIAL CMA NYMEX VALUE AS PUBLISHED BY PETROLEUM ARGUS DAILY CRUDE REPORT SHALL BE EFFECTIVE FOR "00/00/000 ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) : '') +' PER BARREL.');
+                    else if(opp.Cost_Per_Unit_formula__c=='Conoco Posting') System.debug('CONOCOPHILLIPS COMPANY POSTING FOR WTI (40 API) ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) : '') +' PER BARREL.');
+                    else if(opp.Cost_Per_Unit_formula__c=='ICE BRENT') System.debug('OCTOBER DELIVERY, COST PER UNIT DECEMBER ICE BRENT (Priced Oct 7, 2019-Oct 11, 2019) ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) : ''));
+                    else if(opp.Cost_Per_Unit_formula__c=='CMA ICE BRENT') System.debug('CMA ICE BREN ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) : ''));
+                }
+            } else if(opp.RecordTypeId==oppLinkCrudeId) {
+                if(opp.Cost_Per_Unit_formula__c!=null){
+                    if(opp.Cost_Per_Unit_formula__c=='CMA TRADE DAYS ONLY INCLUDING Weekends & Holidays') System.debug('THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT EFFECTIVE FOR THE CALENDAR MONTH OF DELIVERY, INCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX  (PLUS/MINUS PRICE DIFFERENTIAL).  FOR ANY DAY THE NYMEX DOES NOT ESTABLISH A SETTLEMENT PRICE, THE FIRST PREVIOUS SETTLEMENT PRICE AVAILABLE WILL BE USED.');
+                    else if(opp.Cost_Per_Unit_formula__c=='CMA/ MERC TRADE DAYS ONLY Exc. Weekends & Holidays') System.debug('THE PRICE PER BBL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT DURING THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) + '.' : ''));
+                    else if(opp.Cost_Per_Unit_formula__c=='Nymex Settlement/Window Trade') System.debug('NYMEX SETTLEMENT PRICE FOR "MONTH YEAR" SWEET CRUDE FUTURES ON 00/00/0000 ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) : '') +' PER BARREL.');
+                    else if(opp.Cost_Per_Unit_formula__c=='ARGUS (seller side)') System.debug('THE AVERAGE OF "MONTH, YEAR" "WTD AVG" HLS CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DATED/DURING THE PERIOD OF " MONTH, DATE, YEAR".');
+                    else if(opp.Cost_Per_Unit_formula__c=='ARGUS (buyer side)') System.debug('THE AVERAGE OF "MONTH, YEAR" "WTI FORMULA BASIS" PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DATED/DURING THE PERIOD OF "MONTH, DAY YEAR".');
+                    else if(opp.Cost_Per_Unit_formula__c=='MOP') System.debug('THE MEAN QUOTE FOR WTI *MONTH* AS REPORTED BY PLATTS OILGRAM ON *MONTH, DATE, YEAR*.');
+                    else if(opp.Cost_Per_Unit_formula__c=='ARGUS EVERGREEN (seller side)') System.debug('THE AVERAGE OF THE "WTD AVG" EIC CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT FOR EACH MONTH BEGINNING ON THE 26TH DAY OF THE SECOND MONTH PRECEDING THE DELIVERY MONTH AND ENDING ON THE 25TH DAY OF THE FOLLOWING MONTH.');
+                    else if(opp.Cost_Per_Unit_formula__c=='ARGUS EVERGREEN (buyer side)')  System.debug('THE AVERAGE OF THE "WTI" FORMULA BASIS PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT FOR EACH MONTH BEGINNING ON THE 26TH DAY OF THE SECOND MONTH PRECEDING THE DELIVERY MONTH AND ENDING ON THE 25TH DAY OF THE FOLLOWING MONTH.');
+                    else if(opp.Cost_Per_Unit_formula__c=='ARGUS WTI ASSESSMENT') System.debug('ARGUS ASSESSMENT FOR "MONTH" WTI FORMULA BASIS ON "MONTH, DATE, YEAR" "PLUS/MINUS" PER BARREL.');
+                    else if(opp.Cost_Per_Unit_formula__c=='Argus Term Pricing (LLS)') System.debug('THE PRICE FOR EACH MONTH IS EQUAL TO THE ARITHMETIC AVERAGE OF THE WTD AVG LLS (1ST MONTH) PRICES FROM ARGUS MEDIA FOR EACH DAY THAT IS DETERMINED DURING THE MONTH BEGINNING WITH THE FIRST DAY AFTER THE 25TH CALENDAR DAY OF THE MONTH 2 MONTHS PRIOR TO THE DELIVERY MONTH THROUGH THE 25TH CALENDAR DAY OF THE FOLLOWING MONTH.');
+                    else if(opp.Cost_Per_Unit_formula__c=='Argus Term Pricing (WTI)') System.debug('THE PRICE FOR EACH MONTH IS EQUAL TO THE ARITHMETIC AVERAGE OF THE WTI FORMULA BASIS (1ST MONTH) PRICES FROM ARGUS MEDIA EACH DAY THAT IT IS DETERMINED DURING THE MONTH BEGINNING WITH THE FIRST DAY AFTER THE 25TH CALENDAR DAY OF THE MONTH 2 MONTHS PRIOR TO THE DELIVERY MONTH THROUGH THE 25TH CALENDAR DAY OF THE FOLLOWING MONTH.');
+                    else if(opp.Cost_Per_Unit_formula__c=='MOA')  System.debug('WTI FORMULA BASIS QUOTE  FOR "MONTH" AS REPORTED BY ARGUS AMERICAS CRUDE FOR THE PERIOD 00/00/0000 THRU 00/00/0000 INCLUSIVE.');
+                    else if(opp.Cost_Per_Unit_formula__c=='MID-POINT OF ARGUS')  System.debug('THE MID-POINT OF ARGUS SPOT CRUDE PRICE ASSESSMENT FOR WTI FORMULA, MO1 CRUDE OIL AS PUBLISHED BY ARGUS AMERICAS CRUDE REPORT FOR "MONTH"; "PLUS/MINUS" U.S. PER BARREL MARKET DIFFERENTIAL.');
+                    else if(opp.Cost_Per_Unit_formula__c=='Argus CMA') System.debug('THE AVERAGE OF "MONTH" "WTD AVG" DIFF CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF " MONTH, DATE, YEAR".');
+                    else if(opp.Cost_Per_Unit_formula__c=='Argus/Nymex CMA-(trade days only)') System.debug('THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE DAILY SETTLEMENT PRICE FOR "LIGHT SWEET CRUDE OIL" "month" FUTURE CONTRACTS REPORTED BY NYMEX  FROM "00/00/000 THROUGH AND INCLUDING THE LAST DAY OF 00/00/000, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX.\n'+
+                        'THE WEIGHTED AVERAGE DIFFERENTIAL CMA NYMEX VALUE AS PUBLISHED BY PETROLEUM ARGUS DAILY CRUDE REPORT SHALL BE EFFECTIVE FOR "00/00/000 ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) : '') +' PER BARREL.');
+                    else if(opp.Cost_Per_Unit_formula__c=='Conoco Posting') System.debug('CONOCOPHILLIPS COMPANY POSTING FOR WTI (40 API) ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) : '') +' PER BARREL.');
+                    else if(opp.Cost_Per_Unit_formula__c=='NYMEX VS. ARGUS ALL DAYS') System.debug('THE PRICE PER BARREL SHALL BE THE AVERAGE OF THE "MONTH YEAR" DAILY SETTLEMENT PRICE FOR THE NYMEX "LIGHT SWEET CRUDE OIL" FUTURE CONTRACTS ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) : '') +' PER BARREL DURING THE PERIOD OF "MONTH, DAY YEAR" THRU MONTH, DAY YEAR" EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX.');
+                    else if(opp.Cost_Per_Unit_formula__c=='CMAT ARGUS MEH CMA DIFF TO NYMEX (MPC/ OXY DEALS)') System.debug('THE PRICE PER BARREL SHALL BE 100% OF THE AVERAGE OF THE DAILY SETTLEMENT PRICE FOR "LIGHT SWEET CRUDE OIL" PROMPT MONTH FUTURE CONTRACTS REPORTED BY THE NEW YORK MERCANTILE EXCHANGE (NYMEX) FROM THE FIRST DAY OF THE CALENDAR MONTH THROUGH AND INCLUDING THE LAST DAY OF THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX" PLUS THE AVERAGE OF "MONTH, YEAR" WTI DIFF TO CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF "MONTH, DAY, YEAR THRU MONTH, DAY, YEAR" ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) + '.' : ''));
+                    else if(opp.Cost_Per_Unit_formula__c=='CMAT ARUGS MEH CMA DIFF TO NYMEX PLUS HOUSTON DIFF') System.debug('THE PRICE PER BARREL SHALL BE 100% OF THE AVERAGE OF THE DAILY SETTLEMENT PRICE FOR "LIGHT SWEET CRUDE OIL" PROMPT MONTH FUTURE CONTRACTS REPORTED BY THE NEW YORK MERCANTILE EXCHANGE (NYMEX) FROM THE FIRST DAY OF THE CALENDAR MONTH THROUGH AND INCLUDING THE LAST DAY OF THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX" PLUS THE AVERAGE OF "MONTH, YEAR" WTI DIFF TO CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF "MONTH, DAY, YEAR THRU MONTH, DAY, YEAR" ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) : '') +', PLUS, THE AVERAGE OF " MONTH, YEAR " WTI HOUSTON DIFF AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE"');
+                    else if(opp.Cost_Per_Unit_formula__c=='CMA + ARGUS ROLL VERBIAGE') System.debug('THE PRICE PER BBL SHALL BE THE AVERAGE OF THE FRONT MONTH DAILY SETTLEMENT PRICES FOR THE NYMEX LIGHT SWEET CRUDE OIL FUTURES CONTRACT DURING THE CALENDAR MONTH OF DELIVERY, EXCLUDING WEEKENDS AND HOLIDAYS OBSERVED BY NYMEX PLUS THE AVERAGE OF "MONTH AND YEAR" "WTD AVG" DIFF CMA NYMEX CRUDE PRICES AS RECORDED ON THE "PETROLEUM ARGUS AMERICAS CRUDE" REPORT DURING THE PERIOD OF "MONTH, DATE, YEAR" PLUS ARGUS ROLL AVG ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) + '.' : ''));
+                	else if(opp.Cost_Per_Unit_formula__c=='ICE BRENT') System.debug('OCTOBER DELIVERY, COST PER UNIT DECEMBER ICE BRENT (Priced Oct 7, 2019-Oct 11, 2019) ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) : ''));
+                    else if(opp.Cost_Per_Unit_formula__c=='CMA ICE BRENT') System.debug('CMA ICE BREN ' + (opp.Cost_Per_Unit__c != null ? (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? 'MINUS' : 'PLUS') : '') + (opp.Cost_Per_Unit__c != null ? ' $' + (Decimal.valueOf(opp.Cost_Per_Unit__c) < 0 ? String.valueOf(Decimal.valueOf(opp.Cost_Per_Unit__c)*-1) : opp.Cost_Per_Unit__c) : ''));
+                }
+            }
+        }
+    }
+    
+    public static Boolean changeName(List<Opportunity> opps){
+        system.debug('----#ENTER OpportunityTriggerHandler: changeName method');
+        Transaction_Number__c tn = Transaction_Number__c.getOrgDefaults();
+        Integer numberActualCrude = Integer.valueOf(tn.Number_Crude__c);
+        Integer numberActualFuture = Integer.valueOf(tn.Number_Future__c);
+		Set<String> oppids = new Set<String>();
+        Opportunity oppAux;
+        List<Opportunity> oppAuxList = new List<Opportunity>();
+        String nameTemp;
+        for(Opportunity opp : opps){
+            oppids.add(opp.Id);
+            if(opp.Master_Opportunity__c == null){
+                oppAux = new Opportunity();
+                nameTemp = opp.Name.replace(' MASTER','').replace(' VOID','');
+                system.debug(nameTemp);
+                if(nameTemp != null && nameTemp.trim() != '' && nameTemp.trim() != '.'){
+                    if(nameTemp.subString(nameTemp.length()-2,nameTemp.length()) == '-R'){
+                        if(!nameTemp.subString(nameTemp.length()-3,nameTemp.length()-2).isNumeric()){ system.debug(nameTemp.subString(0,nameTemp.length()-3)); oppAux.Name = nameTemp.subString(0,nameTemp.length()-3) + getType(opp.Type) + (opp.Revised__c == true ? '-R' : '') ;
+                        }else{system.debug(nameTemp.subString(0,nameTemp.length()-2));oppAux.Name = nameTemp.subString(0,nameTemp.length()-2) + getType(opp.Type) + (opp.Revised__c == true ? '-R' : '') ;}
+                    }else{
+                        if(opp.Type != null && opp.Type != '' && nameTemp.subString(nameTemp.length()-1,nameTemp.length()) != getType(opp.Type)){
+                            if(!nameTemp.subString(nameTemp.length()-1,nameTemp.length()).isNumeric()){
+                                oppAux.Name = nameTemp.subString(0,nameTemp.length()-1) + getType(opp.Type) + (opp.Revised__c == true ? '-R' : '') ;
+                            }else{ oppAux.Name = nameTemp + getType(opp.Type) + (opp.Revised__c == true ? '-R' : ''); }
+                        }else{ oppAux.Name = nameTemp + (opp.Revised__c == true ? '-R' : ''); }
+                    }
+                }else{
+                    if(opp.RecordTypeId == oppLinkCrudeId) oppAux.Name = 'C'+numberActualCrude; else if(opp.RecordTypeId == oppLinkFutureId) oppAux.Name = 'F'+numberActualFuture;
+                    oppAux.Name = oppAux.Name + getType(opp.Type) + (opp.Revised__c == true ? '-R' : '');
+                    if(opp.RecordTypeId == oppLinkCrudeId) numberActualCrude++; else if(opp.RecordTypeId == oppLinkFutureId) numberActualFuture++;
+                }
+                oppAux.Name = oppAux.Name + (opp.Transaction__c == 'Master (Strip Master)' ? ' MASTER' : '') + (opp.Void__c == true ? ' VOID' : '');
+                //if(oppAux.Name != null) oppAux.Name = (opp.Revised__c == true ? oppAux.Name + '-R' : oppAux.Name);
+                oppAux.NameUnique__c = oppAux.Name;
+                System.debug('Holaaaa');
+                oppAux.Id = opp.Id;
+                system.debug(oppAux);
+                oppAuxList.add(oppAux);
+            }
+        }
+        
+        if(Integer.valueOf(tn.Number_Crude__c) != numberActualCrude || Integer.valueOf(tn.Number_Future__c) != numberActualFuture){ tn.Number_Crude__c = numberActualCrude; tn.Number_Future__c = numberActualFuture; update tn; }
+        
+        ApexUtil.OpportunityTrigger_Is_Enabled = false;
+        if(oppAuxList.size()>0) update oppAuxList;
+        
+        opportunityMap = new Map<Id,String>();
+        for(Opportunity opp: [Select Id, Name From Opportunity WHERE Id IN: oppids]) opportunityMap.put(opp.Id,opp.Name);
+        system.debug(opportunityMap);
+        return true;
+    }
+    
+    public static String getType(String typez){
+        String result = '';
+        if(typez != null && typez.trim() != ''){
+            if(typez == 'OUTRIGHT') result = 'O';
+            if(typez == 'EXCHANGE') result = 'E';
+            if(typez == 'EFP') result = 'F';
+            if(typez == 'EXPORT') result = 'X';
+            if(typez == 'TIME TRADE') result = 'T';
+        }
+        return result;
+    }
+    
+    public static void opportunityCreation(List<Opportunity> opps, Map<Id, Opportunity> oldOpps){
+        system.debug('----#ENTER OpportunityTriggerHandler: opportunityCreation method');
+        List<Opportunity> lstOpps = new List<Opportunity>();
+        Set<String> oppIds = new Set<String>();
+        Set<String> oppAllIds = new Set<String>();
+        Set<String> oppTransactionsIds = new Set<String>();
+        Map<String, Opportunity> mapExchanges = new Map<String, Opportunity>();
+        Map<String, List<Opportunity>> mapStripMasters = new Map<String, List<Opportunity>>();
+        Map<String, List<OpportunityLineItem>> olisStripMasterMap = new Map<String, List<OpportunityLineItem>> ();
+        List<OpportunityLineItem> oliList;
+        Map<String, List<OpportunityContactRole>> mapCR = new Map<String, List<OpportunityContactRole>>();
+        //Map<String, List<OpportunityContactRole>> mapCRToInsert = new Map<String, List<OpportunityContactRole>>();
+        Map<String,String> accountTypeMap = new Map<String,String>();
+        Set<String> oppMasterDelete = new Set<String>();
+        Set<String> oppSingleDelete = new Set<String>();
+        
+        OpportunityContactRole ocrAux;
+        Map<String,OpportunityContactRole> ocrMapInsert = new Map<String,OpportunityContactRole>();
+        for(Opportunity opp : opps){
+            system.debug('----#ENTER OpportunityTriggerHandler: opportunityCreation method: '+opp);
+            oppAllIds.add(opp.Id);
+            if(opp.Type=='EXCHANGE') oppIds.add(opp.Id);
+            if(opp.Transaction__c=='Master (Strip Master)') oppTransactionsIds.add(opp.Id);
+            if(opp.Transaction__c=='Master (Strip Master)' || (oldOpps != null && oldOpps.get(opp.Id) != null && oldOpps.get(opp.Id).Transaction__c=='Master (Strip Master)')) oppMasterDelete.add(opp.Id);
+            if(opp.Transaction__c=='Single (Single Transaction)' || (oldOpps != null && oldOpps.get(opp.Id) != null && oldOpps.get(opp.Id).Transaction__c=='Single (Single Transaction)')) oppSingleDelete.add(opp.Id);
+            if(opp.AccountId != null) accountTypeMap.put(opp.AccountId,'Buyer');
+            if(opp.Seller__c != null) accountTypeMap.put(opp.Seller__c,'Seller');
+            //Contact Roles
+            if(opp.Confirmation_Seller__c != null){ ocrAux = new OpportunityContactRole(ContactId=opp.Confirmation_Seller__c,OpportunityId=opp.Id,Role='Confirm for Seller');ocrMapInsert.put('' + opp.Id + opp.Confirmation_Seller__c + 'Confirm for Seller',ocrAux); }
+            if(opp.Invoice_Seller__c != null){ ocrAux = new OpportunityContactRole(ContactId=opp.Invoice_Seller__c,OpportunityId=opp.Id,Role='Invoice for Seller'); ocrMapInsert.put('' + opp.Id + opp.Invoice_Seller__c + 'Invoice for Seller',ocrAux); }
+            if(opp.Confirmation_Buyer__c != null){ ocrAux = new OpportunityContactRole(ContactId=opp.Confirmation_Buyer__c,OpportunityId=opp.Id,Role='Confirm for Buyer'); ocrMapInsert.put('' + opp.Id + opp.Confirmation_Buyer__c + 'Confirm for Buyer',ocrAux);}
+            if(opp.Invoice_Buyer__c != null){ ocrAux = new OpportunityContactRole(ContactId=opp.Invoice_Buyer__c,OpportunityId=opp.Id,Role='Invoice for Buyer'); ocrMapInsert.put('' + opp.Id + opp.Invoice_Buyer__c + 'Invoice for Buyer',ocrAux);}
+        }
+        
+        //Delete Commission Master
+        delete [SELECT Id FROM Commission__c WHERE Transaction_No__c IN: oppMasterDelete];
+        //Delete Commission Master
+        Map<String,Opportunity> oppChildMapDelete = new Map<String,Opportunity>();
+        for(Opportunity oppChild : [SELECT Id FROM Opportunity WHERE Master_Opportunity__c IN: oppSingleDelete]) oppChildMapDelete.put(oppChild.Id,oppChild);
+        delete [SELECT Id FROM Commission__c WHERE Transaction_No__c IN: oppChildMapDelete.keySet()];
+        delete [SELECT Id FROM OpportunityLineItem WHERE OpportunityId IN: oppChildMapDelete.keySet()];
+        delete [SELECT Id FROM Invoice__c WHERE Transaction_Number__c IN: oppChildMapDelete.keySet()];
+        delete [SELECT Id FROM Opportunity WHERE Id IN: oppChildMapDelete.keySet()];
+        
+        //Looking for exchanges
+        system.debug(opportunityMap);
+        for(Opportunity opp : [SELECT ID, Name, Master_Opportunity__c, Flag_to_Creation_Trigger__c FROM Opportunity WHERE Master_Opportunity__c IN :oppAllIds AND Flag_to_Creation_Trigger__c=true]){mapExchanges.put(opp.Master_Opportunity__c, opp);}
+        system.debug(mapExchanges);
+        
+        //Looking for strip masters
+        List<Opportunity> stripList;
+        for(Opportunity opp : [SELECT ID, Name, Master_Opportunity__c, Flag_to_Creation_Trigger__c, Type FROM Opportunity WHERE Master_Opportunity__c IN :oppTransactionsIds AND Flag_to_Creation_Trigger__c=false ORDER BY Delivery__c ASC]){
+            if(mapStripMasters.get(opp.Master_Opportunity__c) != null){stripList = mapStripMasters.get(opp.Master_Opportunity__c); stripList.add(opp); mapStripMasters.put(opp.Master_Opportunity__c, stripList.clone());
+            }else{ stripList = new List<Opportunity>(); stripList.add(opp); mapStripMasters.put(opp.Master_Opportunity__c, stripList.clone());}
+        }
+        
+        //Looking for products
+        for(OpportunityLineItem oli : [SELECT ID, OpportunityId, PricebookEntryId, UnitPrice, Quantity FROM OpportunityLineItem WHERE OpportunityId IN :oppTransactionsIds]){
+            if(olisStripMasterMap.get(oli.OpportunityId) != null){ oliList = new List<OpportunityLineItem>(); oliList = olisStripMasterMap.get(oli.OpportunityId); oliList.add(oli); olisStripMasterMap.put(oli.OpportunityId,oliList.clone());
+            }else{ oliList = new List<OpportunityLineItem>(); oliList.add(oli); olisStripMasterMap.put(oli.OpportunityId,oliList.clone());}
+        }
+        
+        Map<String,String> ocrExisting = new Map<String,String>();
+        List<OpportunityContactRole> ocrListDelete = new List<OpportunityContactRole>();
+        for(Opportunity opp : [SELECT Id, Name, (SELECT Id, ContactId, OpportunityId, Role FROM OpportunityContactRoles) FROM Opportunity WHERE Id IN :oppAllIds OR Master_Opportunity__c IN:oppAllIds]){
+            for(OpportunityContactRole ocrAux1 : opp.OpportunityContactRoles){
+                ocrExisting.put(''+ocrAux1.OpportunityId + ocrAux1.ContactId + ocrAux1.Role,ocrAux1.Id);
+                if(ocrMapInsert.get(''+ ocrAux1.OpportunityId + ocrAux1.ContactId + ocrAux1.Role) != null){ ocrMapInsert.put(''+ ocrAux1.OpportunityId + ocrAux1.ContactId + ocrAux1.Role, ocrAux1);
+                }else{ ocrExisting.remove(''+ocrAux1.OpportunityId + ocrAux1.ContactId + ocrAux1.Role); ocrListDelete.add(ocrAux1);}
+            }
+        }
+        
+        if(ocrListDelete.size() > 0) delete ocrListDelete;
+        if(ocrMapInsert.size()> 0) upsert ocrMapInsert.values();
+        
+        for(Opportunity opp : [SELECT Id, Name, (SELECT Id, ContactId, OpportunityId, Role FROM OpportunityContactRoles) FROM Opportunity WHERE Id IN :oppAllIds]){
+            if(opp.OpportunityContactRoles!=null){
+                mapCR.put(opp.Id, opp.OpportunityContactRoles);
+            }
+        }
+        
+        Integer j;
+        Integer numberMonthsBetweenDates = 0;
+        Opportunity oppChildAux;
+        Integer numberOfDays;
+        Integer iname;
+        Date dateStart;
+        for(Opportunity opp : opps){
+            system.debug(opp);
+            system.debug(opp.Transaction__c);
+            if(opp.Transaction__c=='Master (Strip Master)'){
+                if(olisStripMasterMap.get(opp.Id) != null){
+                    if(opp.Start_Date__c!=null && opp.End_Date__c!=null){
+                        numberMonthsBetweenDates = opp.Start_Date__c.monthsBetween(opp.End_Date__c);
+                        if(opp.End_Date__c.day()>opp.Start_Date__c.day()) numberMonthsBetweenDates++;
+                        j = 0;
+                        for(integer i=1; i<=numberMonthsBetweenDates; i++) j++;
+                        if(mapStripMasters.get(opp.Id)==null){
+                            dateStart = opp.Start_Date__c;
+                            for(integer i=0; i<numberMonthsBetweenDates; i++){
+                                Opportunity oppx = new Opportunity(); oppx = opp.clone(); oppx.Balance_Due__c = null; oppx.Payments_Applied__c = null; oppx.Adjustments_Applied__c = null; oppx.Master_Opportunity__c = opp.Id; oppx.Type = opp.Type; oppx.Transaction__c = 'Member (Strip Member)'; iname = i + 1;
+                                oppx.Name = opportunityMap.get(opp.Id).contains('-R') ? opportunityMap.get(opp.Id).replace(' MASTER','').replace(' VOID','').replace('-R','') + '.' + iname + '-R' : opportunityMap.get(opp.Id).replace(' MASTER','').replace(' VOID','') + '.' + iname;
+                                //oppx.CloseDate = Date.newInstance(opp.CloseDate.year(), opp.CloseDate.month()+i, opp.CloseDate.day());
+                                oppx.Delivery__c = (i == 0 ? dateStart : dateStart.addMonths(i));
+                                if(opp.Volume_Method__c == 'Total Quantity'){
+                                    if(opp.Total_Volume_BBL_New__c != null) oppx.Total_Volume_BBL_New__c = opp.Total_Volume_BBL_New__c/j; else oppx.Total_Volume_BBL_New__c = null;
+                                    if(oppx.Total_Volume_BBL_New__c != null && oppx.Delivery__c != null){ numberOfDays = Date.daysInMonth(oppx.Delivery__c.year(),oppx.Delivery__c.month()); oppx.Volume_BBL_Day_New__c = oppx.Total_Volume_BBL_New__c/numberOfDays; }
+                                }else{
+                                    oppx.Volume_BBL_Day_New__c = opp.Volume_BBL_Day_New__c;
+                                    if(oppx.Volume_BBL_Day_New__c != null && oppx.Delivery__c != null){ numberOfDays = Date.daysInMonth(oppx.Delivery__c.year(),oppx.Delivery__c.month()); oppx.Total_Volume_BBL_New__c = oppx.Volume_BBL_Day_New__c * numberOfDays;}
+                                }
+                                oppx.Start_Date__c = null; oppx.End_Date__c = null; oppx.NameUnique__c=oppx.Name; lstOpps.add(oppx);
+                            }
+                        }else{
+                            Integer p = 0; dateStart = opp.Start_Date__c;
+                            for(Opportunity oppChild : mapStripMasters.get(opp.Id)){
+                                oppChildAux = opp.clone(); oppChildAux.Id = oppChild.Id; oppChildAux.Balance_Due__c = null; oppChildAux.Payments_Applied__c = null; oppChildAux.Adjustments_Applied__c = null; oppChildAux.Master_Opportunity__c = opp.Id; oppChildAux.Transaction__c = 'Member (Strip Member)';
+                                iname = p + 1;
+                                oppChildAux.Name = opportunityMap.get(opp.Id).contains('-R') ? opportunityMap.get(opp.Id).replace(' MASTER','').replace(' VOID','').replace('-R','') + '.' + iname + '-R' : opportunityMap.get(opp.Id).replace(' MASTER','').replace(' VOID','') + '.' + iname;
+                                //oppChildAux.CloseDate = Date.newInstance(opp.CloseDate.year(), opp.CloseDate.month()+p, opp.CloseDate.day());
+                                oppChildAux.Delivery__c = (p == 0 ? dateStart : dateStart.addMonths(p));
+                                if(opp.Volume_Method__c == 'Total Quantity'){
+                                    if(opp.Volume_BBL_Day_New__c != null) oppChildAux.Total_Volume_BBL_New__c = opp.Total_Volume_BBL_New__c/j; else oppChildAux.Total_Volume_BBL_New__c = null;
+                                    if(oppChildAux.Total_Volume_BBL_New__c != null && oppChildAux.Delivery__c != null){ numberOfDays = Date.daysInMonth(oppChildAux.Delivery__c.year(),oppChildAux.Delivery__c.month()); oppChildAux.Volume_BBL_Day_New__c = oppChildAux.Total_Volume_BBL_New__c/numberOfDays; }
+                                }else{
+                                    oppChildAux.Volume_BBL_Day_New__c = opp.Volume_BBL_Day_New__c;
+                                    if(oppChildAux.Volume_BBL_Day_New__c != null && oppChildAux.Delivery__c != null){ numberOfDays = Date.daysInMonth(oppChildAux.Delivery__c.year(),oppChildAux.Delivery__c.month()); oppChildAux.Total_Volume_BBL_New__c = oppChildAux.Volume_BBL_Day_New__c * numberOfDays;}
+                                }
+                                oppChildAux.Start_Date__c = null; oppChildAux.End_Date__c = null; oppChildAux.NameUnique__c=oppChildAux.Name; lstOpps.add(oppChildAux); p++;
+                            }
+                        }
+                    }
+                }
+            } 
+            
+            /*if(opp.Type=='EXCHANGE'){
+                System.debug('efrtgyu7i8oyjuyuyuyuyu');
+                if(olisStripMasterMap.get(opp.Id) != null){
+                    System.debug('#############EXCHANGE');
+                    Opportunity oppx = new Opportunity(); oppx = opp.clone();
+                    //oppx.Id = (opportunityMap.get(opp.Id) != null && mapExchanges.get(opportunityMap.get(opp.Id) + ' - EXCHANGE') != null ? mapExchanges.get(opportunityMap.get(opp.Id) + ' - EXCHANGE').Id : null);
+                    oppx.Id = (mapExchanges.get(opp.Id) != null ? mapExchanges.get(opp.Id).Id : null);
+                    System.debug(oppx.Id);
+                    oppx.Balance_Due__c = null; oppx.Payments_Applied__c = null; oppx.Adjustments_Applied__c = null;
+                    oppx.Name = opportunityMap.get(opp.Id).replace(' MASTER','').replace(' VOID','') + ' - EXCHANGE' ;
+                    oppx.Master_Opportunity__c = opp.Id; oppx.Transaction__c = 'Single (Single Transaction)'; oppx.Flag_to_Creation_Trigger__c = true;
+                    //oppx.StageName = opp.StageName;
+                    //oppx.Transaction__c = opp.Transaction__c;
+                    //oppx.Type = opp.Type;
+                    //oppx.Volume__c = opp.Volume__c;
+                    //oppx.Delivery__c = opp.Delivery__c;
+                    //oppx.CloseDate = opp.CloseDate;
+                    oppx.AccountId = opp.Seller__c; oppx.Seller__c = opp.AccountId; oppx.NameUnique__c=oppx.Name; lstOpps.add(oppx);
+                    
+                    //if(mapCR.get(opp.Id)!=null) mapCRToInsert.put(oppx.Name, mapCR.get(opp.Id));
+                    //if(opportunityMap.get(opp.Id) != null && mapExchanges.get(opportunityMap.get(opp.Id) + ' - EXCHANGE') != null) lstOpps.add(mapExchanges.get(opportunityMap.get(opp.Id) + ' - EXCHANGE'));
+                }
+            }*/
+        }
+
+        if(lstOpps.size()>0){
+            ApexUtil.OpportunityTrigger_Is_Enabled = false;
+            upsert lstOpps;
+            
+            List<OpportunityContactRole> lstCR = new List<OpportunityContactRole>(); OpportunityContactRole ocrInsertAux; OpportunityLineItem oliAux; List<OpportunityLineItem> oliInsertList = new List<OpportunityLineItem>(); Set<String> oppMasterIds = new Set<String>();
+            system.debug(olisStripMasterMap);
+            List<Opportunity> oppAuxList = new List<Opportunity>();
+            for(Opportunity opp : lstOpps){
+                if(opp.Transaction__c == 'Member (Strip Member)') oppAuxList.add(opp);
+                if(olisStripMasterMap.get(opp.Master_Opportunity__c) != null){
+                    oppMasterIds.add(opp.Master_Opportunity__c);
+                    for(OpportunityLineItem oli : olisStripMasterMap.get(opp.Master_Opportunity__c)){oliAux = new OpportunityLineItem(); oliAux = oli.clone(); oliAux.OpportunityId = opp.Id; oliInsertList.add(oliAux); }
+                }
+                //if(opp.Flag_to_Creation_Trigger__c){
+                if(mapCR.get(opp.Master_Opportunity__c) != null){
+                    for(OpportunityContactRole ocr : mapCR.get(opp.Master_Opportunity__c)){
+                        if(ocrExisting.get('' + opp.Id + ocr.ContactId + ocr.Role) == null){ ocrInsertAux = ocr.clone(); ocrInsertAux.OpportunityId = opp.Id; lstCR.add(ocrInsertAux);}
+                    }
+                }
+                //}
+            }
+            
+            system.debug('##oliInsertList: '+oliInsertList);
+            ApexUtil.OpportunityProductTrigger_Is_Enabled = false;
+            delete [SELECT Id FROM OpportunityLineItem WHERE Opportunity.Master_Opportunity__c IN: oppMasterIds];
+            if(oliInsertList.size()>0) insert oliInsertList;
+            if(lstCR.size()>0) insert lstCR;
+            invoiceCreation(oppAuxList, new Map<Id, Opportunity>());
+            createStatementWithoutInvoice(oppAuxList, new Map<Id, Opportunity>());
+            ApexUtil.InvoiceTrigger_Is_Enabled = true;
+        }
+    }
+    
+    public static void invoiceCreation(List<Opportunity> opps, Map<Id, Opportunity> oldOpps){
+        system.debug('----#ENTER OpportunityTriggerHandler: invoiceCreation method');
+        Map<String, Invoice__c> mapInvoices = new Map<String, Invoice__c>();
+        Map<String, List<Invoice__c>> mapInvoicesAll = new Map<String, List<Invoice__c>>();
+        Map<String, Invoice__c> mapInvoicesToInsert = new Map<String, Invoice__c>();
+        Map<String, Opportunity> mapOpps = new Map<String, Opportunity>();
+        Map<String, Decimal> mapRates = new Map<String, Decimal>();
+        Set<String> accIds = new Set<String>();
+        
+        for(Opportunity opp : opps){           
+            if(opp.AccountId != null) accIds.add(opp.AccountId);
+            if(opp.Seller__c != null) accIds.add(opp.Seller__c);
+        }
+        
+        if(oldOpps != null && oldOpps.size() == 0){ for(Opportunity opp: [Select Id, Name From Opportunity WHERE Id IN: opps]) opportunityMap.put(opp.Id,opp.Name);}
+        
+        //Filling map
+        List<Invoice__c> invAuxList;
+        //for(Invoice__c inv : [SELECT Id, Name FROM Invoice__c WHERE Name IN :invNames]){
+        for(Invoice__c inv : [SELECT Id, Name, Transaction_Number__c, Account__c, Account__r.Name FROM Invoice__c WHERE Transaction_Number__c IN: opportunityMap.keySet()]){
+            mapInvoices.put(inv.Transaction_Number__c + '-' + inv.Account__c, inv);
+            invAuxList = (mapInvoicesAll.get(inv.Transaction_Number__c) != null ? mapInvoicesAll.get(inv.Transaction_Number__c) : new List<Invoice__c>());
+            invAuxList.add(inv);
+            mapInvoicesAll.put(inv.Transaction_Number__c,invAuxList.clone());
+        }
+        system.debug(mapInvoicesAll);
+        system.debug(mapInvoices);
+        
+        //Mapping rates
+        for(Account acc : [SELECT Id, Name, Rate_N__c FROM Account WHERE Id IN :accIds]) mapRates.put(acc.Id, acc.Rate_N__c);
+    
+        List<Invoice__c> invList = new List<Invoice__c>();
+        Integer numberOfDays;
+        Date dateAux;
+        for(Opportunity opp : opps){
+            if(opp.StageName=='Closed Won' && mapInvoicesAll.get(opp.Id) == null){
+                //Buyer Invoice
+                if(opp.AccountId != null && mapRates.get(opp.AccountId) > 0){
+                        Invoice__c inv1 = new Invoice__c();
+                        if(opp.RecordTypeId==oppLinkCrudeId) inv1.RecordTypeId = invLinkCrudeId; else inv1.RecordTypeId = invLinkFutureId; 
+                        //Invoice Date
+                        numberOfDays = Date.daysInMonth(opp.CloseDate.year(),opp.CloseDate.month());
+                        inv1.Invoice_Date__c = Date.newInstance(opp.CloseDate.year(),opp.CloseDate.month(), numberOfDays);
+                        //Invoice Due Date	
+						dateAux = inv1.Invoice_Date__c + 1;
+                        numberOfDays = Date.daysInMonth(dateAux.year(),dateAux.month());
+                        inv1.Due_Date__c = Date.newInstance(dateAux.year(),dateAux.month(), numberOfDays);
+                        inv1.Name = opportunityMap.get(opp.Id) + ' - Invoice - ' + opp.Account_Name__c;
+                        inv1.Transaction_Number__c = opp.Id;
+                        inv1.Account__c = opp.AccountId;
+                        inv1.Role__c = 'Buyer';
+                        inv1.Closing_Date__c = opp.CloseDate;
+                        mapInvoicesToInsert.put(inv1.Name + 'B', inv1);
+                }
+                
+                //Seller Invoice
+                if(opp.Seller__c != null && mapRates.get(opp.Seller__c) > 0){
+                    Invoice__c inv2 = new Invoice__c();
+                    if(opp.RecordTypeId==oppLinkCrudeId) inv2.RecordTypeId = invLinkCrudeId; else inv2.RecordTypeId = invLinkFutureId; 
+                    //Invoice Date
+                    numberOfDays = Date.daysInMonth(opp.CloseDate.year(),opp.CloseDate.month());
+                    inv2.Invoice_Date__c = Date.newInstance(opp.CloseDate.year(),opp.CloseDate.month(), numberOfDays);
+                    //Invoice Due Date	
+                    dateAux = inv2.Invoice_Date__c + 1;
+                    numberOfDays = Date.daysInMonth(dateAux.year(),dateAux.month());
+                    inv2.Due_Date__c = Date.newInstance(dateAux.year(),dateAux.month(), numberOfDays);
+                    inv2.Name = opportunityMap.get(opp.Id) + ' - Invoice - ' + opp.Seller_Name__c;
+                    inv2.Transaction_Number__c = opp.Id;
+                    inv2.Account__c = opp.Seller__c;
+                    inv2.Role__c = 'Seller';
+                    inv2.Closing_Date__c = opp.CloseDate;
+                    mapInvoicesToInsert.put(inv2.Name + 'S', inv2);
+                }
+            }else if(opp.StageName=='Closed Won' && mapInvoicesAll.get(opp.Id).size() < 2){
+                //Buyer Invoice
+                if(opp.AccountId != null && mapRates.get(opp.AccountId) > 0){
+                        Invoice__c inv1 = new Invoice__c();
+                        inv1.Id = mapInvoices.get(opp.Id + '-' + opp.AccountId) != null ? mapInvoices.get(opp.Id + '-' + opp.AccountId).Id : null;
+                        if(opp.RecordTypeId==oppLinkCrudeId) inv1.RecordTypeId = invLinkCrudeId; else inv1.RecordTypeId = invLinkFutureId; 
+                        //Invoice Date
+                        numberOfDays = Date.daysInMonth(opp.CloseDate.year(),opp.CloseDate.month());
+                        inv1.Invoice_Date__c = Date.newInstance(opp.CloseDate.year(),opp.CloseDate.month(), numberOfDays);
+                        //Invoice Due Date	
+						dateAux = inv1.Invoice_Date__c + 1;
+                        numberOfDays = Date.daysInMonth(dateAux.year(),dateAux.month());
+                        inv1.Due_Date__c = Date.newInstance(dateAux.year(),dateAux.month(), numberOfDays);
+                        inv1.Name = opportunityMap.get(opp.Id) + ' - Invoice - ' + opp.Account_Name__c;
+                        inv1.Transaction_Number__c = opp.Id;
+                        if(mapInvoices.get(opp.Id + '-' + opp.AccountId) == null) inv1.Account__c = opp.AccountId;
+                        inv1.Role__c = 'Buyer';
+                        inv1.Closing_Date__c = opp.CloseDate;
+                        mapInvoicesToInsert.put(inv1.Name + 'B', inv1);
+                }
+                
+                //Seller Invoice
+                if(opp.Seller__c != null && mapRates.get(opp.Seller__c) > 0){
+                    Invoice__c inv2 = new Invoice__c();
+                    inv2.Id = mapInvoices.get(opp.Id + '-' + opp.Seller__c) != null ? mapInvoices.get(opp.Id + '-' + opp.Seller__c).Id : null;
+                    if(opp.RecordTypeId==oppLinkCrudeId) inv2.RecordTypeId = invLinkCrudeId; else inv2.RecordTypeId = invLinkFutureId; 
+                    //Invoice Date
+                    numberOfDays = Date.daysInMonth(opp.CloseDate.year(),opp.CloseDate.month());
+                    inv2.Invoice_Date__c = Date.newInstance(opp.CloseDate.year(),opp.CloseDate.month(), numberOfDays);
+                    //Invoice Due Date	
+                    dateAux = inv2.Invoice_Date__c + 1;
+                    numberOfDays = Date.daysInMonth(dateAux.year(),dateAux.month());
+                    inv2.Due_Date__c = Date.newInstance(dateAux.year(),dateAux.month(), numberOfDays);
+                    inv2.Name = opportunityMap.get(opp.Id) + ' - Invoice - ' + opp.Seller_Name__c;
+                    inv2.Transaction_Number__c = opp.Id;
+                    if(mapInvoices.get(opp.Id + '-' + opp.Seller__c) == null) inv2.Account__c = opp.Seller__c;
+                    inv2.Role__c = 'Seller';
+                    inv2.Closing_Date__c = opp.CloseDate;
+                    mapInvoicesToInsert.put(inv2.Name + 'S', inv2);
+                }
+            }else{
+                if(opportunityMap.get(opp.Id) != null && mapInvoicesAll.get(opp.Id) != null){
+                    system.debug(opp.Name);
+                    system.debug(opportunityMap.get(opp.Id));
+                    for(Invoice__c invc : mapInvoicesAll.get(opp.Id)){
+                        invc.Name = opportunityMap.get(opp.Id) + ' - Invoice - ' + invc.Account__r.Name;
+                        invList.add(invc);
+                    }
+                }
+            }
+        }
+        System.debug('Test Opp Tx 1: ' + mapInvoicesToInsert.values());
+        for(Invoice__c i : mapInvoicesToInsert.values()){if(i.Id!=null){invList.add(i);} }
+        if(mapInvoicesToInsert.size()>0) upsert mapInvoicesToInsert.values();
+        if(invList.size()>0) {ApexUtil.InvoiceTrigger_Is_Enabled=true; update invList;}//si hay invoices que actualizar y modificar, volvemos activar el trigger mediante la bandera
+    }
+
+    public static void commissionCreation(List<Opportunity> opps, Map<Id, Opportunity> oldOpps){
+        system.debug('----#ENTER OpportunityTriggerHandler: commissionCreation method');
+        Set<String> oppIds = new Set<String>();
+        Set<String> accIds = new Set<String>();
+        Map<String, Decimal> mapRates = new Map<String, Decimal>();
+        List<Commission__c> commissionList = new List<Commission__c>();
+        
+        Set<Id> oppIdAll = new Set<Id>();
+        for(Opportunity opp : opps){
+            oppIdAll.add(opp.Id);
+        }
+        
+        Map<Id,List<Opportunity>> stripsMap = new Map<Id,List<Opportunity>>();
+        List<Opportunity> oppAuxList;
+        for(Opportunity opp : [Select Id, Name, Master_Opportunity__r.Name, Master_Opportunity__c, AccountId, Seller__c, Region__c, Total_Volume_BBL_New__c, RecordTypeId, Type, CloseDate From Opportunity WHERE Master_Opportunity__c IN: oppIdAll]){
+            opportunityMap.put(opp.Id,opp.Name);
+            if(stripsMap.get(opp.Master_Opportunity__c) != null){ oppAuxList = stripsMap.get(opp.Master_Opportunity__c); oppAuxList.add(opp); stripsMap.put(opp.Master_Opportunity__c,oppAuxList.clone());                
+            }else{
+                oppAuxList = new List<Opportunity>();
+                oppAuxList.add(opp);
+                stripsMap.put(opp.Master_Opportunity__c,oppAuxList.clone());
+            }
+        }
+            
+        for(Opportunity opp : opps){
+            if(opp.StageName=='Closed Won'){
+                if(opp.Transaction__c == 'Master (Strip Master)'){
+                    if(stripsMap.get(opp.Id) != null){
+                        for(Opportunity opp2 : stripsMap.get(opp.Id)){
+                            if(opp2.AccountId != null) accIds.add(opp2.AccountId);
+                            if(opp2.Seller__c != null) accIds.add(opp2.Seller__c);
+                            oppIds.add(opp2.Id);
+                        }
+                    }
+                }else{
+                    if(opp.AccountId != null) accIds.add(opp.AccountId);
+                    if(opp.Seller__c != null) accIds.add(opp.Seller__c);
+                    oppIds.add(opp.Id);
+                }
+            }
+        }
+        
+        for(Account acc : [SELECT Id, Name, Rate_N__c FROM Account WHERE Id IN :accIds]){
+            mapRates.put(acc.Id, acc.Rate_N__c);
+        }
+        
+        System.debug('mapRates: ' + mapRates);
+        system.debug(oppIds);
+        Map<String, Commission__c> commissionMap = new Map<String, Commission__c>();
+        for(Commission__c com : [SELECT Id, Name, Transaction_No__c, Buyer_Side_Broker_1__c, Buyer_Side_Broker_2__c, Buyer_Side_Broker_3__c, Buyer_Side_Broker_4__c,
+                                 Seller_Side_Broker_1__c, Seller_Side_Broker_2__c, Seller_Side_Broker_3__c, Seller_Side_Broker_4__c, Buyer_Side_Commission_1__c,
+                                 Buyer_Side_Commission_2__c, Buyer_Side_Commission_3__c, Buyer_Side_Commission_Split_4__c, Seller_Side_Commission_1__c,
+                                 Seller_Side_Commission_2__c, Seller_Side_Commission_3__c, Seller_Side_Commission_Split_4__c, Flag_To_Update__c, Buyer_Rate__c,
+                                 Seller_Rate__c
+                                 FROM Commission__c WHERE Transaction_No__c IN :oppIds]){
+            commissionMap.put(com.Transaction_No__c, com);
+        }
+        //system.debug(oppIds);
+        system.debug(commissionMap);
+        
+        Commission__c com;
+        Integer j;
+        Decimal amountAux;
+        for(Opportunity opp : opps){
+            if(opp.StageName=='Closed Won'){
+                if(commissionMap.get(opp.Id) != null) 
+                    com = commissionMap.get(opp.Id); 
+                else 
+                    com = new Commission__c();
+                
+                com.Transaction_No__c = opp.Id;
+                com.Name = opportunityMap.get(opp.Id) + ' - Commission';
+                com.Buyer__c = opp.AccountId;
+                com.Seller__c = opp.Seller__c;
+                
+                //if(((opp.RecordTypeId == oppLinkCrudeId && opp.Region__c == 'Canadian') || opp.RecordTypeId == oppLinkFutureId) && opp.Type != 'EXCHANGE'){
+                if((opp.RecordTypeId == oppLinkCrudeId && opp.Region__c == 'Canadian' && opp.Type == 'OUTRIGHT') || (opp.RecordTypeId == oppLinkFutureId)){
+                    System.debug('ssss: ' + mapRates.get(opp.AccountId));
+                    if(mapRates.get(opp.AccountId)!=null && (com.Buyer_Rate__c == null || com.Buyer_Rate__c == 0.0)) com.Buyer_Rate__c = mapRates.get(opp.AccountId);
+                    if(mapRates.get(opp.AccountId)!=null && opp.Total_Volume_BBL_New__c!=null && com.Buyer_Rate__c!=null /*&& opp.Transaction__c!='Master (Strip Master)'*/) com.Buyer_Commission__c = opp.Total_Volume_BBL_New__c*com.Buyer_Rate__c; else com.Buyer_Commission__c = 0;
+                } else{
+                    com.Buyer_Rate__c = 0;
+                    com.Buyer_Commission__c = 0;
+                }
+                if(mapRates.get(opp.Seller__c)!=null && (com.Seller_Rate__c == null || com.Seller_Rate__c == 0.0)) {com.Seller_Rate__c = mapRates.get(opp.Seller__c); System.debug('mapRates.get(opp.Seller__c): ' + mapRates.get(opp.Seller__c));}
+                if(mapRates.get(opp.Seller__c)!=null && opp.Total_Volume_BBL_New__c!=null && com.Seller_Rate__c!=null && opp.Transaction__c!='Master (Strip Master)'){ com.Seller_Commission__c = opp.Total_Volume_BBL_New__c*com.Seller_Rate__c;  System.debug('TV * SR: ' + opp.Total_Volume_BBL_New__c + '-' + com.Seller_Rate__c);} else com.Seller_Commission__c = null;
+                if(opp.RecordTypeId == oppLinkCrudeId) com.RecordTypeId = comLinkCrudeId;
+                if(opp.RecordTypeId == oppLinkFutureId) com.RecordTypeId = comLinkFutureId;
+                com.Transaction_Type__c = opp.Type;
+                com.Flag_To_Update__c = true;
+                com.Transaction_Date__c = opp.CloseDate;
+                system.debug(com);
+                commissionList.add(com);
+                
+                if(stripsMap.get(opp.Id) != null){
+                    for(Opportunity opp2 : stripsMap.get(opp.Id)){
+                        if(commissionMap.get(opp2.Id) != null)  com = commissionMap.get(opp2.Id); 
+                        else com = new Commission__c();
+                        
+                        com.Transaction_No__c = opp2.Id;
+                        com.Name = opportunityMap.get(opp2.Id) + ' - Commission';
+                        com.Buyer__c = opp2.AccountId;
+                        com.Seller__c = opp2.Seller__c;
+                        
+                        //if(((opp2.RecordTypeId == oppLinkCrudeId && opp2.Region__c == 'Canadian') || opp2.RecordTypeId == oppLinkFutureId) && opp2.Type != 'EXCHANGE'){
+                        if((opp2.RecordTypeId == oppLinkCrudeId && opp2.Region__c == 'Canadian' && opp2.Type == 'OUTRIGHT') || (opp2.RecordTypeId == oppLinkFutureId)){
+                            if(mapRates.get(opp2.AccountId)!=null && (com.Buyer_Rate__c == null || com.Buyer_Rate__c == 0.0)) com.Buyer_Rate__c = mapRates.get(opp2.AccountId);
+                            if(mapRates.get(opp2.AccountId)!=null && opp2.Total_Volume_BBL_New__c!=null && com.Buyer_Rate__c!=null) com.Buyer_Commission__c = opp2.Total_Volume_BBL_New__c*com.Buyer_Rate__c;
+                        }else{
+                            com.Buyer_Rate__c = 0;
+                            com.Buyer_Commission__c = 0;
+                        }
+                        if(mapRates.get(opp2.Seller__c)!=null && (com.Seller_Rate__c == null || com.Seller_Rate__c == 0.0)) com.Seller_Rate__c = mapRates.get(opp2.Seller__c);
+                        if(mapRates.get(opp2.Seller__c)!=null && opp2.Total_Volume_BBL_New__c!=null && com.Seller_Rate__c!=null) com.Seller_Commission__c = opp2.Total_Volume_BBL_New__c*com.Seller_Rate__c;
+                        if(opp2.RecordTypeId == oppLinkCrudeId) com.RecordTypeId = comLinkCrudeId;
+                        if(opp2.RecordTypeId == oppLinkFutureId) com.RecordTypeId = comLinkFutureId;
+                        com.Transaction_Type__c = opp2.Type;
+                        com.Flag_To_Update__c = true;
+                        com.Transaction_Date__c = opp2.CloseDate;
+                        system.debug(com);
+                        commissionList.add(com);
+                    }
+                }
+            }
+        }
+        
+        System.debug('commissionList: ' + commissionList);
+        for(Commission__c cm : commissionList){
+            system.debug('cm: ' + cm);
+        }
+        //ApexUtil.isUpdateComm=true;
+        if(commissionList.size()>0) upsert commissionList;
+    }
+    
+    public static void createStatementWithoutInvoice(List<Opportunity> opps, Map<Id, Opportunity> oldOpps){
+        system.debug('----#ENTER OpportunityTriggerHandler: createStatementWithoutInvoice method');
+        Set<Id> setAccIds = new Set<Id>();
+        Map<String,Set<Id>> setTranIdsMap = new Map<String,Set<Id>>();
+        Set<Id> setAux;
+        Map<Id,Opportunity> transactionMap = new Map<Id,Opportunity>();
+        for(Opportunity opp : opps){
+            setAux = new Set<Id>();
+            if(opp.AccountId != null){
+                setAccIds.add(opp.AccountId);
+                setAux.add(opp.AccountId);
+            }
+            if(opp.Seller__c != null){
+                setAccIds.add(opp.Seller__c);
+                setAux.add(opp.Seller__c);
+            }
+            if(setAux.size() > 0){
+                setTranIdsMap.put(opp.Id,setAux.clone());
+                transactionMap.put(opp.Id,opp);
+            }
+        }
+        
+        Map<Id,Account> accountMap = new Map<Id,Account>();
+        for(Account acc : [Select Id, Name, Invoice_State__c From Account WHERE Id IN: setAccIds]){
+            accountMap.put(acc.Id,acc);
+        }
+
+        for(Invoice__c inv : [SELECT Id, Account__c, Transaction_Number__c FROM Invoice__c WHERE Transaction_Number__c IN: setTranIdsMap.keySet()]){
+            if(setTranIdsMap.get(inv.Transaction_Number__c) != null){
+                for(String akey : setTranIdsMap.get(inv.Transaction_Number__c)){
+                    if(inv.Account__c == akey){
+                        setTranIdsMap.get(inv.Transaction_Number__c).remove(akey);
+                        if(setTranIdsMap.get(inv.Transaction_Number__c).size() == 0) setTranIdsMap.remove(inv.Transaction_Number__c);
+                    }
+                }
+            }
+        }
+        
+        for(Statement_Line_Item__c slix : [SELECT Id, Link_Ref__c, Statement__r.Account__c FROM Statement_Line_Item__c WHERE Link_Ref__c IN: setTranIdsMap.keySet()]){
+            if(setTranIdsMap.get(slix.Link_Ref__c) != null){
+                for(String akey : setTranIdsMap.get(slix.Link_Ref__c)){
+                    if(slix.Statement__r.Account__c == akey){
+                        setTranIdsMap.get(slix.Link_Ref__c).remove(akey);
+                        if(setTranIdsMap.get(slix.Link_Ref__c).size() == 0) setTranIdsMap.remove(slix.Link_Ref__c);
+                    }
+                }
+            }
+        }
+        
+        system.debug(setTranIdsMap);
+        
+        if(setTranIdsMap.size() > 0){
+            Set<String> accListCrude = new Set<String>(); Set<String> accListFuture = new Set<String>(); Opportunity oppAux;
+            for(String okey : setTranIdsMap.keySet()){
+                oppAux = transactionMap.get(okey);
+                for(String akey : setTranIdsMap.get(okey)){
+                    if(accountMap.get(akey).Invoice_State__c == null && transactionMap.get(okey).Buyer_Broker_1_approval__c && transactionMap.get(okey).Seller_Broker_1_approval__c && transactionMap.get(okey).StageName == 'Closed Won'){
+                        if(transactionMap.get(okey).RecordTypeId == '0126A000000tzY3QAI' && transactionMap.get(okey).Delivery__c != null){ //Link Crude
+                            accListCrude.add(akey);
+                        }else if(transactionMap.get(okey).RecordTypeId == '0126A000000tzY8QAI' && transactionMap.get(okey).CloseDate != null){ //Link Future
+                            accListFuture.add(akey);
+                        }
+                    }else if(accountMap.get(akey).Invoice_State__c == 'Delivery Date' && transactionMap.get(okey).Buyer_Broker_1_approval__c && transactionMap.get(okey).Seller_Broker_1_approval__c && transactionMap.get(okey).StageName == 'Closed Won'){
+                        if(transactionMap.get(okey).Delivery__c != null){
+                            if(transactionMap.get(okey).RecordTypeId == '0126A000000tzY3QAI') accListCrude.add(akey);
+                            if(transactionMap.get(okey).RecordTypeId == '0126A000000tzY8QAI') accListFuture.add(akey);
+                        }
+                    }else if(accountMap.get(akey).Invoice_State__c == 'Transaction Date' && transactionMap.get(okey).Buyer_Broker_1_approval__c && transactionMap.get(okey).Seller_Broker_1_approval__c && transactionMap.get(okey).StageName == 'Closed Won'){
+                        if(transactionMap.get(okey).CloseDate != null){
+                            if(transactionMap.get(okey).RecordTypeId == '0126A000000tzY3QAI') accListCrude.add(akey);
+                            if(transactionMap.get(okey).RecordTypeId == '0126A000000tzY8QAI') accListFuture.add(akey);
+                        }
+                    }
+                }
+            }
+
+            Map<Id,Statement__c> statementMap = new Map<Id,Statement__c>(); Map<Integer,Statement__c> statementMonthMap = new Map<Integer,Statement__c>();
+            system.debug(accListCrude);
+            if(accListCrude.size()>0){
+                for(Statement__c st : [Select Id, Closing_Date__c, Transaction_Date__c, Account__c, Lock__c, RecordTypeId, RecordType.Name From Statement__c WHERE Account__c IN: accListCrude AND RecordTypeId=:statementLinkCrudeId ORDER BY Transaction_Date__c ASC]){
+                    statementMap.put(st.Id,st); if(st.Transaction_Date__c != null) statementMonthMap.put(st.Transaction_Date__c.month(),st);
+                }
+            }
+
+            system.debug(accListFuture);
+            if(accListFuture.size()>0){
+                for(Statement__c st : [Select Id, Closing_Date__c, Transaction_Date__c, Account__c, Lock__c, RecordTypeId, RecordType.Name From Statement__c WHERE Account__c IN: accListFuture AND RecordTypeId=:statementLinkFutureId ORDER BY Transaction_Date__c ASC]) {
+                    statementMap.put(st.Id,st); if(st.Transaction_Date__c != null) statementMonthMap.put(st.Transaction_Date__c.month(),st);
+                }
+            }
+            
+            system.debug(statementMap);
+            
+            Statement__c stAux; Statement_Line_Item__c sliAux; Map<Integer,Statement__c> stMap = new Map<Integer,Statement__c>(); List<Statement_Line_Item__c> sliList = new List<Statement_Line_Item__c>(); Boolean createStatement; Boolean createStatementNextMonth;
+            Integer j = 1;Date dateAux; Date transactionDateAux; Date searchDate; Integer iMonth; Boolean breakB; Set<String> transOmmit; String statementRecordType; Integer numberOfDays;
+
+            for(String okey : transactionMap.keySet()){
+                oppAux = transactionMap.get(okey);
+                if(setTranIdsMap.get(okey) != null){
+                    for(String akey : setTranIdsMap.get(okey)){
+                        createStatement = true;
+                        createStatementNextMonth = false;
+                        if(transactionMap.get(oppAux.Id).Buyer_Broker_1_approval__c && transactionMap.get(oppAux.Id).Seller_Broker_1_approval__c && transactionMap.get(oppAux.Id).StageName == 'Closed Won'){
+                            system.debug('##ENTER3');
+                            if(accountMap.get(akey).Invoice_State__c == 'Delivery Date') dateAux = transactionMap.get(oppAux.Id).Delivery__c;
+                            if(accountMap.get(akey).Invoice_State__c == 'Transaction Date') dateAux = transactionMap.get(oppAux.Id).CloseDate;
+                            if(accountMap.get(akey).Invoice_State__c == null){
+                                if(transactionMap.get(oppAux.Id).RecordTypeId == '0126A000000tzY3QAI') dateAux = transactionMap.get(oppAux.Id).Delivery__c;
+                                if(transactionMap.get(oppAux.Id).RecordTypeId == '0126A000000tzY8QAI') dateAux = transactionMap.get(oppAux.Id).CloseDate;
+                            }
+                            
+                            if(transactionMap.get(oppAux.Id).RecordTypeId == '0126A000000tzY3QAI') statementRecordType = statementLinkCrudeId;
+                            else if(transactionMap.get(oppAux.Id).RecordTypeId == '0126A000000tzY8QAI') statementRecordType = statementLinkFutureId;
+                            
+                            system.debug('dateAux: '+dateAux);
+                            if(dateAux != null){
+                                transOmmit = new Set<String>();
+                                for(Statement__c st : statementMap.values()){
+                                    system.debug(st.RecordTypeId + ' - '+ statementRecordType);
+                                    system.debug(st.Account__c + ' - '+ st.Account__c);
+                                    system.debug(st.Transaction_Date__c);
+                                    system.debug(st.Closing_Date__c);
+                                    system.debug(dateAux);
+                                    if(st.RecordTypeId == statementRecordType && st.Account__c == akey && st.Transaction_Date__c <= dateAux && st.Closing_Date__c >= dateAux){
+                                        if(!st.Lock__c){ sliAux = new Statement_Line_Item__c(); sliAux.Statement__c = st.Id; sliAux.Link_Ref__c = oppAux.Id; sliList.add(sliAux); createStatement = false; createStatementNextMonth = false; break;
+                                        }else{ transOmmit.add(st.Id); createStatementNextMonth = true; transactionDateAux = st.Closing_Date__c.addDays(1);}
+                                    }
+                                }
+                                
+                                system.debug('11: '+createStatement);
+                                if(createStatement){
+                                    for(Integer key : stMap.keySet()){
+                                        stAux = stMap.get(key);
+                                        if(stAux.RecordTypeId == statementRecordType && stAux.Account__c == akey && stAux.Transaction_Date__c <= dateAux && stAux.Closing_Date__c >= dateAux){ sliAux = new Statement_Line_Item__c(Statement_Aux__c = key,Link_Ref__c = oppAux.Id); sliList.add(sliAux); createStatement = false; createStatementNextMonth = false; break;}
+                                    }
+                                    system.debug('22: '+createStatement);
+                                    if(createStatement){
+                                        if(createStatementNextMonth){
+                                            breakB = false; iMonth = transactionDateAux.month(); system.debug('statementMonthMap: '+statementMonthMap); system.debug('iMonth: '+iMonth); searchDate = null;
+                                            while(statementMonthMap.get(iMonth) != null && !breakB){
+                                                if(searchDate == null) searchDate = Date.newInstance(transactionDateAux.year(), iMonth, transactionDateAux.day());
+                                                else searchDate = searchDate.addMonths(1);
+                                                
+                                                for(Statement__c st : statementMap.values()){
+                                                    system.debug(searchDate);
+                                                    if(st.RecordTypeId == statementRecordType && st.Account__c == akey && st.Transaction_Date__c <= searchDate && st.Closing_Date__c >= searchDate && !transOmmit.contains(st.Id)){
+                                                        breakB = true;
+                                                        if(!st.Lock__c){ sliAux = new Statement_Line_Item__c(Statement__c = st.Id,Link_Ref__c = oppAux.Id); sliList.add(sliAux); createStatement = false; createStatementNextMonth = false; iMonth = 0; break;
+                                                        }else{ createStatementNextMonth = true; transactionDateAux = searchDate.addMonths(1);}
+                                                    }
+                                                }
+                                                for(Integer key : stMap.keySet()){
+                                                    stAux = stMap.get(key);
+                                                    if(stAux.RecordTypeId == statementRecordType && stAux.Account__c == akey && stAux.Transaction_Date__c <= searchDate && stAux.Closing_Date__c >= searchDate){
+                                                        breakB = true; sliAux = new Statement_Line_Item__c(Statement_Aux__c = key,Link_Ref__c = oppAux.Id); sliList.add(sliAux); createStatement = false; createStatementNextMonth = false; iMonth = 0; break;
+                                                    }
+                                                }
+                                                
+                                                if(iMonth == 13) iMonth = 1; else iMonth++;
+                                            }
+                                        }
+                                        system.debug('33: '+createStatement);
+                                        if(createStatement){
+                                            stAux = new Statement__c(); stAux.Account__c = akey; stAux.RecordTypeId = statementRecordType;
+                                            if(!createStatementNextMonth){
+                                                stAux.Transaction_Date__c = Date.newInstance(dateAux.year(), dateAux.month(), 1); numberOfDays = Date.daysInMonth(stAux.Transaction_Date__c.year(),stAux.Transaction_Date__c.month());stAux.Closing_Date__c = Date.newInstance(stAux.Transaction_Date__c.year(), stAux.Transaction_Date__c.month(), numberOfDays);  
+                                            }else{
+                                                stAux.Transaction_Date__c = transactionDateAux; numberOfDays = Date.daysInMonth(stAux.Transaction_Date__c.year(),stAux.Transaction_Date__c.month()); stAux.Closing_Date__c = Date.newInstance(stAux.Transaction_Date__c.year(), stAux.Transaction_Date__c.month(), numberOfDays); 
+                                            }
+                                            numberOfDays = Date.daysInMonth(stAux.Closing_Date__c.addDays(1).year(),stAux.Closing_Date__c.addDays(1).month()); stAux.Due_Date__c = Date.newInstance(stAux.Closing_Date__c.addDays(1).year(), stAux.Closing_Date__c.addDays(1).month(), numberOfDays); stAux.Name = 'Statement - ' + accountMap.get(akey).Name + ' - ' + stAux.Transaction_Date__c.format() + '-' + stAux.Closing_Date__c.format(); stMap.put(j,stAux);
+                                            
+                                            sliAux = new Statement_Line_Item__c(); sliAux.Statement_Aux__c = j; sliAux.Link_Ref__c = oppAux.Id; sliList.add(sliAux);
+                                            
+                                            j++;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            system.debug('stMap: ' + stMap);
+            if(stMap.size()>0) insert stMap.values();
+            if(sliList.size()>0){
+                for(Statement_Line_Item__c sti : sliList){ if(sti.Statement__c == null) sti.Statement__c = stMap.get(Integer.valueOf(sti.Statement_Aux__c)).Id;}
+                system.debug('sliList: ' + sliList); insert sliList;
+            }
+        }
+    }
+}
