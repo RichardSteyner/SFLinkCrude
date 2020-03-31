@@ -1,0 +1,35 @@
+global class DeleteData implements Database.Batchable<sObject>, Database.Stateful{
+    
+    String objeto;
+    String filtro;
+    String valorFiltro;
+    
+    global DeleteData(String o, String f, String v){
+        this.objeto=o;
+        this.filtro=f;
+        this.valorFiltro=v;
+    }
+    
+    global Database.QueryLocator start(Database.BatchableContext BC){
+        system.debug('##start DeleteData');
+        String query = 'Select Id From '+ objeto + ' WHERE ' + filtro + ' = ' + valorFiltro +' limit 10000';
+        System.debug(query);
+        return Database.getQueryLocator(query);
+    }
+    
+    global void execute(Database.BatchableContext BC, List<sObject> scope){
+        try{
+            //List<Opportunity> scope2 = (List<Opportunity>)scope;
+            system.debug('##execute DeleteData');
+            System.debug('Delete ' + objeto + ' inicio');
+            delete scope;
+            System.debug('Delete data fin');
+        }catch(Exception e){
+            System.debug('Exception: '+ e.getMessage());
+        }
+    }
+    
+    global void finish(Database.BatchableContext BC){
+        system.debug('##finish DeleteData');
+    }
+}
