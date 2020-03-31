@@ -1,0 +1,508 @@
+global class PaymentController {
+
+    //public List<Invoice__c> invoices {get;set;}
+    public List<Payment__c> childPayments {get;set;}
+    public Map<String,String> productMap {get;set;}
+    public Map<String,Commission__c> commissionMap {get;set;}
+    public Map<String,Integer> brokersMap {get;set;}
+    public Map<String,Decimal> brokersTotalMap {get;set;}
+    public Map<String,String> statementMapS {get;set;}
+    public List<cPayment> payments {get;set;}
+    public Payment__c payAux {get;set;}
+    public String messageAlert {get;set;}
+    public String actualKeyValue {get;set;}
+    public String search {get;set;}
+    public Boolean last12Months {get;set;}
+    public Boolean selectAll {get;set;}
+    public Decimal totalCheck {get;set;}
+    
+	public PaymentController(ApexPages.StandardController stdController) {
+        Payment__c pay = (Payment__c)stdController.getRecord();
+        payAux = [Select Id, From__c, From__r.Name, Amount__c, Transaction__c, Type__c, Invoice__c, Undistributed_Amount__c, Statement__c From Payment__c WHERE Id=:pay.Id];
+        Init();
+        Set<Id> transactionIds = new Set<Id>();
+        Set<Id> invoiceIds = new Set<Id>();
+        
+        if(payAux.Transaction__c != null) transactionIds.add(payAux.Transaction__c);
+        
+        if(payAux.From__c != null){
+            Integer countAux = 1;
+        	String recordTypeValid = payAux.Type__c != null ? payAux.Type__c + ' Opportunities' : null;
+            List<Invoice__c> invList = [Select Id, Transaction_Number__c,Account__c,Transaction_Number__r.Name, Invoice_Date__c, Balance_Due__c, Total_Payments__c, 
+                                        RecordTypeId, RecordType.Name From Invoice__c WHERE Transaction_Number__c <> null and Transaction_Number__r.RecordType.Name =: recordTypeValid 
+                                        and Id !=: payAux.Invoice__c and Account__c=:payAux.From__c and Balance_Due__c<>null and Balance_Due__c>0 and Invoice_Date__c = LAST_N_MONTHS:12  
+                                        ORDER BY Transaction_Number__r.Name ASC];
+            Set<String> accIds = new Set<String>();
+            Map<Id, Id> oppIds = new Map<Id, Id>();
+            Map<Id, Decimal> auxIdsMap = new Map<Id, Decimal>();
+            for(Invoice__c inv : invList){
+                accIds.add(inv.Account__c);
+                oppIds.put(inv.Transaction_Number__c, inv.Id);
+                auxIdsMap.put(inv.Id, 0);
+            }
+            
+            for(Payment__c p : [select Id, Invoice__c, Transaction__c, Distribuited_Amount__c from Payment__c where Distribuited_Amount__c <> null and Distribuited_Amount__c>0 and
+                                (Invoice__c in : auxIdsMap.keySet() or (Transaction__c in : oppIds.keySet() and From__c=:payAux.From__c))]) {
+                if(p.Invoice__c!=null) auxIdsMap.put(p.Invoice__c, auxIdsMap.get(p.Invoice__c) + p.Distribuited_Amount__c);
+                else if(p.Transaction__c!=null) auxIdsMap.put(oppIds.get(p.Transaction__c), auxIdsMap.get(oppIds.get(p.Transaction__c)) + p.Distribuited_Amount__c);
+            }
+            
+            /*for(Statement_Line_Item__c sli : [select Id, Adjustment__c, Debits__c, Credit_Payments__c, Payment_Ref__c, Statement__c, Statement__r.Adjustments__c 
+                                             from Statement_Line_Item__c where Invoice__c in : auxIdsMap.keySet()]){}*/
+            
+            Map<String,Account> accountInvMap = new Map<String,Account>();
+            for(Account accAux : [Select Id From Account WHERE Id IN: accIds]) accountInvMap.put(accAux.Id,accAux);
+            
+            Map<String,List<Statement__c>> statementMap = new Map<String,List<Statement__c>>();
+            List<Statement__c> stListAux;
+            
+            if(payAux.Statement__c == null) {
+                for(Statement__c stAux : [Select Id,Account__c,Transaction_Date__c,Closing_Date__c,RecordTypeId,RecordType.Name From Statement__c WHERE Account__c IN: accountInvMap.keySet() and Statement_Date__c = LAST_N_MONTHS:12]){
+                    if(statementMap.get(stAux.Account__c) != null){
+                        stListAux = statementMap.get(stAux.Account__c); stListAux.add(stAux); statementMap.put(stAux.Account__c,stListAux.clone());
+                    }else{
+                        stListAux = new List<Statement__c>(); stListAux.add(stAux); statementMap.put(stAux.Account__c,stListAux.clone());
+                    }
+                }
+            } else {
+                stListAux = [Select Id,Account__c,Transaction_Date__c,Closing_Date__c,RecordTypeId,RecordType.Name From Statement__c WHERE Id =: payAux.Statement__c];
+            }
+            
+            Payment__c payTempAux;
+            for(Invoice__c inv : invList){
+                //if((inv.Balance_Due__c - (inv.Total_Payments__c != null ? inv.Total_Payments__c : 0)) > 0){
+                if((inv.Balance_Due__c - auxIdsMap.get(inv.Id)) > 0){
+                    inv.Balance_Due__c = inv.Balance_Due__c - auxIdsMap.get(inv.Id);
+                    transactionIds.add(inv.Transaction_Number__c);
+                    payTempAux = null;
+                    if(payAux.Statement__c == null) {
+                        if(statementMap.get(inv.Account__c) != null){
+                            for(Statement__c stAux : statementMap.get(inv.Account__c)){
+                                if(stAux.RecordType.Name == inv.RecordType.Name && stAux.Transaction_Date__c <= system.today() && stAux.Closing_Date__c >= system.today()){
+                                    payTempAux = new Payment__c();
+                                    if(stAux.RecordType.Name == 'Link Crude'){ payTempAux.Statement_Crude__c = stAux.Id;
+                                    }else{ payTempAux.Statement_Future__c = stAux.Id;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        for(Statement__c stAux : stListAux){
+                            payTempAux = new Payment__c();
+                            if(stAux.RecordType.Name == 'Link Crude'){ payTempAux.Statement_Crude__c = stAux.Id;
+                            }else{ payTempAux.Statement_Future__c = stAux.Id;}
+                        }
+                    }
+                    if(payTempAux == null) payTempAux = new Payment__c();
+                    payments.add(new cPayment(String.valueOf(countAux), inv, 0, URL.getSalesforceBaseUrl().getHost() + '/' + inv.Id, payTempAux,false));
+                    countAux++;
+                }
+            }
+        }
+        childPayments = [Select Id, Invoice__c, Invoice__r.Role__c, Distribuited_Amount__c, Transaction__c, Transaction__r.Name, Invoice__r.Invoice_Date__c, CreatedDate From Payment__c WHERE Payment_Parent__c=:payAux.Id];
+        
+        for(Payment__c cp : childPayments){
+            if(cp.Transaction__c != null) transactionIds.add(cp.Transaction__c);
+            if(cp.Invoice__c != null) invoiceIds.add(cp.Invoice__c);
+        }
+        
+        for(Statement__c st : [Select Id, Exchange_ID__c, Statement_Date__c From Statement__c WHERE Statement_Date__c <> null and Exchange_ID__c IN: invoiceIds ORDER BY CreatedDate ASC]) statementMapS.put(st.Exchange_ID__c,String.valueOf(st.Statement_Date__c.format()));
+        
+        Integer counterBroker;
+        Decimal sumBroker;
+        for(Commission__c co : [Select Id, Transaction_No__c, Buyer_Commission__c, Seller_Commission__c, 
+                                Buyer_Side_Broker_1__c, Buyer_Side_Broker_2__c, Buyer_Side_Broker_3__c, Buyer_Side_Broker_4__c, 
+                                Buyer_1_Commission__c, Buyer_2_Commission__c, Buyer_3_Commission__c, Buyer_4_Commission__c,
+                                Seller_Side_Broker_1__c, Seller_Side_Broker_2__c, Seller_Side_Broker_3__c, Seller_Side_Broker_4__c,
+                                Seller_1_Commission__c, Seller_2_Commission__c, Seller_3_Commission__c, Seller_4_Commission__c
+                                From Commission__c WHERE Transaction_No__c IN: transactionIds]){
+			counterBroker = 0;
+            sumBroker = 0;
+            if(co.Buyer_Side_Broker_1__c != null){ sumBroker = sumBroker + (co.Buyer_1_Commission__c != null ? co.Buyer_1_Commission__c : 0); counterBroker++; }
+            if(co.Buyer_Side_Broker_2__c != null){ sumBroker = sumBroker + (co.Buyer_2_Commission__c != null ? co.Buyer_2_Commission__c : 0); counterBroker++; }
+            if(co.Buyer_Side_Broker_3__c != null){ sumBroker = sumBroker + (co.Buyer_3_Commission__c != null ? co.Buyer_3_Commission__c : 0); counterBroker++; }
+            if(co.Buyer_Side_Broker_4__c != null){ sumBroker = sumBroker + (co.Buyer_4_Commission__c != null ? co.Buyer_4_Commission__c : 0); counterBroker++; }
+            if(co.Seller_Side_Broker_1__c != null){ sumBroker = sumBroker + (co.Seller_1_Commission__c != null ? co.Seller_1_Commission__c : 0); counterBroker++; }
+            if(co.Seller_Side_Broker_2__c != null){ sumBroker = sumBroker + (co.Seller_2_Commission__c != null ? co.Seller_2_Commission__c : 0); counterBroker++; }
+            if(co.Seller_Side_Broker_3__c != null){ sumBroker = sumBroker + (co.Seller_3_Commission__c != null ? co.Seller_3_Commission__c : 0); counterBroker++; }
+ 			if(co.Seller_Side_Broker_4__c != null){ sumBroker = sumBroker + (co.Seller_4_Commission__c != null ? co.Seller_4_Commission__c : 0); counterBroker++; }
+            brokersMap.put(co.Transaction_No__c,counterBroker);
+            brokersTotalMap.put(co.Transaction_No__c,sumBroker);
+            commissionMap.put(co.Transaction_No__c,co);
+        }
+        
+        for(OpportunityLineItem oli : [Select Id, OpportunityId, Product2.Name From OpportunityLineItem WHERE OpportunityId IN: transactionIds ORDER BY CreatedDate DESC]) productMap.put(oli.OpportunityId,oli.Product2.Name);
+        
+        for(Id tId : transactionIds){
+            if(productMap.get(tId) == null) productMap.put(tId,'');
+            if(commissionMap.get(tId) == null) commissionMap.put(tId,new Commission__c());
+            if(brokersMap.get(tId) == null) brokersMap.put(tId,0);
+            if(brokersTotalMap.get(tId) == null) brokersTotalMap.put(tId,0);
+        }
+        for(Id ivId : invoiceIds){ if(statementMapS.get(ivId) == null) statementMapS.put(ivId,''); }
+        
+        system.debug(statementMapS);
+    }
+    
+    public void lastMonthsCheck(){
+        System.debug('Receso');
+        payments = new List<cPayment>(); commissionMap = new Map<String,Commission__c>();
+        brokersMap = new Map<String,Integer>();
+        brokersTotalMap = new Map<String,Decimal>();
+        Set<Id> transactionIds = new Set<Id>();
+        Set<Id> invoiceIds = new Set<Id>();
+        
+        if(payAux.Transaction__c != null) transactionIds.add(payAux.Transaction__c);
+        if(payAux.From__c != null){
+            Integer countAux = 1;
+        	String recordTypeValid = payAux.Type__c != null ? payAux.Type__c + ' Opportunities' : null;
+            List<Invoice__c> invList = new List<Invoice__c>();
+            if(last12Months){
+                invList = [Select Id, Transaction_Number__c,Account__c,Transaction_Number__r.Name, Invoice_Date__c, Balance_Due__c, Total_Payments__c, 
+                                        RecordTypeId, RecordType.Name From Invoice__c WHERE Transaction_Number__c <> null and Transaction_Number__r.RecordType.Name =: recordTypeValid 
+                                        and Id !=: payAux.Invoice__c and Account__c=:payAux.From__c and Balance_Due__c<>null and Balance_Due__c>0 and Invoice_Date__c = LAST_N_MONTHS:12  
+                                        ORDER BY Transaction_Number__r.Name ASC];
+            }
+            else{
+            	invList = [Select Id, Transaction_Number__c,Account__c,Transaction_Number__r.Name, Invoice_Date__c, Balance_Due__c, Total_Payments__c, 
+                                            RecordTypeId, RecordType.Name From Invoice__c WHERE Transaction_Number__c <> null and Transaction_Number__r.RecordType.Name =: recordTypeValid 
+                                            and Id !=: payAux.Invoice__c and Account__c=:payAux.From__c and Balance_Due__c<>null and Balance_Due__c>0 
+                                            ORDER BY Transaction_Number__r.Name ASC];
+            }
+            Set<String> accIds = new Set<String>();
+            Map<Id, Id> oppIds = new Map<Id, Id>();
+            Map<Id, Decimal> auxIdsMap = new Map<Id, Decimal>();
+            for(Invoice__c inv : invList){
+                accIds.add(inv.Account__c);
+                oppIds.put(inv.Transaction_Number__c, inv.Id);
+                auxIdsMap.put(inv.Id, 0);
+            }
+            
+            for(Payment__c p : [select Id, Invoice__c, Transaction__c, Distribuited_Amount__c from Payment__c where Distribuited_Amount__c <> null and Distribuited_Amount__c>0 and
+                                (Invoice__c in : auxIdsMap.keySet() or (Transaction__c in : oppIds.keySet() and From__c=:payAux.From__c))]) {
+                if(p.Invoice__c!=null) auxIdsMap.put(p.Invoice__c, auxIdsMap.get(p.Invoice__c) + p.Distribuited_Amount__c);
+                else if(p.Transaction__c!=null) auxIdsMap.put(oppIds.get(p.Transaction__c), auxIdsMap.get(oppIds.get(p.Transaction__c)) + p.Distribuited_Amount__c);
+            }
+            
+            Map<String,Account> accountInvMap = new Map<String,Account>();
+            for(Account accAux : [Select Id From Account WHERE Id IN: accIds]) accountInvMap.put(accAux.Id,accAux);
+            
+            Map<String,List<Statement__c>> statementMap = new Map<String,List<Statement__c>>();
+            List<Statement__c> stListAux;
+            
+            if(payAux.Statement__c == null) {
+                for(Statement__c stAux : [Select Id,Account__c,Transaction_Date__c,Closing_Date__c,RecordTypeId,RecordType.Name From Statement__c WHERE Account__c IN: accountInvMap.keySet() and Statement_Date__c = LAST_N_MONTHS:12]){
+                    if(statementMap.get(stAux.Account__c) != null){
+                        stListAux = statementMap.get(stAux.Account__c); stListAux.add(stAux); statementMap.put(stAux.Account__c,stListAux.clone());
+                    }else{
+                        stListAux = new List<Statement__c>(); stListAux.add(stAux); statementMap.put(stAux.Account__c,stListAux.clone());
+                    }
+                }
+            } else {
+                stListAux = [Select Id,Account__c,Transaction_Date__c,Closing_Date__c,RecordTypeId,RecordType.Name From Statement__c WHERE Id =: payAux.Statement__c];
+            }
+            
+            Payment__c payTempAux;
+            for(Invoice__c inv : invList){
+                //if((inv.Balance_Due__c - (inv.Total_Payments__c != null ? inv.Total_Payments__c : 0)) > 0){
+                if((inv.Balance_Due__c - auxIdsMap.get(inv.Id)) > 0){
+                    inv.Balance_Due__c = inv.Balance_Due__c - auxIdsMap.get(inv.Id);
+                    transactionIds.add(inv.Transaction_Number__c);
+                    payTempAux = null;
+                    if(payAux.Statement__c == null) {
+                        if(statementMap.get(inv.Account__c) != null){
+                            for(Statement__c stAux : statementMap.get(inv.Account__c)){
+                                if(stAux.RecordType.Name == inv.RecordType.Name && stAux.Transaction_Date__c <= system.today() && stAux.Closing_Date__c >= system.today()){
+                                    payTempAux = new Payment__c();
+                                    if(stAux.RecordType.Name == 'Link Crude'){ payTempAux.Statement_Crude__c = stAux.Id;
+                                    }else{ payTempAux.Statement_Future__c = stAux.Id;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        for(Statement__c stAux : stListAux){
+                            payTempAux = new Payment__c();
+                            if(stAux.RecordType.Name == 'Link Crude'){ payTempAux.Statement_Crude__c = stAux.Id;
+                            }else{ payTempAux.Statement_Future__c = stAux.Id;}
+                        }
+                    }
+                    if(payTempAux == null) payTempAux = new Payment__c();
+                    payments.add(new cPayment(String.valueOf(countAux), inv, 0, URL.getSalesforceBaseUrl().getHost() + '/' + inv.Id, payTempAux,false));
+                    countAux++;
+                }
+            }
+        }
+        /*childPayments = [Select Id, Invoice__c, Invoice__r.Role__c, Distribuited_Amount__c, Transaction__c, Transaction__r.Name, Invoice__r.Invoice_Date__c, CreatedDate From Payment__c WHERE Payment_Parent__c=:payAux.Id];
+        
+        for(Payment__c cp : childPayments){
+            if(cp.Transaction__c != null) transactionIds.add(cp.Transaction__c);
+            if(cp.Invoice__c != null) invoiceIds.add(cp.Invoice__c);
+        }*/
+        
+        Integer counterBroker;
+        Decimal sumBroker;
+        for(Commission__c co : [Select Id, Transaction_No__c, Buyer_Commission__c, Seller_Commission__c, 
+                                Buyer_Side_Broker_1__c, Buyer_Side_Broker_2__c, Buyer_Side_Broker_3__c, Buyer_Side_Broker_4__c, 
+                                Buyer_1_Commission__c, Buyer_2_Commission__c, Buyer_3_Commission__c, Buyer_4_Commission__c,
+                                Seller_Side_Broker_1__c, Seller_Side_Broker_2__c, Seller_Side_Broker_3__c, Seller_Side_Broker_4__c,
+                                Seller_1_Commission__c, Seller_2_Commission__c, Seller_3_Commission__c, Seller_4_Commission__c
+                                From Commission__c WHERE Transaction_No__c IN: transactionIds]){
+			counterBroker = 0;
+            sumBroker = 0;
+            if(co.Buyer_Side_Broker_1__c != null){ sumBroker = sumBroker + (co.Buyer_1_Commission__c != null ? co.Buyer_1_Commission__c : 0); counterBroker++; }
+            if(co.Buyer_Side_Broker_2__c != null){ sumBroker = sumBroker + (co.Buyer_2_Commission__c != null ? co.Buyer_2_Commission__c : 0); counterBroker++; }
+            if(co.Buyer_Side_Broker_3__c != null){ sumBroker = sumBroker + (co.Buyer_3_Commission__c != null ? co.Buyer_3_Commission__c : 0); counterBroker++; }
+            if(co.Buyer_Side_Broker_4__c != null){ sumBroker = sumBroker + (co.Buyer_4_Commission__c != null ? co.Buyer_4_Commission__c : 0); counterBroker++; }
+            if(co.Seller_Side_Broker_1__c != null){ sumBroker = sumBroker + (co.Seller_1_Commission__c != null ? co.Seller_1_Commission__c : 0); counterBroker++; }
+            if(co.Seller_Side_Broker_2__c != null){ sumBroker = sumBroker + (co.Seller_2_Commission__c != null ? co.Seller_2_Commission__c : 0); counterBroker++; }
+            if(co.Seller_Side_Broker_3__c != null){ sumBroker = sumBroker + (co.Seller_3_Commission__c != null ? co.Seller_3_Commission__c : 0); counterBroker++; }
+ 			if(co.Seller_Side_Broker_4__c != null){ sumBroker = sumBroker + (co.Seller_4_Commission__c != null ? co.Seller_4_Commission__c : 0); counterBroker++; }
+            brokersMap.put(co.Transaction_No__c,counterBroker);
+            brokersTotalMap.put(co.Transaction_No__c,sumBroker);
+            //commissionMap.put(co.Transaction_No__c,co);
+        }
+        
+        for(Id tId : transactionIds){
+            //if(productMap.get(tId) == null) productMap.put(tId,'');
+            //if(commissionMap.get(tId) == null) commissionMap.put(tId,new Commission__c());
+            if(brokersMap.get(tId) == null) brokersMap.put(tId,0);
+            if(brokersTotalMap.get(tId) == null) brokersTotalMap.put(tId,0);
+        }
+    }
+
+    public void selectAllApex(){
+        Decimal totalRest = (payAux.Undistributed_Amount__c != null ? payAux.Undistributed_Amount__c : 0);
+        totalCheck = 0;
+        if(selectAll){
+            for(cPayment cAux : payments){
+               	if((totalRest-totalCheck)>=cAux.invoice.Balance_Due__c){
+                	cAux.Amount = cAux.invoice.Balance_Due__c;
+                    cAux.selected = true;
+               	} else if((totalRest-totalCheck)>0){
+                	cAux.Amount = totalRest-totalCheck;
+                    cAux.selected = true;
+               	} else {
+                    cAux.Amount = 0;
+                	cAux.selected = false;
+                }
+                System.debug('TestAmount' + cAux.Amount);
+                totalCheck = totalCheck + cAux.Amount;
+            }
+        }else{
+        	for(cPayment cAux : payments){
+               	cAux.amount = 0; 
+               	cAux.selected = false;
+            }    
+        }
+    }
+	    
+    public void searchInvs(){
+        if(payAux.From__c != null){
+            payments = new List<cPayment>(); 
+            search = search + '%';
+            System.debug(search);
+            Integer countAux = 1;
+        	String recordTypeValid = payAux.Type__c != null ? payAux.Type__c + ' Opportunities' : null;
+            List<Invoice__c> invList = [Select Id, Transaction_Number__c,Account__c,Transaction_Number__r.Name, Invoice_Date__c, Balance_Due__c, Total_Payments__c, 
+                                        RecordTypeId, RecordType.Name From Invoice__c WHERE Transaction_Number__c <> null and Transaction_Number__r.RecordType.Name =: recordTypeValid 
+                                        and Id !=: payAux.Invoice__c and Account__c=:payAux.From__c and Paid__c=false and Balance_Due__c<>null and Balance_Due__c>0 
+                                        and Transaction_Number__r.Name like : search ORDER BY CreatedDate ASC];
+        }
+    }
+    
+    public void Init(){
+        //invoices = new List<Invoice__c>();
+        childPayments = new List<Payment__c>();
+        productMap = new Map<String,String>();
+        commissionMap = new Map<String,Commission__c>();
+        brokersMap = new Map<String,Integer>();
+        brokersTotalMap = new Map<String,Decimal>();
+        statementMapS = new Map<String,String>();
+        payments = new List<cPayment>();
+        messageAlert = '';
+        actualKeyValue = '';
+        totalCheck = 0;
+    }
+    
+    public void changeAmount(){
+        //payAux.Amount__c;
+        Decimal totalRest = (payAux.Undistributed_Amount__c != null ? payAux.Undistributed_Amount__c : 0);
+        Decimal totalPayments = 0;
+        String invoiceActualId;
+        Decimal amountActual;
+        Decimal totalNotSelected = 0;
+        totalCheck = 0;
+        for(cPayment cAux : payments){
+            if(cAux.key != actualKeyValue && cAux.selected && cAux.Amount!=null && cAux.Amount>0){
+                totalCheck =  totalCheck + cAux.Amount;
+            }
+        }
+        for(cPayment cAux : payments){
+            if(!cAux.selected) totalNotSelected = totalNotSelected + (cAux.amount != null ? cAux.amount : 0);
+            if(cAux.key == actualKeyValue){
+                System.debug('-2-');
+                //totalCheck = totalCheck - (cAux.Amount!=null ? cAux.Amount : 0);
+                if(cAux.selected){
+                    if((totalRest-totalCheck)>=cAux.invoice.Balance_Due__c){
+                     	cAux.Amount = cAux.invoice.Balance_Due__c;
+                    } else if((totalRest-totalCheck)>0){
+                        cAux.Amount = totalRest-totalCheck;
+                    } else {
+                        cAux.Amount = 0;
+                        cAux.selected = false;
+                    }
+                }else{
+                    cAux.Amount = 0;
+                }
+                totalCheck = totalCheck + cAux.Amount;
+            }
+        }
+        /*for(cPayment cAux : payments){
+            if(cAux.selected && cAux.key == actualKeyValue){
+                if((totalRest - totalNotSelected) < cAux.invoice.Balance_Due__c){
+                    if((totalRest - totalNotSelected) == 0){
+                        totalPayments = totalPayments + cAux.invoice.Balance_Due__c;
+                    }else{
+                        cAux.amount = (totalRest - totalNotSelected)>0 ? (totalRest - totalNotSelected) : 0;
+                        totalPayments = totalPayments + (cAux.amount != null ? cAux.amount : 0);
+                    }
+                }else{
+                    cAux.amount = cAux.invoice.Balance_Due__c;
+                    totalPayments = totalPayments + (cAux.amount != null ? cAux.amount : 0);
+                }
+                cAux.selected = false;
+            }else{
+                totalPayments = totalPayments + (cAux.amount != null ? cAux.amount : 0);
+                if(cAux.key == actualKeyValue){
+                    invoiceActualId = cAux.invoice.Id;
+                    amountActual = cAux.amount;
+                }
+            }
+        }
+        
+        messageAlert = '';
+        system.debug(totalPayments);
+        system.debug(totalRest);
+        if(totalPayments > totalRest){
+            messageAlert = 'This amount exceeds the payment amount.';
+            for(cPayment cAux : payments){
+                if(cAux.key == actualKeyValue) cAux.amount = 0;
+            }
+        }else if(invoiceActualId != null){
+            //Invoice__c invoiceAux = [Select Id, Balance_Due__c, Total_Payments__c From Invoice__c WHERE Id=:invoiceActualId];
+            Decimal balanceDue = 0;
+            for(cPayment cAux : payments){
+               	if(cAux.key == actualKeyValue) balanceDue = cAux.invoice.Balance_Due__c;
+            }
+            //if(amountActual > (invoiceAux.Balance_Due__c - (invoiceAux.Total_Payments__c != null ? invoiceAux.Total_Payments__c : 0))){
+            if(amountActual > balanceDue){
+                messageAlert = 'This amount exceeds the balance due of invoice.';
+                System.debug('This amount exceeds the balance due of invoice.');
+                for(cPayment cAux : payments){
+                    if(cAux.key == actualKeyValue) cAux.amount = 0;
+                }
+            }
+        }*/
+    }
+    
+    public void changeAmount2(){
+        //payAux.Amount__c;
+        Decimal totalRest = (payAux.Undistributed_Amount__c != null ? payAux.Undistributed_Amount__c : 0);
+        Decimal totalPayments = 0;
+        String invoiceActualId;
+        Decimal amountActual;
+        Decimal totalNotSelected = 0;
+        totalCheck = 0;
+        for(cPayment cAux : payments){
+            if(cAux.key != actualKeyValue && cAux.selected && cAux.Amount!=null && cAux.Amount>0){
+                totalCheck =  totalCheck + cAux.Amount;
+            }
+        }
+        for(cPayment cAux : payments){
+            if(!cAux.selected) totalNotSelected = totalNotSelected + (cAux.amount != null ? cAux.amount : 0);
+            if(cAux.key == actualKeyValue){
+                System.debug('-2-');
+                //totalCheck = totalCheck - (cAux.Amount!=null ? cAux.Amount : 0);
+                if(cAux.Amount!=null & cAux.Amount>0){
+                    System.debug('->' + totalRest + '-' +totalCheck + '-' + cAux.Amount);
+                    if((totalRest-totalCheck)>=cAux.Amount && cAux.Amount<=cAux.invoice.Balance_Due__c){
+                     	cAux.Amount = cAux.Amount;
+                        cAux.selected = true;
+                    } else if((totalRest-totalCheck)>=cAux.invoice.Balance_Due__c){
+                        cAux.Amount = cAux.invoice.Balance_Due__c;
+                        cAux.selected = true;
+                    } else if((totalRest-totalCheck)<cAux.invoice.Balance_Due__c && (totalRest-totalCheck)>0){
+                        cAux.Amount = (totalRest-totalCheck);
+                        cAux.selected = true;
+                    }else {
+                        cAux.Amount = 0;
+                        cAux.selected = false;
+                    }
+                }else{
+                    cAux.Amount = 0;
+                    cAux.selected = false;
+                }
+                totalCheck = totalCheck + cAux.Amount;
+            }
+        }
+    }
+    
+    public void saveAction(){
+        List<Payment__c> childPaymentList = new List<Payment__c>();
+        Payment__c childPayment;
+        
+        messageAlert = '';
+        for(cPayment cAux : payments){
+            if((cAux.amount != null ? cAux.amount : 0) > 0){
+                system.debug(cAux);
+            	if(cAux.pay.Statement_Crude__c == null && cAux.pay.Statement_Future__c == null) messageAlert = 'Error: Please fill the statement.';
+            }
+        }
+        system.debug('messageAlert: '+messageAlert);
+        if(messageAlert == ''){
+            for(cPayment cAux : payments){
+                if((cAux.amount != null ? cAux.amount : 0) > 0){
+                    childPayment = new Payment__c();
+                    childPayment.Name = payAux.From__r.Name + ' ' +String.valueOf(system.today().format());
+                    childPayment.From__c = payAux.From__c;
+                    childPayment.Transaction__c = cAux.invoice.Transaction_Number__c;
+                    childPayment.Invoice__c = cAux.invoice.Id;
+                    childPayment.Payment_Parent__c = payAux.Id;
+                    childPayment.Distribuited_Amount__c = cAux.amount;
+                    childPayment.Statement__c = (cAux.pay.Statement_Crude__c != null ? cAux.pay.Statement_Crude__c : cAux.pay.Statement_Future__c);
+                    childPaymentList.add(childPayment);
+                }
+            }
+    
+            try{ insert childPaymentList; }catch(DMLException e){ messageAlert = 'Error: ' + e.getMessage(); }
+        }
+    }
+    
+    public pageReference saveCloseAction(){
+        PageReference pag;
+        saveAction();
+        if(messageAlert.contains('Error')) return null;
+        else pag = new PageReference('/'+payAux.Id);
+         
+        return pag;
+    }
+        
+    public pageReference cancel(){
+        return new PageReference('/'+payAux.Id);
+    }
+    
+    global class cPayment{
+        public String key {get;set;}
+        public Invoice__c invoice {get;set;}
+        public Decimal amount {get;set;}
+        public String url {get;set;}
+        public Payment__c pay {get;set;}
+        public Boolean selected {get;set;}
+        public cPayment(String vkey, Invoice__c vinvoice, Decimal vamount, String vurl, Payment__c vpay, Boolean vselected){
+            key = vkey; invoice = vinvoice; amount = vamount; url = vurl; pay = vpay; selected = vselected;
+        }
+    }
+}
