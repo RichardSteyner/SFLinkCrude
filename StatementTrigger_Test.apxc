@@ -1,0 +1,18 @@
+@isTest
+public class StatementTrigger_Test {
+    
+    public static testmethod void test01(){
+        Account acc = new Account(Name='Test Acc');
+        insert acc;
+        Statement__c st = new Statement__c(Account__c=acc.Id,Name='Test');
+        insert st;
+        Test.startTest();
+        st.Lock__c = true;
+        try{
+        	update st;    
+        }catch(DMLException e){
+            system.assertEquals(true,e.getMessage().contains('This record is locked and no updates can be made. Please speak to your system administrator if you have questions.'));
+        }
+        Test.stopTest();
+    }
+}
