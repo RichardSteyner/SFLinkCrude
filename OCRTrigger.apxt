@@ -1,0 +1,29 @@
+trigger OCRTrigger on OpportunityContactRole (before insert) {
+    
+    Set<String> setKeyId = new Set<String>();
+    Set<String> setKeyIdDuplicate = new Set<String>();
+
+    
+    if(Trigger.isBefore){
+        
+        for(OpportunityContactRole ocr : Trigger.New){
+            if(ocr.KeyId__c!=null){
+                setKeyId.add(ocr.KeyId__c);
+            }
+        }
+        
+        for(OpportunityContactRole ocr : [select KeyId__c from OpportunityContactRole where KeyId__c in :setKeyId and OpportunityId!=null]){
+            if(ocr.KeyId__c!=null){
+                setKeyIdDuplicate.add(ocr.KeyId__c);
+            }
+        }
+        
+        for(OpportunityContactRole ocr : Trigger.New){
+            if(setKeyIdDuplicate.contains(ocr.KeyId__c)){
+                ocr.KeyId__c.addError('KeyId ya existe.!!!');
+            }
+        }
+        
+    }
+
+}
