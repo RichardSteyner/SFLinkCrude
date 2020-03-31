@@ -1,0 +1,40 @@
+@isTest
+public class ContactEmailMergeBatch_Test {
+    
+    public static testmethod void test01(){
+        Account acc = new Account(Name='Test Acc');
+        insert acc;
+        Contact con = new Contact(LastName='Test Master',Namekey__c='10', Email='rurupeque@cloudcreations.com', AccountId=acc.Id);
+        insert con;
+        Contact conMerge = new Contact(LastName='Test Merge',Namekey__c='F10', Email='rurupeque@cloudcreations.com');
+        insert conMerge;
+        Test.startTest();
+        Database.executeBatch(new ContactEmailMergeBatch(),1);
+        Test.stopTest();
+        system.assertEquals(1,[Select Id From Contact].size());
+    }
+    
+    public static testmethod void test02(){
+        Contact con = new Contact(LastName='Test Master',Namekey__c='10', Email='rurupeque@cloudcreations.com');
+        insert con;
+        Contact conMerge = new Contact(LastName='Test Merge',Namekey__c='F10', Email='rurupeque@cloudcreations.com');
+        insert conMerge;
+        Test.startTest();
+        Database.executeBatch(new ContactEmailMergeBatch(),1);
+        Test.stopTest();
+        system.assertEquals(1,[Select Id From Contact].size());
+    }
+    
+    public static testmethod void test03(){
+        Contact con = new Contact(LastName='Test Master',Namekey__c='10', Email='rurupeque@cloudcreations.com');
+        insert con;
+        Contact conMerge = new Contact(LastName='Test Merge',Namekey__c='F10', Email='rurupeque@cloudcreations.com');
+        insert conMerge;
+        Contact conMerge2 = new Contact(LastName='Test Merge 2',Namekey__c='333214', Email='rurupeque@cloudcreations.com');
+        insert conMerge2;
+        Test.startTest();
+        Database.executeBatch(new ContactEmailMergeBatch(),1);
+        Test.stopTest();
+        system.assertEquals(3,[Select Id From Contact].size());
+    }
+}
