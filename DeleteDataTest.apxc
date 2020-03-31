@@ -1,0 +1,17 @@
+@isTest
+public class DeleteDataTest {
+    
+    public static testmethod void test01(){
+        Opportunity opp = new Opportunity();
+        opp.Name = 'Test';
+        opp.StageName = 'Close Won';
+        opp.CloseDate = Date.newInstance(2019, 11, 20);
+        insert opp;
+        System.assertEquals(1, [select Id from Opportunity where transactionkey__c=null].size());
+        Test.startTest();
+        Database.executeBatch(new DeleteData('Opportunity', 'transactionkey__c', 'null'),100);
+        Test.stopTest();  
+        System.assertEquals(0, [select Id from Opportunity where transactionkey__c=null].size());
+    }
+
+}
