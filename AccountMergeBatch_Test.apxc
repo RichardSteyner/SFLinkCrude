@@ -1,0 +1,14 @@
+@isTest
+public class AccountMergeBatch_Test {
+    
+    public static testmethod void test01(){
+        Account acc = new Account(Name='Test Master',Namekey__c='10');
+        insert acc;
+        Account accMerge = new Account(Name='Test Merge',Namekey__c='F10');
+        insert accmerge;
+        Test.startTest();
+        Database.executeBatch(new AccountMergeBatch('Namekey__c'),1);
+        Test.stopTest();
+        system.assertEquals(1,[Select Id From Account].size());
+    }
+}
