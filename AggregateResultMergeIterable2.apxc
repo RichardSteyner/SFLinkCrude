@@ -1,0 +1,11 @@
+global class AggregateResultMergeIterable2 implements Iterable<AggregateResult> {
+    global Set<Id> setIdCon {get;set;}
+    
+    global AggregateResultMergeIterable2(Set<Id> setIdConBatch){
+        setIdCon = setIdConBatch;
+    }
+    
+   global Iterator<AggregateResult> Iterator(){
+      return new AggregateResultMergeIterator2(setIdCon);
+   }
+}
