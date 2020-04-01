@@ -1,0 +1,284 @@
+<apex:page standardController="Statement__c" renderAs="pdf" applyHtmlTag="false" applyBodyTag="false" standardStylesheets="false" showHeader="false" >
+    <head>
+        <style>
+
+            body{
+                font-size: 14px;
+                /*font-family: 'Arial Unicode MS';*/
+            }
+
+            .content table{
+                width: 100%;
+            }
+
+            @page {
+                size:landscape;
+                @top-center {
+                    content: element(header);
+                }
+                padding: 90px 4px 50px 4px;
+            }
+
+            div.header {
+                padding: 10px;
+                margin-top: 45px;
+                position: running(header);
+            }
+
+            /* Header */
+            .header{
+                border-bottom: 2px solid gray;
+                border-top: 1px solid gray;
+                padding: 10px 0px 10px 0px;
+            }
+
+            .enterpriseData{
+                font-weight: bold;
+                font-size: 14px;
+            }
+
+            .enterpriseData span{
+                width: 165px;
+                display: inline-block;
+            }
+
+            /* Title */
+            .title{
+                font-weight: bold;
+                font-size: 20px;
+                text-align: center;
+                padding: 14px 0px 5px 0px;
+            }
+
+            .content{
+                margin-top: 15px;
+                text-align: center;
+            }
+
+            .tableLayoutFoot{
+                width: 325px;
+                margin-top: 90px;
+                padding: 10px;
+            }
+	    </style>
+    </head>
+
+    <div class="header">
+        <table width="100%" cellspacing="0" cellpadding="0">
+            <tr>
+                <td width="33%">&nbsp;</td>
+                <td width="34%" class="enterpriseData" style="text-align: center;">
+                    LINK FUTURES, LLC
+                    <br /><span style="text-transform:uppercase;">{!$Organization.Street}</span>
+                        <br /><span style="text-transform:uppercase;">{!$Organization.City}, {!$Organization.State} {!$Organization.PostalCode}</span>
+                    <br />Phone: {!$Organization.Phone}&nbsp;&nbsp;&nbsp;&nbsp;Fax: {!$Organization.Fax}
+                </td>
+                <td width="33%" class="enterpriseData" style="text-align: right; vertical-align: top;">
+                    <div>
+                        <span>STATEMENT DATE:</span> 00/00/0000
+                    </div>
+                    <div>
+                        <span>CLOSING DATE:</span> 00/00/0000
+                    </div>
+                    <div>
+                        <span>DUE DATE:</span> 00/00/0000
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="title">
+        STATEMENT
+    </div>
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 32px;">
+        <tr>
+            <td style="text-align: left; font-size: 20px;">
+                <b>Koch Supply &amp; Trading L.P. (Financial)</b>
+                <br />P.O. Box 1478
+                <br />Houston, TX 77251-1478
+            </td>
+            <td style="text-align: right; font-size: 24px; font-weight: bold; vertical-align: top;">
+                INVOICE # 053118
+            </td>
+        </tr>
+    </table>
+
+    <div class="content">
+        <table border="0" cellspacing="0" cellpadding="0">
+            <tr>
+                <td colspan="6" style="border-bottom: 3px solid black; padding: 4px 0px 6px 0px; font-weight: bold; text-align: left;">
+                    <i>&nbsp;&nbsp;Item Type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Payments</i>
+                </td>
+            </tr>
+            <tr>
+                <td width="10%" style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: left; font-style: italic;">Trx. Date</td>
+                <td width="10%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: left; font-style: italic;">Link Ref. #</td>
+                <td width="14%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: left; font-style: italic;">EXCHANGE ID:</td>
+                <td width="48%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: left; font-style: italic;">
+                    <div style="display: inline-block; float: left;">Description:</div>
+                    <div style="display: inline-block; font-size: 10px; text-align: center;">
+                        For transactions: Your role, Transaction Type/Trader, Partner: Product or Grade, Price, Volume,
+                        <br/>For Payments: Payment Method and Date Received
+                        <br/>For Adjustments: Description of Adjustment
+                    </div>
+                </td>
+                <td width="9%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: center; font-style: italic;">Debits</td>
+                <td width="9%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: right; font-style: italic;">Credits</td>
+            </tr>
+            <tr>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">05/17/2018</td>
+                <td style="border-bottom: 1px solid black; font-weight: bold; text-align: left; padding: 5px 0px 5px 0px;">F25650.4SF</td>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">89516546</td>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">Seller, FINANCIAL FUTURES/Ricardo Lopez-Guinazu, ICE Futures EUrope: 10,000 Total Barrels of ARW at 'PLUS 2.25'</td>
+                <td style="border-bottom: 1px solid black; text-align: center; padding: 5px 0px 5px 0px;">$35.00</td>
+                <td style="border-bottom: 1px solid black; text-align: right; padding: 5px 0px 5px 0px;"></td>
+            </tr>
+            <tr>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">05/17/2018</td>
+                <td style="border-bottom: 1px solid black; font-weight: bold; text-align: left; padding: 5px 0px 5px 0px;">F25650.4SF</td>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">89516546</td>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">Seller, FINANCIAL FUTURES/Ricardo Lopez-Guinazu, ICE Futures EUrope: 10,000 Total Barrels of ARW at 'PLUS 2.25'</td>
+                <td style="border-bottom: 1px solid black; text-align: center; padding: 5px 0px 5px 0px;">$35.00</td>
+                <td style="border-bottom: 1px solid black; text-align: right; padding: 5px 0px 5px 0px;"></td>
+            </tr>
+            <tr>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">05/17/2018</td>
+                <td style="border-bottom: 1px solid black; font-weight: bold; text-align: left; padding: 5px 0px 5px 0px;">F25650.4SF</td>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">89516546</td>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">Seller, FINANCIAL FUTURES/Ricardo Lopez-Guinazu, ICE Futures EUrope: 10,000 Total Barrels of ARW at 'PLUS 2.25'</td>
+                <td style="border-bottom: 1px solid black; text-align: center; padding: 5px 0px 5px 0px;">$35.00</td>
+                <td style="border-bottom: 1px solid black; text-align: right; padding: 5px 0px 5px 0px;"></td>
+            </tr>
+            <tr>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">05/17/2018</td>
+                <td style="border-bottom: 1px solid black; font-weight: bold; text-align: left; padding: 5px 0px 5px 0px;">F25650.4SF</td>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">89516546</td>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">Seller, FINANCIAL FUTURES/Ricardo Lopez-Guinazu, ICE Futures EUrope: 10,000 Total Barrels of ARW at 'PLUS 2.25'</td>
+                <td style="border-bottom: 1px solid black; text-align: center; padding: 5px 0px 5px 0px;">$35.00</td>
+                <td style="border-bottom: 1px solid black; text-align: right; padding: 5px 0px 5px 0px;"></td>
+            </tr>
+            <tr>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">05/17/2018</td>
+                <td style="border-bottom: 1px solid black; font-weight: bold; text-align: left; padding: 5px 0px 5px 0px;">F25650.4SF</td>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">89516546</td>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">Seller, FINANCIAL FUTURES/Ricardo Lopez-Guinazu, ICE Futures EUrope: 10,000 Total Barrels of ARW at 'PLUS 2.25'</td>
+                <td style="border-bottom: 1px solid black; text-align: center; padding: 5px 0px 5px 0px;">$35.00</td>
+                <td style="border-bottom: 1px solid black; text-align: right; padding: 5px 0px 5px 0px;"></td>
+            </tr>
+            <tr>
+                <td colspan="3"></td>
+                <td style="font-weight: bold; padding: 4px 0px 4px 0px; font-style: italic;">&nbsp;&nbsp;&nbsp;&nbsp;Payments Received:</td>
+                <td style="font-weight: bold; text-align: center; font-style: italic;">$0.00</td>
+                <td style="font-weight: bold; text-align: right; font-style: italic;">$2,175.00</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="title" style="margin-top: 95px;">
+        STATEMENT
+    </div>
+    <div class="subtitle">
+        Koch Supply &amp; Trading L.P. (Financial)
+    </div>
+
+    <div class="content">
+        <table border="0" cellspacing="0" cellpadding="0">
+            <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <div style="text-align: right;">
+                        <h2>INVOICE # 053118</h2>
+                    </div>
+                    <table border="0" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="font-weight: bold; width: 120px;">Total Current: </td>
+                            <td style="font-weight: bold; text-decoration: underline; width: 95px;">Debits</td>
+                            <td style="font-weight: bold; text-decoration: underline; width: 95px;">Credits</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td>$12,530.00</td>
+                            <td>$2,175.00</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <td style="vertical-align: top;">
+                    <div style="text-align: left;">
+                        <div class="tableLayoutFoot">
+                            <b>MAKE CHECKS PAYABLE TO: </b>
+                            <div style="padding-bottom: 3px;">Link Crude Resources, LLC</div>
+                            <b>WIRE INSTRUCTIONS: </b>
+                            <br />Wells Fargo Bank, NA
+                            <br />420 Montgomery
+                            <br />San Fracisco, CA 94104
+                            <br />RTN #. 111900659 (for ACH deposits)
+                            <br />ABA #. 121000248 (for Wire Transfer deposits)
+                            <br />Account #. 10609928379
+                            <br />Account of: Link Crude Resources, LLC
+                            <br /><br />
+                            Account Inquiries:
+                            <br />Lorie Zachary
+                            <br />support@linkcrude.com
+                            <br /><span>Direct:</span> 281-340-6123
+                            <br /><span>Fax: </span>281-565-5461
+                        </div>
+                    </div>
+                </td>
+                <td style="vertical-align: top; padding-top: 45px;">
+                    <div style="font-weight: bold; text-decoration: underline; text-align: center; font-size: 1.4em; margin-bottom: 22px;">
+                        ACCOUNT SUMMARY
+                    </div>
+                    <table width="360" cellspacing="0" cellpadding="0">
+                        <tr>
+                            <td width="178"></td>
+                            <td width="120" style="text-align: right; font-weight: bold; text-decoration: underline;">Activity</td>
+                            <td width="120" style="text-align: right; font-weight: bold; text-decoration: underline;">Balance</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Beginning Balance: </td>
+                            <td style="text-align: right;"></td>
+                            <td style="text-align: right;">$2,175.00</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Payments Received: </td>
+                            <td style="text-align: right;">($2,175.00)</td>
+                            <td style="text-align: right;">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Transactions: </td>
+                            <td style="text-align: right;">$12,530.00</td>
+                            <td style="text-align: right;">$12,530.00</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Adjustments: </td>
+                            <td style="text-align: right;">$0.00</td>
+                            <td style="text-align: right;">$12,530.00</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: left; font-weight: bold; padding: 6px 0px 12px 0px;">Ending Balance: </td>
+                            <td style="text-align: right;"></td>
+                            <td style="text-align: right;">$12,530.00</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="text-align: left; font-weight: bold; font-size: 16px; border: 2px solid black; border-right: none; padding: 6px 0px 6px 4px;">
+                                PLEASE PAY THIS AMOUNT
+                            </td>
+                            <td style="text-align: right; font-weight: bold; font-size: 16px; border: 2px solid black; border-left: none; padding: 6px 4px 6px 0px;">
+                                $0000.00
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+                <td>
+                    &nbsp;
+                </td>
+            </tr>
+        </table>
+
+    </div>
+
+</apex:page>
