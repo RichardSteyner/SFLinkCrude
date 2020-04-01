@@ -1,0 +1,370 @@
+<apex:page standardController="Payment__c" extensions="PaymentController" showHeader="false" sidebar="false" standardStylesheets="false" applyBodyTag="false" applyHtmlTag="false">
+<head>
+<apex:includeScript value="{!URLFOR($Resource.Utils, 'js/jquery-3.3.1.min.js')}"  />
+<apex:includeScript value="{!URLFOR($Resource.Utils, 'js/bootstrap.min.js')}"/>
+<apex:stylesheet value="{!URLFOR($Resource.Utils, 'css/bootstrap.min.css')}"/>
+<apex:includeScript value="{!URLFOR($Resource.Util2, 'js/jquery.tablesorter.js')}"/>  
+<apex:includeScript value="{!URLFOR($Resource.Util2, 'js/jquery.tablesorter.widgets.js')}"/>
+<apex:stylesheet value="{!URLFOR($Resource.Util2, 'css/theme.blue.css')}"/>
+<style>
+.footerT td{
+    /*border: 0px !important;*/
+}
+    
+.chkMonths label {
+    margin-bottom: 0rem !important;
+    }
+.content{font-size:12px; margin-left: 25px !important;margin-right: 25px !important;}
+.container{font-size:12px;}
+.row{margin-top:10px !important;}
+/* lookup field override */
+.lookupInput
+{
+    display: inline;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.lookupInput img
+{
+    background-repeat: no-repeat;
+    margin-right: .25em;
+    vertical-align: middle;
+}
+.lookupInput .disabled
+{
+    background-color: #ccc;
+}
+.lookupInput .emptyDependentLookup
+{
+    font-style: italic;
+}
+.lookupInput input[readonly]
+{
+    background-color: #e6e6e6;
+    border: 2px solid #e6e6e6;
+    color: #333;
+    cursor: default;
+}
+.lookupInput a.readOnly
+{
+    float: right;
+}
+.lookupInput span.readOnly
+{
+    display: block;
+    white-space: normal;
+}
+.lookupInput span.totalSummary
+{
+    font-weight: bold;
+}
+.inlineEditRequiredDiv .lookupInput img,.inlineEditDiv .lookupInput img
+{
+    vertical-align: middle;
+}
+.quickCreateModule .lookupInput input {
+    max-width: 155px;
+}
+.lookupIcon {
+    background-image: url(/img/func_icons/util/lookup20.gif);
+    background-position: 0 0;
+    width: 20px;
+    height: 20px;
+    background-position: top left
+}
+.lookupIconOn {
+    background-image: url(/img/func_icons/util/lookup20.gif);
+    background-position: 0 0;
+    width: 20px;
+    height: 20px;
+    background-position: top right
+}
+.lookupInput input{float: left;}
+.lookupInput a{width: 4%;border-left: none;position: absolute;right: 20px;}
+</style>
+</head>
+<body>
+    <!--<apex:sectionHeader title="Payment Distribution" subtitle="" />-->
+    <apex:form >
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12">
+                    <h4>
+                        Payment Distribution
+                        <input type="hidden" id="payment-parent-id" value="{!payAux.Id}" />
+                    </h4>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Payment</th>
+                                <th colspan="5"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                        <apex:param value="{!Payment__c.Date_Received__c}" />
+                                    </apex:outputText>
+                                </td>
+                                <td>{!Payment__c.From__r.Name}</td>
+                                <td>{!Payment__c.How_Paid__c}</td>
+                                <td>{!Payment__c.Check__c}</td>
+                                <td></td>
+                                <td>
+                                    <apex:outputText value="${0,number,###,##0.00}">
+                                        <apex:param value="{!Payment__c.Amount__c}"/>
+                                    </apex:outputText>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+				</div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <label>Transactions for {!Payment__c.From__r.Name}</label>
+                    <apex:outputPanel id="oldPayments">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Context</th>
+                                        <th>Comm</th>
+                                        <th>Balance</th>
+                                        <th>Trans #</th>
+                                        <th>Date</th>
+                                        <th>Invoice Date</th>
+                                        <th>Product</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <apex:repeat value="{!childPayments}" var="child">
+                                        <tr>
+                                            <td>{!child.Invoice__r.Role__c}</td>
+                                            <td>
+                                            	<apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!IF(child.Invoice__r.Role__c == 'Buyer',commissionMap[child.Transaction__c].Buyer_Commission__c,commissionMap[child.Transaction__c].Seller_Commission__c)}"/>
+                                                </apex:outputText>
+                                            </td>
+                                            <td>
+                                                <apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!child.Distribuited_Amount__c}"/>
+                                                </apex:outputText>
+                                            </td>
+                                            <td>{!child.Transaction__r.Name}</td>
+                                            <td>
+                                            	<apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                                    <apex:param value="{!IF(child.Invoice__c <> null, IF(statementMapS[child.Invoice__c] == null, '', ''), null)}" />
+                                                </apex:outputText>
+                                            </td>
+                                            <td>
+                                                <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                                    <apex:param value="{!child.Invoice__r.Invoice_Date__c}" />
+                                                </apex:outputText>
+                                            </td>
+                                            <td>{!productMap[child.Transaction__c]}</td>
+                                        </tr>
+                                    </apex:repeat>
+                                </tbody>
+                            </table>
+                        </div>
+                    </apex:outputPanel>
+				</div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <!--<button type="button" class="btn btn-default savePayments">Apply to Selected Transactions</button> <br/><br/>-->
+                    <span style="font-size:14px;">
+                    Amount Available:&nbsp;
+                    <apex:outputText value="${0,number,###,##0.00}">
+                        <apex:param value="{!Payment__c.Undistributed_Amount__c}"/>
+                    </apex:outputText>
+                    <input type="hidden" id="payment-undistribuited-amount" value="{!Payment__c.Undistributed_Amount__c}" />
+                    </span>
+                    <!--&nbsp;&nbsp;<apex:commandButton action="{!saveCloseAction}" value="Apply to Selected Transactions" styleClass="btn btn-primary" />-->
+                    &nbsp;&nbsp;<button type="button" class="btn btn-primary" onclick="saveCloseAction();" >Apply to Selected Transactions</button>
+                    &nbsp;&nbsp;<apex:commandButton action="{!cancel}" value="Cancel" styleClass="btn btn-primary" /> 
+                    <br/><br/>
+                    
+                    <div class="row" style="display: none;">
+                    	<div class="col-md-2">
+                        	<apex:inputText html-placeholder="Transaction Number" value="{!search}" styleClass="form-control form-control-sm search" />
+                        </div>
+                        <div class="col-md-2">
+                        	<button type="button" class="btn btn-default" onclick="searchAction();" >Search</button>
+                        </div>
+                    </div>
+                    <br/>
+                    
+                    <div class="row" style="display: none;">
+                        <div class="col-md-12">
+                            <apex:inputCheckbox value="{!last12Months}" onclick="monthsCheck(this);" id="months" styleClass="chkMonths"/>
+                            <label class="control-label" for="months" style="margin-bottom: 0rem !important; font-weight: bold;">Last 12 months</label>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <apex:inputCheckbox value="{!selectAll}" onclick="selectAll(this);" id="selectAll" styleClass="chkMonths"/>
+                            <label class="control-label" for="selectAll" style="margin-bottom: 0rem !important; font-weight: bold;">Select All</label>
+                        </div>
+                    </div>
+                    
+                    <apex:outputPanel id="newPayments">
+                        <script>
+						$('input,select').keypress(function(event) { return event.keyCode != 13; });
+                        </script>
+                        <input type="hidden" id="message-alert" value="{!messageAlert}" />
+                        <div class="table-responsive">
+                            <table id="txTable" class="table table-sm tablesorter-blue">
+                                <thead>
+                                    <tr>
+                                        <th style="width:4%"></th>
+                                        <th style="width:10%;">Transaction</th>
+                                        <th style="width:10%;">Distributed Amount Apply to</th>
+                                        <th style="width:8%;">Invoice Date</th>
+                                        <th style="width:8%;">Dist. Date</th>
+                                        <th style="width:2%;">SP</th>
+                                        <th style="width:10%;">SP Total</th>
+                                        <th style="width:9%;">Balance Due</th>
+                                        <th style="width:39%;">Statement</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <apex:variable var="count" value="{!0}" />
+                                    <apex:variable var="balance" value="{!0}" />
+                                    <apex:repeat value="{!payments}" var="payment">
+                                        <tr>
+                                            <td>
+                                            	<apex:inputCheckbox value="{!payment.selected}" onclick="changeAmountCheck(this);" html-key-val="{!payment.key}" />
+                                            </td>
+                                            <td><a href="{!"/" & payment.invoice.id}" target="_blank">{!payment.invoice.Transaction_Number__r.Name}</a></td>
+                                            <td>
+                                                <apex:inputText value="{!payment.amount}" styleClass="form-control form-control-sm tableValueAmount" html-key-val="{!payment.key}" />
+                                            </td>
+                                            <td>
+                                                <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                                    <apex:param value="{!payment.invoice.Invoice_Date__c}" />
+                                                </apex:outputText>
+                                            </td>
+                                            <td>
+                                                <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                                    <apex:param value="{!TODAY()}" />
+                                                </apex:outputText>
+                                            </td>
+                                            <td>{!brokersMap[payment.invoice.Transaction_Number__c]}</td>
+                                            <td>
+                                                <apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!brokersTotalMap[payment.invoice.Transaction_Number__c]}"/>
+                                                </apex:outputText>
+                                            </td>
+                                            <td>
+                                                <apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!payment.invoice.Balance_Due__c}"/>
+                                                </apex:outputText>
+                                            </td>
+                                            <td>
+                                                <apex:inputField value="{!payment.pay.Statement_Crude__c}" styleClass="form-control form-control-sm crude" rendered="{!IF(payment.invoice.RecordType.Name == 'Link Crude',true,false)}" />
+                                                <apex:inputField value="{!payment.pay.Statement_Future__c}" styleClass="form-control form-control-sm future" rendered="{!IF(payment.invoice.RecordType.Name == 'Link Futures',true,false)}"/>
+                                            </td>
+                                        </tr>
+                                        <apex:variable var="count" value="{!count + 1}" />
+                                        <apex:variable var="balance" value="{!balance + IF(payment.amount <> null, payment.amount, 0)}" />
+                                    </apex:repeat>
+                                </tbody>
+                                <tfooter>
+                                    <tr class="footerT">
+                                        <td colspan="2">{!count} records</td>
+                                        <td>
+                                            <apex:outputText value="${0,number,###,##0.00}">
+                                                <apex:param value="{!balance}"/>
+                                            </apex:outputText>
+                                        </td>
+                                        <!--<td colspan="4"></td>-->
+                                    </tr>
+                                </tfooter>
+                            </table>
+                        </div>
+                    </apex:outputPanel>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Functions-->
+        <apex:actionFunction action="{!changeAmount}" name="changeAmountJs" reRender="newPayments,oldPayments">
+            <apex:param assignTo="{!actualKeyValue}" value="" name="actualKeyValue" />
+        </apex:actionFunction>
+        <apex:actionFunction action="{!changeAmount2}" name="changeAmountJs2" reRender="newPayments,oldPayments">
+            <apex:param assignTo="{!actualKeyValue}" value="" name="actualKeyValue" />
+        </apex:actionFunction>
+        <apex:actionFunction action="{!saveAction}" name="saveButtonJs" status="loading" reRender="newPayments,oldPayments" />
+        
+        <apex:actionFunction action="{!saveAction}" name="saveCloseActionJs" reRender="newPayments,oldPayments" oncomplete="reviewErrors();" />
+        <apex:actionFunction action="{!searchInvs}" name="searchActionJs" reRender="newPayments" />
+        <apex:actionFunction action="{!lastMonthsCheck}" name="lastMonthsJs" reRender="newPayments" oncomplete="asignarFuncionATabla();"/>
+        <apex:actionFunction action="{!selectAllApex}" name="selectAllJs" reRender="newPayments" oncomplete="asignarFuncionATabla();"/>
+    </apex:form>
+</body>
+    <script>
+    $(document).ready(function(){
+        /*$("#txTable").tablesorter();
+        $("#txTable").trigger("applyWidgets");*/
+        asignarFuncionATabla();
+        $('input,select').keypress(function(event) { return event.keyCode != 13; });
+        
+        $('body').off('blur','.tableValueAmount');
+        $('body').on('blur','.tableValueAmount', function(e){
+            var keyValue = $(this).attr('key-val');
+            changeAmountJs2(keyValue);
+        });
+        $('body').off('click','.savePayments');
+        $('body').on('click','.savePayments', function(e){
+            saveButtonJs();
+        });
+        var amountU = $('input[id$=payment-undistribuited-amount]').val();
+        if(amountU<=0)
+        	alert('You have distributed the entire payment amount');
+    });
+    
+    function reviewErrors(){
+        var message = $('input[id$=message-alert]').val();
+        if(message != ''){
+            alert(message);
+        }else{
+            var paymentid = $('input[id$=payment-parent-id]').val();
+            location.href = '/'+paymentid;
+        }
+    }
+    
+    function saveCloseAction(){
+        saveCloseActionJs();
+    }
+    
+    function changeAmountCheck(val){
+        var keyValue = $(val).attr('key-val');
+        changeAmountJs(keyValue);
+    }
+    
+	function searchAction(){
+    	searchActionJs();
+    }   
+    
+    function monthsCheck(val){
+        lastMonthsJs();
+    }
+    
+    function selectAll(val){
+        selectAllJs();
+    }
+    
+    function asignarFuncionATabla(){
+    	$("#txTable").tablesorter();
+        console.log('3');
+    }
+</script>
+</apex:page>
