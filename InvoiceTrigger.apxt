@@ -1,0 +1,21 @@
+trigger InvoiceTrigger on Invoice__c (before insert, before update, after insert, after update, after delete) {
+    
+    System.debug('Executing InvoiceTrigger:: Enabled  => '+ ApexUtil.InvoiceTrigger_Is_Enabled + ' | isBefore => ' + Trigger.isBefore + ' | isAfter  => ' + Trigger.isAfter);
+    if (ApexUtil.InvoiceTrigger_Is_Enabled) {
+        if (Trigger.isBefore) {
+            if (Trigger.isInsert || Trigger.isUpdate) {
+                InvoiceTriggerHandler.beforeInsertUpdateActions(Trigger.new, Trigger.oldMap);
+            }
+        }
+        else if(Trigger.isAfter){
+            if (Trigger.isInsert || Trigger.isUpdate) {
+               InvoiceTriggerHandler.afterInsertUpdateActions(Trigger.new, Trigger.oldMap);
+            }
+            if (Trigger.isDelete) {
+               InvoiceTriggerHandler.afterDeleteActions(Trigger.old);
+            }
+            ApexUtil.InvoiceTrigger_Is_Enabled = false;
+        }
+
+    }
+}
