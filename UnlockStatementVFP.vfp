@@ -1,0 +1,32 @@
+<apex:page standardController="Statement__c" showHeader="false" sideBar="false" standardStylesheets="false" recordSetVar="statements">
+  <apex:includeScript value="/soap/ajax/36.0/connection.js"/>
+  <apex:includeScript value="/soap/ajax/36.0/apex.js"/>
+  <div style="text-align:center;">
+  	<strong>Unlocking...</strong>
+  </div>  
+<script>
+    sforce.connection.sessionId="{!GETSESSIONID()}"; 
+    var statements = new Array();
+</script>
+<apex:repeat value="{!selected}" var="st">
+    <script>
+    statements.push('{!st}');
+	</script>
+</apex:repeat>
+<script>
+    console.log(statements);
+    var result = sforce.apex.execute("LockRecords","statementsLockLightning",{statementsId: statements, lock:false}); 
+    if(!result[0].toString().includes('Error')){
+      if( (typeof sforce != 'undefined') && sforce && (!!sforce.one) ) {
+          sforce.one.navigateToList('00B6A000006OUCGUA4','All','Statement__c');
+      }
+      else {
+          //window.opener.location.href = "/"+result[0];
+          window.top.close();
+      }
+    }   
+    else{
+      alert("An error occurred while creating Invoice. Please contact your Administrator.");
+    }
+  </script>
+</apex:page>
