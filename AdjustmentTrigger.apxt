@@ -1,0 +1,168 @@
+trigger AdjustmentTrigger on Adjustment__c (after insert, after update, after delete) {
+    Map<String,Decimal> creditMap = new Map<String,Decimal>();
+    Map<String,Decimal> debitMap = new Map<String,Decimal>();
+    Map<String,Decimal> creditDeleteMap = new Map<String,Decimal>();
+    Map<String,Decimal> debitDeleteMap = new Map<String,Decimal>();
+    if(trigger.isInsert){
+        for(Adjustment__c a : trigger.new){
+            if(a.Debit__c != null){
+                if(a.Account__c != null){
+                    if(debitMap.get(a.Account__c) != null) debitMap.put(a.Account__c,debitMap.get(a.Account__c) + a.Debit__c); else debitMap.put(a.Account__c,a.Debit__c);
+                }
+                if(a.Apply_to_Seller_or_Buyer__c != null){
+                    if(debitMap.get(a.Apply_to_Seller_or_Buyer__c) != null) debitMap.put(a.Apply_to_Seller_or_Buyer__c,debitMap.get(a.Apply_to_Seller_or_Buyer__c) + a.Debit__c); else debitMap.put(a.Apply_to_Seller_or_Buyer__c,a.Debit__c);
+                }
+                if(a.Apply_to_Transaction__c != null){
+                    if(debitMap.get(a.Apply_to_Transaction__c) != null) debitMap.put(a.Apply_to_Transaction__c,debitMap.get(a.Apply_to_Transaction__c) + a.Debit__c); else debitMap.put(a.Apply_to_Transaction__c,a.Debit__c);
+                }
+                if(a.Apply_to_Statement__c != null){
+                    if(debitMap.get(a.Apply_to_Statement__c) != null) debitMap.put(a.Apply_to_Statement__c,debitMap.get(a.Apply_to_Statement__c) + a.Debit__c); else debitMap.put(a.Apply_to_Statement__c,a.Debit__c);
+                }
+            }else if(a.Credit__c != null){
+                if(a.Account__c != null){
+                    if(creditMap.get(a.Account__c) != null) creditMap.put(a.Account__c,creditMap.get(a.Account__c) + a.Credit__c); else creditMap.put(a.Account__c,a.Credit__c);
+                }
+                if(a.Apply_to_Seller_or_Buyer__c != null){
+                    if(creditMap.get(a.Apply_to_Seller_or_Buyer__c) != null) creditMap.put(a.Apply_to_Seller_or_Buyer__c,creditMap.get(a.Apply_to_Seller_or_Buyer__c) + a.Credit__c); else creditMap.put(a.Apply_to_Seller_or_Buyer__c,a.Credit__c);
+                }
+                if(a.Apply_to_Transaction__c != null){
+                    if(creditMap.get(a.Apply_to_Transaction__c) != null) creditMap.put(a.Apply_to_Transaction__c,creditMap.get(a.Apply_to_Transaction__c) + a.Credit__c); else creditMap.put(a.Apply_to_Transaction__c,a.Credit__c);
+                }
+                if(a.Apply_to_Statement__c != null){
+                    if(creditMap.get(a.Apply_to_Statement__c) != null) creditMap.put(a.Apply_to_Statement__c,creditMap.get(a.Apply_to_Statement__c) + a.Credit__c); else creditMap.put(a.Apply_to_Statement__c,a.Credit__c);
+                }
+            }
+        }
+    }else if(trigger.isUpdate){
+        for(Adjustment__c a : trigger.new){
+            if(a.Debit__c != null && a.Debit__c != trigger.oldMap.get(a.Id).Debit__c){
+                if(a.Account__c != null){
+                    if(debitMap.get(a.Account__c) != null) debitMap.put(a.Account__c,debitMap.get(a.Account__c) + a.Debit__c); else debitMap.put(a.Account__c,a.Debit__c);
+                    if(debitDeleteMap.get(a.Account__c) != null) debitDeleteMap.put(a.Account__c,debitDeleteMap.get(a.Account__c) + trigger.oldMap.get(a.Id).Debit__c); else debitDeleteMap.put(a.Account__c,trigger.oldMap.get(a.Id).Debit__c);
+                }
+                if(a.Apply_to_Seller_or_Buyer__c != null){
+                    if(debitMap.get(a.Apply_to_Seller_or_Buyer__c) != null) debitMap.put(a.Apply_to_Seller_or_Buyer__c,debitMap.get(a.Apply_to_Seller_or_Buyer__c) + a.Debit__c); else debitMap.put(a.Apply_to_Seller_or_Buyer__c,a.Debit__c);
+                    if(debitDeleteMap.get(a.Apply_to_Seller_or_Buyer__c) != null) debitDeleteMap.put(a.Apply_to_Seller_or_Buyer__c,debitDeleteMap.get(a.Apply_to_Seller_or_Buyer__c) + trigger.oldMap.get(a.Id).Debit__c); else debitDeleteMap.put(a.Apply_to_Seller_or_Buyer__c,trigger.oldMap.get(a.Id).Debit__c);
+                }
+                if(a.Apply_to_Transaction__c != null){
+                    if(debitMap.get(a.Apply_to_Transaction__c) != null) debitMap.put(a.Apply_to_Transaction__c,debitMap.get(a.Apply_to_Transaction__c) + a.Debit__c); else debitMap.put(a.Apply_to_Transaction__c,a.Debit__c);
+                    if(debitDeleteMap.get(a.Apply_to_Transaction__c) != null) debitDeleteMap.put(a.Apply_to_Transaction__c,debitDeleteMap.get(a.Apply_to_Transaction__c) + trigger.oldMap.get(a.Id).Debit__c); else debitDeleteMap.put(a.Apply_to_Transaction__c,trigger.oldMap.get(a.Id).Debit__c);
+                }
+                if(a.Apply_to_Statement__c != null){
+                    if(debitMap.get(a.Apply_to_Statement__c) != null) debitMap.put(a.Apply_to_Statement__c,debitMap.get(a.Apply_to_Statement__c) + a.Debit__c); else debitMap.put(a.Apply_to_Statement__c,a.Debit__c);
+                    if(debitDeleteMap.get(a.Apply_to_Statement__c) != null) debitDeleteMap.put(a.Apply_to_Statement__c,debitDeleteMap.get(a.Apply_to_Statement__c) + trigger.oldMap.get(a.Id).Debit__c); else debitDeleteMap.put(a.Apply_to_Statement__c,trigger.oldMap.get(a.Id).Debit__c);
+                }
+            }else if(a.Credit__c != null && a.Credit__c != trigger.oldMap.get(a.Id).Credit__c){
+                if(a.Account__c != null){
+                    if(creditMap.get(a.Account__c) != null) creditMap.put(a.Account__c,creditMap.get(a.Account__c) + a.Credit__c); else creditMap.put(a.Account__c,a.Credit__c);
+                    if(creditDeleteMap.get(a.Account__c) != null) creditDeleteMap.put(a.Account__c,creditDeleteMap.get(a.Account__c) + trigger.oldMap.get(a.Id).Credit__c); else creditDeleteMap.put(a.Account__c,trigger.oldMap.get(a.Id).Credit__c);
+                }
+                if(a.Apply_to_Seller_or_Buyer__c != null){
+                    if(creditMap.get(a.Apply_to_Seller_or_Buyer__c) != null) creditMap.put(a.Apply_to_Seller_or_Buyer__c,creditMap.get(a.Apply_to_Seller_or_Buyer__c) + a.Credit__c); else creditMap.put(a.Apply_to_Seller_or_Buyer__c,a.Credit__c);
+                    if(creditDeleteMap.get(a.Apply_to_Seller_or_Buyer__c) != null) creditDeleteMap.put(a.Apply_to_Seller_or_Buyer__c,creditDeleteMap.get(a.Apply_to_Seller_or_Buyer__c) + trigger.oldMap.get(a.Id).Credit__c); else creditDeleteMap.put(a.Apply_to_Seller_or_Buyer__c,trigger.oldMap.get(a.Id).Credit__c);
+                }
+                if(a.Apply_to_Transaction__c != null){
+                    if(creditMap.get(a.Apply_to_Transaction__c) != null) creditMap.put(a.Apply_to_Transaction__c,creditMap.get(a.Apply_to_Transaction__c) + a.Credit__c); else creditMap.put(a.Apply_to_Transaction__c,a.Credit__c);
+                    if(creditDeleteMap.get(a.Apply_to_Transaction__c) != null) creditDeleteMap.put(a.Apply_to_Transaction__c,creditDeleteMap.get(a.Apply_to_Transaction__c) + trigger.oldMap.get(a.Id).Credit__c); else creditDeleteMap.put(a.Apply_to_Transaction__c,trigger.oldMap.get(a.Id).Credit__c);
+                }
+                if(a.Apply_to_Statement__c != null){
+                    if(creditMap.get(a.Apply_to_Statement__c) != null) creditMap.put(a.Apply_to_Statement__c,creditMap.get(a.Apply_to_Statement__c) + a.Credit__c); else creditMap.put(a.Apply_to_Statement__c,a.Credit__c);
+                    if(creditDeleteMap.get(a.Apply_to_Statement__c) != null) creditDeleteMap.put(a.Apply_to_Statement__c,creditDeleteMap.get(a.Apply_to_Statement__c) + trigger.oldMap.get(a.Id).Credit__c); else creditDeleteMap.put(a.Apply_to_Statement__c,trigger.oldMap.get(a.Id).Credit__c);
+                }
+            }
+        }
+    }else if(trigger.isDelete){
+        for(Adjustment__c a : trigger.old){
+            system.debug(a);
+            if(a.Debit__c != null){
+                if(a.Account__c != null){
+                    if(debitDeleteMap.get(a.Account__c) != null) debitDeleteMap.put(a.Account__c,debitDeleteMap.get(a.Account__c) + a.Debit__c); else debitDeleteMap.put(a.Account__c,a.Debit__c);
+                }
+                if(a.Apply_to_Seller_or_Buyer__c != null){
+                    if(debitDeleteMap.get(a.Apply_to_Seller_or_Buyer__c) != null) debitDeleteMap.put(a.Apply_to_Seller_or_Buyer__c,debitDeleteMap.get(a.Apply_to_Seller_or_Buyer__c) + a.Debit__c); else debitDeleteMap.put(a.Apply_to_Seller_or_Buyer__c,a.Debit__c);
+                }
+                if(a.Apply_to_Transaction__c != null){
+                    if(debitDeleteMap.get(a.Apply_to_Transaction__c) != null) debitDeleteMap.put(a.Apply_to_Transaction__c,debitDeleteMap.get(a.Apply_to_Transaction__c) + a.Debit__c); else debitDeleteMap.put(a.Apply_to_Transaction__c,a.Debit__c);
+                }
+                if(a.Apply_to_Statement__c != null){
+                    if(debitDeleteMap.get(a.Apply_to_Statement__c) != null) debitDeleteMap.put(a.Apply_to_Statement__c,debitDeleteMap.get(a.Apply_to_Statement__c) + a.Debit__c); else debitDeleteMap.put(a.Apply_to_Statement__c,a.Debit__c);
+                }
+            }else if(a.Credit__c != null){
+                if(a.Account__c != null){
+                    if(creditDeleteMap.get(a.Account__c) != null) creditDeleteMap.put(a.Account__c,creditDeleteMap.get(a.Account__c) + a.Credit__c); else creditDeleteMap.put(a.Account__c,a.Credit__c);
+                }
+                if(a.Apply_to_Seller_or_Buyer__c != null){
+                    if(creditDeleteMap.get(a.Apply_to_Seller_or_Buyer__c) != null) creditDeleteMap.put(a.Apply_to_Seller_or_Buyer__c,creditDeleteMap.get(a.Apply_to_Seller_or_Buyer__c) + a.Credit__c); else creditDeleteMap.put(a.Apply_to_Seller_or_Buyer__c,a.Credit__c);
+                }
+                if(a.Apply_to_Transaction__c != null){
+                    if(creditDeleteMap.get(a.Apply_to_Transaction__c) != null) creditDeleteMap.put(a.Apply_to_Transaction__c,creditDeleteMap.get(a.Apply_to_Transaction__c) + a.Credit__c); else creditDeleteMap.put(a.Apply_to_Transaction__c,a.Credit__c);
+                }
+                if(a.Apply_to_Statement__c != null){
+                    if(creditDeleteMap.get(a.Apply_to_Statement__c) != null) creditDeleteMap.put(a.Apply_to_Statement__c,creditDeleteMap.get(a.Apply_to_Statement__c) + a.Credit__c); else creditDeleteMap.put(a.Apply_to_Statement__c,a.Credit__c);
+                }
+            }
+        }
+    }
+    
+    system.debug(debitDeleteMap);
+    system.debug(creditDeleteMap);
+    //Account
+    List<Account> accList = new List<Account>();
+    for(Account acc : [Select Id, Balance_Due__c From Account WHERE Id IN: debitMap.keySet() OR Id IN: creditMap.keySet() OR Id IN: creditDeleteMap.keySet() OR Id IN: debitDeleteMap.keySet()]){
+        if(acc.Balance_Due__c != null){
+            acc.Adjustments_Applied__c =  acc.Balance_Due__c + (debitMap.get(acc.Id) != null ? debitMap.get(acc.Id) : 0) - (creditMap.get(acc.Id) != null ? creditMap.get(acc.Id) : 0) - (debitDeleteMap.get(acc.Id) != null ? debitDeleteMap.get(acc.Id) : 0) + (creditDeleteMap.get(acc.Id) != null ? creditDeleteMap.get(acc.Id) : 0);
+            acc.Balance_Due__c =  acc.Balance_Due__c + (debitMap.get(acc.Id) != null ? debitMap.get(acc.Id) : 0) - (creditMap.get(acc.Id) != null ? creditMap.get(acc.Id) : 0) - (debitDeleteMap.get(acc.Id) != null ? debitDeleteMap.get(acc.Id) : 0) + (creditDeleteMap.get(acc.Id) != null ? creditDeleteMap.get(acc.Id) : 0);
+        }else{
+            acc.Adjustments_Applied__c = (debitMap.get(acc.Id) != null ? debitMap.get(acc.Id) : 0) - (creditMap.get(acc.Id) != null ? creditMap.get(acc.Id) : 0) - (debitDeleteMap.get(acc.Id) != null ? debitDeleteMap.get(acc.Id) : 0) + (creditDeleteMap.get(acc.Id) != null ? creditDeleteMap.get(acc.Id) : 0);
+            acc.Balance_Due__c =  (debitMap.get(acc.Id) != null ? debitMap.get(acc.Id) : 0) - (creditMap.get(acc.Id) != null ? creditMap.get(acc.Id) : 0) - (debitDeleteMap.get(acc.Id) != null ? debitDeleteMap.get(acc.Id) : 0) + (creditDeleteMap.get(acc.Id) != null ? creditDeleteMap.get(acc.Id) : 0);
+        }
+        accList.add(acc);
+    }
+    //Contact
+    List<Contact> conList = new List<Contact>();
+    for(Contact con : [Select Id, Balance_Due__c From Contact WHERE Id IN: debitMap.keySet() OR Id IN: creditMap.keySet() OR Id IN: creditDeleteMap.keySet() OR Id IN: debitDeleteMap.keySet()]){
+        if(con.Balance_Due__c != null){
+            con.Adjustments_Applied__c =  con.Balance_Due__c + (debitMap.get(con.Id) != null ? debitMap.get(con.Id) : 0) - (creditMap.get(con.Id) != null ? creditMap.get(con.Id) : 0) - (debitDeleteMap.get(con.Id) != null ? debitDeleteMap.get(con.Id) : 0) + (creditDeleteMap.get(con.Id) != null ? creditDeleteMap.get(con.Id) : 0);
+            con.Balance_Due__c =  con.Balance_Due__c + (debitMap.get(con.Id) != null ? debitMap.get(con.Id) : 0) - (creditMap.get(con.Id) != null ? creditMap.get(con.Id) : 0) - (debitDeleteMap.get(con.Id) != null ? debitDeleteMap.get(con.Id) : 0) + (creditDeleteMap.get(con.Id) != null ? creditDeleteMap.get(con.Id) : 0);
+        }else{
+           con.Adjustments_Applied__c = (debitMap.get(con.Id) != null ? debitMap.get(con.Id) : 0) - (creditMap.get(con.Id) != null ? creditMap.get(con.Id) : 0) - (debitDeleteMap.get(con.Id) != null ? debitDeleteMap.get(con.Id) : 0) + (creditDeleteMap.get(con.Id) != null ? creditDeleteMap.get(con.Id) : 0);
+           con.Balance_Due__c =  (debitMap.get(con.Id) != null ? debitMap.get(con.Id) : 0) - (creditMap.get(con.Id) != null ? creditMap.get(con.Id) : 0) - (debitDeleteMap.get(con.Id) != null ? debitDeleteMap.get(con.Id) : 0) + (creditDeleteMap.get(con.Id) != null ? creditDeleteMap.get(con.Id) : 0);
+        }
+        conList.add(con);
+    }
+    //Transaction
+    List<Opportunity> oppList = new List<Opportunity>();
+    for(Opportunity opp : [Select Id, Balance_Due__c From Opportunity WHERE Id IN: debitMap.keySet() OR Id IN: creditMap.keySet() OR Id IN: creditDeleteMap.keySet() OR Id IN: debitDeleteMap.keySet()]){
+        if(opp.Balance_Due__c != null){
+            opp.Adjustments_Applied__c = opp.Balance_Due__c + (debitMap.get(opp.Id) != null ? debitMap.get(opp.Id) : 0) - (creditMap.get(opp.Id) != null ? creditMap.get(opp.Id) : 0) - (debitDeleteMap.get(opp.Id) != null ? debitDeleteMap.get(opp.Id) : 0) + (creditDeleteMap.get(opp.Id) != null ? creditDeleteMap.get(opp.Id) : 0);
+            opp.Balance_Due__c = opp.Balance_Due__c + (debitMap.get(opp.Id) != null ? debitMap.get(opp.Id) : 0) - (creditMap.get(opp.Id) != null ? creditMap.get(opp.Id) : 0) - (debitDeleteMap.get(opp.Id) != null ? debitDeleteMap.get(opp.Id) : 0) + (creditDeleteMap.get(opp.Id) != null ? creditDeleteMap.get(opp.Id) : 0);
+        }else{
+            opp.Adjustments_Applied__c = (debitMap.get(opp.Id) != null ? debitMap.get(opp.Id) : 0) - (creditMap.get(opp.Id) != null ? creditMap.get(opp.Id) : 0) - (debitDeleteMap.get(opp.Id) != null ? debitDeleteMap.get(opp.Id) : 0) + (creditDeleteMap.get(opp.Id) != null ? creditDeleteMap.get(opp.Id) : 0);
+            opp.Balance_Due__c = (debitMap.get(opp.Id) != null ? debitMap.get(opp.Id) : 0) - (creditMap.get(opp.Id) != null ? creditMap.get(opp.Id) : 0) - (debitDeleteMap.get(opp.Id) != null ? debitDeleteMap.get(opp.Id) : 0) + (creditDeleteMap.get(opp.Id) != null ? creditDeleteMap.get(opp.Id) : 0);
+        }
+        oppList.add(opp);
+    }
+    //Statement
+    List<Statement__c> stmList = new List<Statement__c>();
+    for(Statement__c st : [Select Id, Balance_Due__c From Statement__c WHERE Id IN: debitMap.keySet() OR Id IN: creditMap.keySet() OR Id IN: creditDeleteMap.keySet() OR Id IN: debitDeleteMap.keySet()]){
+        if(st.Balance_Due__c != null){
+            st.Adjustments_Applied__c = st.Balance_Due__c + (debitMap.get(st.Id) != null ? debitMap.get(st.Id) : 0) - (creditMap.get(st.Id) != null ? creditMap.get(st.Id) : 0) - (debitDeleteMap.get(st.Id) != null ? debitDeleteMap.get(st.Id) : 0) + (creditDeleteMap.get(st.Id) != null ? creditDeleteMap.get(st.Id) : 0);
+            st.Balance_Due__c = st.Balance_Due__c + (debitMap.get(st.Id) != null ? debitMap.get(st.Id) : 0) - (creditMap.get(st.Id) != null ? creditMap.get(st.Id) : 0) - (debitDeleteMap.get(st.Id) != null ? debitDeleteMap.get(st.Id) : 0) + (creditDeleteMap.get(st.Id) != null ? creditDeleteMap.get(st.Id) : 0);
+        }else{
+            st.Adjustments_Applied__c = (debitMap.get(st.Id) != null ? debitMap.get(st.Id) : 0) - (creditMap.get(st.Id) != null ? creditMap.get(st.Id) : 0) - (debitDeleteMap.get(st.Id) != null ? debitDeleteMap.get(st.Id) : 0) + (creditDeleteMap.get(st.Id) != null ? creditDeleteMap.get(st.Id) : 0);
+            st.Balance_Due__c = (debitMap.get(st.Id) != null ? debitMap.get(st.Id) : 0) - (creditMap.get(st.Id) != null ? creditMap.get(st.Id) : 0) - (debitDeleteMap.get(st.Id) != null ? debitDeleteMap.get(st.Id) : 0) + (creditDeleteMap.get(st.Id) != null ? creditDeleteMap.get(st.Id) : 0);
+        }
+        stmList.add(st);
+    }
+    
+    if(accList.size()>0) update accList;
+    if(conList.size()>0) update conList;
+    if(oppList.size()>0){
+        ApexUtil.OpportunityUnlock_Is_Enabled = false;
+        update oppList;
+    }
+    if(stmList.size()>0){
+        ApexUtil.StatementTrigger_Is_Enabled = false;
+        update stmList;
+    }
+}
