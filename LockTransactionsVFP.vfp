@@ -1,0 +1,32 @@
+<apex:page standardController="Opportunity" showHeader="false" sideBar="false" standardStylesheets="false" recordSetVar="opps">
+  <apex:includeScript value="/soap/ajax/36.0/connection.js"/>
+  <apex:includeScript value="/soap/ajax/36.0/apex.js"/>
+  <div style="text-align:center;">
+  	<strong>Locking...</strong>
+  </div>  
+<script>
+    sforce.connection.sessionId="{!GETSESSIONID()}"; 
+    var opps = new Array();
+</script>
+<apex:repeat value="{!selected}" var="opp">
+    <script>
+    opps.push('{!opp}');
+	</script>
+</apex:repeat>
+<script>
+    console.log(opps);
+    var result = sforce.apex.execute("LockRecords","transactionsLockLightning",{oppsId: opps, lock:true}); 
+    if(!result[0].toString().includes('Error')){
+      if( (typeof sforce != 'undefined') && sforce && (!!sforce.one) ) {
+          sforce.one.navigateToList('00B6A000007EElJUAW','All','Opportunity');
+      }
+      else {
+          //window.opener.location.href = "/"+result[0];
+          window.top.close();
+      }
+    }   
+    else{
+      alert("An error occurred while creating Invoice. Please contact your Administrator.");
+    }
+  </script>
+</apex:page>
