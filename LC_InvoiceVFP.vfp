@@ -1,0 +1,351 @@
+<apex:page standardController="Invoice__c" extensions="LF_InvoiceController" renderAs="pdf" showHeader="false" sidebar="false" standardStylesheets="false" applyBodyTag="false" applyHtmlTag="false">
+    <head>
+        <style  type="text/css" media="print">
+
+            @page {
+            	font-family: Arial, Helvetica, sans-serif;
+                @top-center {
+                    content: element(header);
+                }
+            
+                @bottom-center {
+                    content: element(footer);
+                }
+                padding-top: 150px;
+            	margin-bottom: 200px;
+            }
+            
+            div.header {
+                padding: 10px;
+                margin-top: 30px;
+                position: running(header);
+            }
+            
+            div.footer {
+                display: block;
+                padding: 5px;
+                position: running(footer);
+            }
+            
+            .pagenumber:before {
+                content: counter(page);
+            }
+            
+            .pagecount:before {
+                content: counter(pages);
+            }
+
+            body{
+                font-size: 14px;
+            }
+
+            .content table{
+                width: 100%;
+            }
+
+            /* Header */
+            .header{
+                padding: 10px 0px 10px 0px;
+            }
+
+            .enterpriseData{
+                font-weight: bold;
+                font-size: 14px;
+            }
+
+            .enterpriseData span{
+                width: 165px;
+                display: inline-block;
+            }
+
+            /* Title */
+            .title{
+                font-weight: bold;
+                font-size: 20px;
+                text-align: center;
+                padding: 14px 0px 5px 0px;
+            }
+            .subtitle{
+                font-weight: bold;
+                font-size: 18px;
+                text-align: center;
+                padding: 2px 0px 6px 0px;
+            }
+
+            .content{
+                margin-top: 15px;
+            }
+
+            .tableLayoutFoot{
+                width: 325px;
+                margin-top: 90px;
+                padding: 10px;
+            }
+
+            #contentDetail tr td{
+                padding: 2px 0px 2px 0px;
+                vertical-align: top;
+                font-size: 13px;
+            }
+            
+            .right {
+                text-align: right;
+            }
+            
+            .left {
+                text-align: left;
+            }
+            
+            .centered {
+                text-align: center;
+            }
+            
+            .bottom {
+                margin-top: 185px;
+            }
+        </style>
+    </head>
+	<body>
+        <div class="header" style="font-family: Arial, Helvetica, sans-serif;">
+            <table width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td class="enterpriseData" style="text-align: center;font-size:12px;">
+                        LINK CRUDE RESOURCES, LLC
+                        <br /><span style="text-transform:uppercase;">{!$Organization.Street}</span>
+                        <br /><span style="text-transform:uppercase;">{!$Organization.City}, {!$Organization.State} {!$Organization.PostalCode}</span>
+                        <br /><span>{!$Organization.Phone}</span><span style="margin-left:5px;">{!$Organization.Fax}</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;font-size:11px;padding-top:18px;">
+                        <span>INVOICE FOR SERVICES RENDERED</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;font-size:11px;padding-top:18px;">
+                        <span>BROKERAGE COMMISSION</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;font-size:11px;padding-top:13px;">
+                        <span>DATE: 
+                        <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                            <apex:param value="{!TODAY()}" />
+                        </apex:outputText>
+                        </span>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="footer">
+            <div style="text-align: left;font-family: Arial, Helvetica, sans-serif;font-size:11px;padding-bottom:20px;">
+                Payment Instructions: <br/>
+                Wells Fargo Bank, NA <br/>
+                420 Montgomery <br/>
+                San Francisco, CA 94104 <br/>
+                RTN #. 111900659 (for ACH deposits) <br/>
+                ABA #. 121000248 (for Wire Transfer deposits) <br/>
+                Account #. 1060928379 <br/>
+                Account of: Link Crude Resources, LLC <br/>           
+            </div>
+            <br/>
+            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-family: Arial, Helvetica, sans-serif;">
+                <tr>
+                    <td style="text-align: center;font-style: oblique;font-size:11px;padding-bottom:10px;">
+                        LINK CRUDE RESOURCES, LLC TAX ID # : 57-1139912
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;font-style: oblique;font-weight:bold;font-size:12px;">
+                        PLEASE INCLUDE TRANSACTION NUMBER ON ALL CORRESPONDENCE
+                    </td>
+                </tr>
+            </table>
+        </div>
+    
+        <div class="content" style="font-family: Arial, Helvetica, sans-serif;">
+            
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;font-size: 12px;">
+                <tr>
+                    <td width="8%" style="vertical-align: top; font-size: 11px;">
+                        <b style="font-style: oblique;">TO:</b>
+                    </td>
+                    <td colspan="5" style="font-size: 11px;">
+                        {!inv.Account__r.Name} <br/>
+                        {!inv.Account__r.BillingStreet} <br/><br/>
+                        {!inv.Account__r.Website} <br/>
+                        {!inv.Account__r.BillingCity}, {!inv.Account__r.BillingState} {!inv.Account__r.BillingPostalCode}  
+                    </td>
+                </tr>
+            </table>
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;font-size: 12px;">
+                <tr>
+                    <td style="width:33.3%;padding: 6px 0px 3px 0px;">
+                        <span><b style="font-style: oblique;">ATTN: </b></span>
+                        <span style="padding-left:17px;font-size: 11px;">
+                            {!attn.Name}
+                        </span>
+                    </td>
+                    <td style="width:28.3%;padding: 6px 0px 3px 0px;">
+                        <span><b style="font-style: oblique;">FAX: </b></span>
+                        <span style="padding-left:5px;font-size: 11px;">
+                        	{!attn.Fax}
+                        </span>
+                    </td>
+                    <td style="width:38.3%;padding: 6px 0px 3px 0px;">
+                        <span><b style="font-style: oblique;">EMAIL: </b></span>
+                        <span style="padding-left:5px;font-size: 11px;">
+                        	{!attn.Email}
+                        </span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:33.3%;padding: 20px 0px 20px 0px; border-bottom:1px solid #000;">
+                        <span><b style="font-style: oblique;">TRADER: </b></span>
+                        <span style="font-size: 11px;">
+                        	{!IF(inv.Role__c=='Seller',inv.Transaction_Number__r.Trader_for_Seller__r.Name,inv.Transaction_Number__r.Trader_for_Buyer__r.Name)}
+                        </span>
+                    </td>
+                    <td style="width:28.3%;padding: 20px 0px 20px 0px;border-bottom:1px solid #000;">
+                        <span><b style="font-style: oblique;">FAX: </b></span>
+                        <span style="padding-left:5px;font-size: 11px;">
+                        	{!IF(inv.Role__c=='Seller',inv.Transaction_Number__r.Trader_for_Seller__r.Fax,inv.Transaction_Number__r.Trader_for_Buyer__r.Fax)}
+                        </span>
+                    </td>
+                    <td style="width:38.3%;padding: 20px 0px 20px 0px;border-bottom:1px solid #000;">
+                        <span><b style="font-style: oblique;">EMAIL: </b></span>
+                        <span style="padding-left:5px;font-size: 11px;">
+                        	{!IF(inv.Role__c=='Seller',inv.Transaction_Number__r.Trader_for_Seller__r.Email,inv.Transaction_Number__r.Trader_for_Buyer__r.Email)}
+                        </span>
+                    </td>
+                </tr>
+            </table>
+           
+            <table border="0" cellpadding="0" cellspacing="0" style="margin-top:30px;width:100%;font-size: 12px;">
+                <tr>
+                    <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                        LINK CRUDE TRANS #:
+                    </td>
+                    <td style="text-align:left;font-weight:bold;padding-top:8px;">
+                        {!opp.Name}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                        TRANSACTION DATE:
+                    </td>
+                    <td style="text-align:left;padding-top:8px;">
+                        {!closingDate}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                        PIPELINE:
+                    </td>
+                    <td style="text-align:left;padding-top:8px;">
+                        {!opp.Pipeline_link__c}
+                    </td>
+                </tr>
+                <!--<tr>
+                    <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                        ENTERPRISE:
+                    </td>
+                    <td style="text-align:left;padding-top:8px;">
+                        {!opp.Account.Name}
+                    </td>
+                </tr>-->
+                <tr>
+                    <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                        SELLER:
+                    </td>
+                    <td style="text-align:left;padding-top:8px;">
+                        {!inv.Transaction_Number__r.Seller__r.Name}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                        BUYER:
+                    </td>
+                    <td style="text-align:left;padding-top:8px;">
+                        {!inv.Transaction_Number__r.Account.Name}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                        CRUDE TYPE:
+                    </td>
+                    <td style="text-align:left;padding-top:8px;">
+                        {!opp.Product_Name__c}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                        DATE OF MOVEMENT:
+                    </td>
+                    <td style="text-align:left;padding-top:8px;">
+                        {!deliveryDate}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                        LOCATION:
+                    </td>
+                    <td style="text-align:left;padding-top:8px;">
+                        {!opp.Location__c}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                        VOLUME:
+                    </td>
+                    <td style="text-align:left;padding-top:8px;">
+                        {!opp.Volume_BBL_Day_New__c} BARRELS PER DAY
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;vertical-align:top;">
+                        PRICE:
+                    </td>
+                    <td style="text-align:left;padding-top:8px;">
+                        <!--{!IF(opp.Price_Type__c <> 'Formula Price','x$' + TEXT(opp.Product_Price__c) + ' USD Per Barrel','')} -->
+                        <apex:outputText value="${0,number,###,##0.00} USD Per Barrel" rendered="{!IF(inv.Transaction_Number__r.Price_Type__c <> 'Formula Price',true,false)}">
+                            <apex:param value="{!IF(inv.Transaction_Number__r.Product_Price__c <> null,inv.Transaction_Number__r.Product_Price__c,0)}"/>
+                        </apex:outputText>
+                        <br/><br/>
+                        {!opp.Cost_Per_Unit_Formula_Verbiage__c}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                        COMMISSION:
+                    </td>
+                    <td style="text-align:left;padding-top:8px;">
+                        ${!IF(inv.Role__c=='seller',comm.Seller_Commission__c,comm.Buyer_Commission__c)} USD Per Barrel
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                        PLEASE REMIT:
+                    </td>
+                    <td style="text-align:left;padding-top:8px;">
+                        <!--${!opp.Cost_Per_Unit__c}-->
+                        <apex:outputText value="${0,number,###,##0.00}">
+                            <apex:param value="{!IF(inv.Balance_Due__c <> null,inv.Balance_Due__c,0)}"/>
+                        </apex:outputText>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                        TERMS:
+                    </td>
+                    <td style="text-align:left;padding-top:8px;">
+                        {!opp.Payment_Terms_Verbiage__c}
+                    </td>
+                </tr>
+            </table>
+
+        </div>
+
+	</body>
+</apex:page>
