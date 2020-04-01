@@ -1,0 +1,285 @@
+<apex:page standardController="Invoice__c" extensions="LF_InvoiceController" renderAs="pdf" applyHtmlTag="false" applyBodyTag="false" standardStylesheets="false" showHeader="false" >
+    <head>
+        <style>
+
+            body{
+                font-size: 14px;
+                /*font-family: 'Arial Unicode MS';*/
+            }
+
+            @page {
+                size:landscape;
+                @top-center {
+                    content: element(header);
+                }
+                padding: 116px 20px 50px 20px;
+            }
+
+            div.header {
+                padding: 10px;
+                margin-top: 45px;
+                position: running(header);
+            }
+
+            /* Header */
+            .header{
+                border-bottom: 2px solid gray;
+                border-top: 1px solid gray;
+                padding: 10px 0px 10px 0px;
+            }
+
+            .enterpriseData{
+                font-weight: bold;
+                font-size: 14px;
+            }
+
+            .enterpriseData span{
+                width: 165px;
+                display: inline-block;
+            }
+
+            /* Title */
+            .title{
+                font-weight: bold;
+                font-size: 20px;
+                text-align: center;
+                padding: 14px 0px 5px 0px;
+            }
+            .subtitle{
+                font-weight: bold;
+                font-size: 18px;
+                text-align: center;
+                padding: 2px 0px 6px 0px;
+            }
+
+            .content{
+                margin-top: 5px;
+                text-align: center;
+                font-size: 13px;
+            }
+
+            .tableLayoutFoot{
+                width: 325px;
+                margin-top: 10px;
+                padding: 10px;
+                font-size: 12px;
+            }
+        </style>
+    </head>
+
+    <div class="header">
+        <table width="100%" cellspacing="0" cellpadding="0">
+            <tr>
+                <td class="enterpriseData">
+                    LINK FUTURES, LLC
+                    <br /><span style="text-transform:uppercase;">{!$Organization.Street}</span>
+                    <br /><span style="text-transform:uppercase;">{!$Organization.City}, {!$Organization.State} {!$Organization.PostalCode}</span>
+                    <br />Phone: {!$Organization.Phone}
+                    <br />Fax: {!$Organization.Fax}
+                </td>
+                <td class="enterpriseData" style="text-align: right; vertical-align: top;">
+                    <div>
+                        <span>INVOICE DATE:</span> {!invoiceDate}
+                    </div>
+                    <div>
+                        <span>CLOSING DATE:</span> {!closingDate}
+                    </div>
+                    <div>
+                        <span>DUE DATE:</span> {!dueDate}
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="title">
+        INVOICE
+    </div>
+
+    <div class="content">
+        
+        <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom: 45px;">
+            <tr>
+                <td width="15%" style="vertical-align: top; font-size: 18px;">
+                    <b>ATTN:</b>
+                </td>
+                <td width="50%" colspan="5" style="font-size: 18px; text-align: left;">
+                    {!IF(type_z=='seller',opp.Seller__r.Name,opp.Account.Name)}
+                    <br /><apex:outputText escape="false">{!IF(type_z=='seller',sellerContact.Contact.MailingStreet,buyerContact.Contact.MailingStreet)}</apex:outputText>
+                    <br />{!IF(type_z=='seller',sellerContact.Contact.MailingCity,buyerContact.Contact.MailingCity)}, {!IF(type_z=='seller',sellerContact.Contact.MailingState,buyerContact.Contact.MailingState)} {!IF(type_z=='seller',sellerContact.Contact.MailingPostalCode,buyerContact.Contact.MailingPostalCode)}
+                </td>
+                <td width="35%" style="text-align: right; font-size: 18px; font-weight: bold; vertical-align: top;">
+                    INVOICE #&nbsp;{!inv.Name}
+                </td>
+            </tr>
+        </table>
+
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+            <tr>
+                <td colspan="6" style="border-bottom: 3px solid black; padding: 4px 0px 6px 0px; font-weight: bold; text-align: left;">
+                    <i>&nbsp;&nbsp;Item Type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Transactions (Buy or Sell)</i>
+                </td>
+            </tr>
+            <tr>
+                <td width="10%" style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: left; font-style: italic;">Trx. Date</td>
+                <td width="10%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: left; font-style: italic;">Link Ref. #</td>
+                <td width="14%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: left; font-style: italic;">EXCHANGE ID:</td>
+                <td width="48%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: left; font-style: italic;">Description: </td>
+                <td width="9%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: center; font-style: italic;">Debits</td>
+                <td width="9%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: right; font-style: italic;">Credits</td>
+            </tr>
+            <tr>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">{!closingDate}</td>
+                <td style="border-bottom: 1px solid black; font-weight: bold; text-align: left; padding: 5px 0px 5px 0px;">{!inv.Transaction_Number__r.Name}</td>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;"></td>
+                <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;"></td>
+                <td style="border-bottom: 1px solid black; text-align: center; padding: 5px 0px 5px 0px;">$0.00</td>
+                <td style="border-bottom: 1px solid black; text-align: right; padding: 5px 0px 5px 0px;">$0.00</td>
+            </tr>
+
+            <tr>
+                <td colspan="3"></td>
+                <td style="font-weight: bold; padding: 4px 0px 4px 0px; font-style: italic; text-align: left;">Transactions Received: </td>
+                <td style="font-weight: bold; text-align: center; font-style: italic;">$0.00</td>
+                <td style="font-weight: bold; text-align: right; font-style: italic;">$0.00</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div style="page-break-after:always;"/>
+
+    <div class="title">
+        INVOICE
+    </div>
+
+    <div class="content">
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 45px;">
+            <tr>
+                <td width="50%" style="text-align: left; font-size: 18px; vertical-align: top;">
+                    <b>{!inv.Account__r.Name}</b>
+                    <br /><apex:outputText escape="false">{!inv.Account__r.BillingStreet}</apex:outputText>
+                    <br />{!inv.Account__r.BillingCity}, {!inv.Account__r.BillingState} {!inv.Account__r.BillingPostalCode}
+                </td>
+                <td width="50%" style="text-align: right; font-size: 18px; font-weight: bold; vertical-align: top;">
+                    INVOICE #&nbsp;{!inv.Name}
+                </td>
+            </tr>
+        </table>
+
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+            <tr>
+                <td colspan="6" style="border-bottom: 3px solid black; padding: 4px 0px 6px 0px; font-weight: bold; text-align: left;">
+                    <i>&nbsp;&nbsp;Item Type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Payments (Buy or Sell)</i>
+                </td>
+            </tr>
+            <tr>
+                <td width="10%" style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: left; font-style: italic;">Trx. Date</td>
+                <td width="10%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: left; font-style: italic;">Link Ref. #</td>
+                <td width="14%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: left; font-style: italic;">EXCHANGE ID:</td>
+                <td width="48%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: left; font-style: italic;">Description: </td>
+                <td width="9%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: center; font-style: italic;">Debits</td>
+                <td width="9%"  style="padding: 6px 0px 6px 0px; border-bottom: 2px solid black; text-align: right; font-style: italic;">Credits</td>
+            </tr>
+            
+            <apex:repeat value="{!lstOpportunities}" var="opp">
+                <tr>
+                    <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">{!opp.CloseDate_text__c}</td>
+                    <td style="border-bottom: 1px solid black; font-weight: bold; text-align: left; padding: 5px 0px 5px 0px;">{!opp.Name}</td>
+                    <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">{!opp.Exchange_ID__c}</td>
+                    <td style="border-bottom: 1px solid black; text-align: left; padding: 5px 0px 5px 0px;">{!type_z}, {!opp.Description}</td>
+                    <td style="border-bottom: 1px solid black; text-align: center; padding: 5px 0px 5px 0px;">${!opp.Debits__c}</td>
+                    <td style="border-bottom: 1px solid black; text-align: right; padding: 5px 0px 5px 0px;">$0.00</td>
+                </tr>
+            </apex:repeat>
+
+            <tr>
+                <td colspan="3"></td>
+                <td style="font-weight: bold; padding: 4px 0px 4px 0px; font-style: italic; text-align: left;">Payments Received: </td>
+                <td style="font-weight: bold; text-align: center; font-style: italic;">${!totalDebits}</td>
+                <td style="font-weight: bold; text-align: right; font-style: italic;">${!totalCredits}</td>
+            </tr>
+        </table>
+    </div>
+        
+    <div style="page-break-after:always;"/>
+
+    <div style="font-weight: bold; font-size: 18px; text-align: center; padding-bottom: 2px;">
+        INVOICE
+    </div>
+    <div style="font-weight: bold; font-size: 16px; text-align: center; padding-bottom: 2px;">
+        {!inv.Account__r.Name}
+    </div>
+    
+    <div class="content" style="text-align: center;">
+        <div style="text-align: right;">
+            <h3>INVOICE #&nbsp;{!inv.Name}</h3>
+        </div>
+        <div style="font-weight: bold; text-decoration: underline; text-align: center; font-size: 1.4em; margin-bottom: 12px; margin-top: 15px;">
+            ACCOUNT SUMMARY
+        </div>
+        <div style="display: inline-block;">
+            <table width="418" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td width="178"></td>
+                    <td width="120" style="text-align: right; font-weight: bold; text-decoration: underline;">Activity</td>
+                    <td width="120" style="text-align: right; font-weight: bold; text-decoration: underline;">Balance</td>
+                </tr>
+                <tr>
+                    <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Beginning Balance: </td>
+                    <td style="text-align: right;">$0.00</td>
+                    <td style="text-align: right;">${!totalDebits}</td>
+                </tr>
+                <tr>
+                    <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Payments Received: </td>
+                    <td style="text-align: right;">$0.00</td>
+                    <td style="text-align: right;">${!totalCredits}</td>
+                </tr>
+                <tr>
+                    <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Transactions: </td>
+                    <td style="text-align: right;">$0.00</td>
+                    <td style="text-align: right;">${!totalAmount}</td>
+                </tr>
+                <tr>
+                    <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Adjustments: </td>
+                    <td style="text-align: right;">$0.00</td>
+                    <td style="text-align: right;">${!totalAmount}</td>
+                </tr>
+                <tr>
+                    <td style="text-align: left; font-weight: bold; padding: 6px 0px 12px 0px;">Ending Balance: </td>
+                    <td style="text-align: right;"></td>
+                    <td style="text-align: right;">${!totalAmount}</td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="text-align: left; font-weight: bold; font-size: 14px; border: 2px solid black; border-right: none; padding: 6px 0px 6px 4px;">
+                        PLEASE PAY THIS AMOUNT
+                    </td>
+                    <td style="text-align: right; font-weight: bold; font-size: 14px; border: 2px solid black; border-left: none; padding: 6px 4px 6px 0px;">
+                        ${!totalAmount}
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <div style="text-align: left;">
+        <div class="tableLayoutFoot">
+            <b>MAKE CHECKS PAYABLE TO: </b>
+            <div style="padding-bottom: 3px;">Link Crude Resources, LLC</div>
+            <b>WIRE INSTRUCTIONS: </b>
+            <br />Wells Fargo Bank, NA
+            <br />420 Montgomery
+            <br />San Fracisco, CA 94104
+            <br />RTN #. 111900659 (for ACH deposits)
+            <br />ABA #. 121000248 (for Wire Transfer deposits)
+            <br />Account #. 10609928379
+            <br />Account of: Link Crude Resources, LLC
+            <br />Account Inquiries:
+            <br />Lorie Zachary
+            <br />support@linkcrude.com
+            <br /><span>Direct:</span> 281-340-6123
+            <br /><span>Fax: </span>281-565-5461
+        </div>
+    </div>
+
+</apex:page>
