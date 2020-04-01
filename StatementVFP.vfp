@@ -1,0 +1,1125 @@
+<apex:page standardController="Statement__c" extensions="StatementController" action="{!updateStatement}" renderAs="pdf" applyHtmlTag="false" applyBodyTag="false" standardStylesheets="false" showHeader="false">
+    <head>
+        <style>
+            body{
+                font-size: 14px;
+                font-family: Arial, Helvetica, sans-serif;
+            }
+
+            @page {
+                size: {!IF(Statement__c.Include_invoices__c == 'Yes','vertical','landscape')};
+                @top-center {
+                    content: element(header);
+                }
+                padding: 0px 20px 30px 0px;
+                @bottom-center {
+                    content: element(footer);
+                }
+            }
+            /*div.header {
+                padding: 10px;
+                margin-top: 45px;
+                position: running(header);
+            }*/
+            div.footer {
+                font-size:10px;
+                display: block;
+                padding: 5px;
+                margin-bottom:50px;
+                position: running(footer);
+            }
+            .pagenumber:before {
+                content: counter(page);
+            }
+            .pagecount:before {
+                content: counter(pages);
+            }
+
+            /* Header */
+            /*.header{
+                border-top: 2px solid gray;
+                border-bottom: 1px solid gray;
+                padding: 10px 0px 10px 0px;
+            }*/
+            .headerAux{
+                border-top: 2px solid gray;
+                border-bottom: 1px solid gray;
+                padding: 10px 0px 10px 0px;
+                margin-bottom:10px;
+            }
+
+            .enterpriseData{
+                font-weight: bold;
+                font-size: 16px;
+                width: 50%;
+            }
+
+            /* Title */
+            .title{
+                font-weight: bold;
+                font-size: 20px;
+                text-align: center;
+                padding: 0px 0px 5px 0px;
+                margin-top: 0px;
+            }
+            .subtitle{
+                font-weight: bold;
+                font-size: 18px;
+                text-align: center;
+                padding: 2px 0px px 0px;
+            }
+            .sub-content{font-size:16px;margin-bottom:10px;}
+            .content{font-size:12px;}
+            .invoice-number{font-size:20px;font-weight:bold;text-align:right;}
+        </style>
+    </head>
+        <apex:variable var="total5" value="{!0}" />
+        <apex:variable var="total3" value="{!0}" />
+        <apex:variable var="totalDebits" value="{!0}" />
+        <apex:variable var="totalCredits" value="{!0}" />
+        <div class="header">
+            <!--<table width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td width="50%" class="enterpriseData">
+                        <span style="text-transform:uppercase;">{!$Organization.Name}</span>
+                        <br /><span style="text-transform:uppercase;">{!$Organization.Street}</span>
+                        <br /><span style="text-transform:uppercase;">{!$Organization.City}, {!$Organization.State} {!$Organization.PostalCode}</span>
+                        <br />Phone: {!$Organization.Phone}
+                        <br />Fax: {!$Organization.Fax}
+                    </td>
+                    <td width="50%" class="enterpriseData" style="text-align: right; vertical-align: top;">
+                        <div>
+                            <span>STATEMENT DATE:</span>&nbsp;
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!Statement__c.Statement_Date__c}" />
+                            </apex:outputText>
+                        </div>
+                        <div>
+                            <span>CLOSING DATE:</span>&nbsp;
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!Statement__c.Closing_Date__c}" />
+                            </apex:outputText>
+                        </div>
+                        <div>
+                            <span>DUE DATE:</span>&nbsp;
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!Statement__c.Due_Date__c}" />
+                            </apex:outputText>
+                        </div>
+                    </td>
+                </tr>
+            </table>-->
+        </div>
+        <div class="footer">
+            <div style="text-align:center;">
+                <div style="float:left;font-style:italic;font-weight:bold;">
+                    {!dayOfWeek},&nbsp;
+                    <apex:outputText value="{0, date, MMMM dd', 'yyyy}">
+                        <apex:param value="{!TODAY()}" />
+                    </apex:outputText>
+                </div>
+                <div style="float:right;font-style:italic;font-weight:bold;">
+                    Page <span class="pagenumber"/> of <span class="pagecount"/>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="headerAux">
+                <table width="100%" cellspacing="0" cellpadding="0" style="{!IF(Statement__c.Include_invoices__c == 'Yes','','display:none;')}">
+                    <tr>
+                        <td width="50%" class="enterpriseData">
+                            <span style="text-transform:uppercase;">{!$Organization.Name}</span>
+                            <br /><span style="text-transform:uppercase;">{!$Organization.Street}</span>
+                            <br /><span style="text-transform:uppercase;">{!$Organization.City}, {!$Organization.State} {!$Organization.PostalCode}</span>
+                            <br />Phone: {!$Organization.Phone}
+                            <br />Fax: {!$Organization.Fax}
+                        </td>
+                        <td width="50%" class="enterpriseData" style="text-align: right; vertical-align: top;">
+                            <div>
+                                <span>STATEMENT DATE:</span>&nbsp;
+                                <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                    <apex:param value="{!Statement__c.Statement_Date__c}" />
+                                </apex:outputText>
+                            </div>
+                            <div>
+                                <span>CLOSING DATE:</span>&nbsp;
+                                <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                    <apex:param value="{!Statement__c.Closing_Date__c}" />
+                                </apex:outputText>
+                            </div>
+                            <div>
+                                <span>DUE DATE:</span>&nbsp;
+                                <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                    <apex:param value="{!Statement__c.Due_Date__c}" />
+                                </apex:outputText>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+                <table width="100%" cellspacing="0" cellpadding="0" style="{!IF(Statement__c.Include_invoices__c == 'Yes','display:none;','')}">
+                    <tr>
+                        <td style="width:30%;"></td>
+                        <td class="enterpriseData" style="text-align: center;font-size:12px;width:40%;">
+                            <apex:outputText value="{!IF(recordTypeName=='Link Futures','LINK FUTURES','LINK CRUDE RESOURCES')}, LLC" />
+                            <br /><span style="text-transform:uppercase;">{!$Organization.Street}</span>
+                        	<br /><span style="text-transform:uppercase;">{!$Organization.City}, {!$Organization.State} {!$Organization.PostalCode}</span>
+                            <br /><span>Phone: {!$Organization.Phone}</span><span style="margin-left:20px;">Fax: {!$Organization.Fax}</span>
+                        </td>
+                        <td style="width:30%;text-align:right;font-size:12px;font-weight:bold;">
+                            <div>
+                                <span>STATEMENT DATE:</span>&nbsp;
+                                <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                    <apex:param value="{!Statement__c.Statement_Date__c}" />
+                                </apex:outputText>
+                            </div>
+                            <div>
+                                <span>CLOSING DATE:</span>&nbsp;
+                                <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                    <apex:param value="{!Statement__c.Closing_Date__c}" />
+                                </apex:outputText>
+                            </div>
+                            <div>
+                                <span>DUE DATE:</span>&nbsp;
+                                <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                    <apex:param value="{!Statement__c.Due_Date__c}" />
+                                </apex:outputText>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="title">
+                STATEMENT
+            </div>
+            <div class="invoice-number">
+                <apex:outputText value="INVOICE # {0, date, MMddyy}" rendered="{!IF(Statement__c.Account__r.Include_invoice__c == true,true,false)}">
+                    <apex:param value="{!Statement__c.Closing_Date__c}" />
+                </apex:outputText>
+            </div>
+            <div class="sub-content">
+                <span style="font-weight:bold;">{!Statement__c.Account__r.Name}</span><br/>
+                <span><apex:outputText value="{!SUBSTITUTE(SUBSTITUTE(JSENCODE(Statement__c.Account__r.BillingStreet),'\\u003Cbr /\\u003E','<br/>'),'\r\n','<br/>')}" escape="false" /></span><br/>
+                <span>{!Statement__c.Account__r.BillingState}, {!Statement__c.Account__r.BillingCity} {!Statement__c.Account__r.BillingPostalCode} {!Statement__c.Account__r.BillingCountry}</span>
+                <br/><br/>
+            </div>
+    
+            <div class="content">
+                <table cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                        <td colspan="6" style="border-bottom: 3px double black; padding: 0px 0px 6px 0px; font-weight: bold;">
+                            <i>Item Type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Payments</i>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td width="10%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic;">Trx. Date</td>
+                        <td width="10%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic;">Link Ref. #</td>
+                        <!--<td width="14%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic;">EXCHANGE ID:</td>-->
+                        <td width="60%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic;">Description: </td>
+                        <td width="10%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic; text-align: center;">Debits</td>
+                        <td width="10%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic; text-align: right;">Credits/Payments</td>
+                    </tr>
+                    <apex:repeat value="{!payments}" var="payment">
+                        <tr>
+                            <td style="vertical-align: top; border-bottom: 1px solid black; padding: 6px 0px 6px 0px;">
+                                <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                    <apex:param value="{!payment.Date_Received__c}" />
+                                </apex:outputText>
+                            </td>
+                            <td style="vertical-align: top; border-bottom: 1px solid black; text-align: center;font-weight: bold; padding: 6px 0px 6px 0px;">
+                                {!payment.Check__c}
+                            </td>
+                            <!--<td style="vertical-align: top; border-bottom: 1px solid black; padding: 6px 0px 6px 0px;">
+                            </td>-->
+                            <td style="vertical-align: top; border-bottom: 1px solid black; padding: 6px 0px 6px 0px;">
+                                Paid By: {!payment.How_Paid__c}, Instrument Date:&nbsp;
+                                <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                    <apex:param value="{!payment.Date_Received__c}" />
+                                </apex:outputText>
+                            </td>
+                            <td style="vertical-align: top; border-bottom: 1px solid black; text-align: right; padding: 6px 0px 6px 0px;">
+                                <apex:outputText value="${0,number,###,##0.00}">
+                                    <apex:param value="{!0}"/>
+                                </apex:outputText>
+                            </td>
+                            <td style="vertical-align: top; border-bottom: 1px solid black; text-align: right; padding: 6px 0px 6px 0px;" >
+                                <apex:outputText value="${0,number,###,##0.00}">
+                                    <apex:param value="{!payment.Amount__c}"/>
+                                </apex:outputText>
+                            </td>
+                        </tr>
+                        <apex:variable var="total3" value="{!total3 + IF(payment.Amount__c <> null,payment.Amount__c,0)}" />
+                        <apex:variable var="totalCredits" value="{!totalCredits + IF(payment.Amount__c <> null,payment.Amount__c,0)}" />
+                    </apex:repeat>
+                    <tr>
+                        <td colspan="3" style="text-align:center;vertical-align: top;padding: 6px 0px 6px 0px;font-weight:bold;" >
+                            <i>Payments Received:</i>
+                        </td>
+                        <td style="vertical-align: top; padding: 6px 0px 6px 0px; text-align: right;" >
+                            <apex:outputText value="${0,number,###,##0.00}">
+                                <apex:param value="{!0}"/>
+                            </apex:outputText>
+                        </td>
+                        <td style="vertical-align: top; padding: 6px 0px 6px 0px; text-align: right;" >
+                            <apex:outputText value="${0,number,###,##0.00}">
+                                <apex:param value="{!total3}"/>
+                            </apex:outputText>
+                        </td>
+                    </tr>
+                </table>
+                <br/><br/>
+                <apex:variable var="total1" value="{!0}" />
+                <apex:variable var="total2" value="{!0}" />
+                <table cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td colspan="6" style="border-bottom: 3px double black; padding: 0px 0px 6px 0px; font-weight: bold;">
+                            <i>Item Type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Adjustments</i>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td width="10%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic;">Trx. Date</td>
+                        <td width="10%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic;">Link Ref. #</td>
+                        <td width="14%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic;">EXCHANGE ID:</td>
+                        <td width="46%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic;">Description: </td>
+                        <td width="10%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic; text-align: center;">Debits</td>
+                        <td width="10%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic; text-align: right;">Credits/Payments</td>
+                    </tr>
+                    <apex:repeat value="{!adjustments}" var="adjust">
+                        <tr>
+                            <td style="vertical-align: top; border-bottom: 1px solid black; padding: 6px 0px 6px 0px;">
+                                <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                    <apex:param value="{!adjust.Adj_Date__c}" />
+                                </apex:outputText>
+                            </td>
+                            <td style="vertical-align: top; border-bottom: 1px solid black; text-align: center;font-weight: bold; padding: 6px 0px 6px 0px;">
+                                Adj
+                            </td>
+                            <td style="vertical-align: top; border-bottom: 1px solid black; padding: 6px 0px 6px 0px;">
+                            </td>
+                            <td style="vertical-align: top; border-bottom: 1px solid black; padding: 6px 0px 6px 0px;">
+                                {!adjust.Comment__c}
+                            </td>
+                            <td style="vertical-align: top; border-bottom: 1px solid black; text-align: right; padding: 6px 0px 6px 0px;">
+                                <apex:outputText value="${0,number,###,##0.00}">
+                                    <apex:param value="{!IF(adjust.Debit__c <> null,adjust.Debit__c,0)}"/>
+                                </apex:outputText>
+                            </td>
+                            <td style="vertical-align: top; border-bottom: 1px solid black; text-align: right;padding: 6px 0px 6px 0px;" >
+                                <apex:outputText value="${0,number,###,##0.00}">
+                                    <apex:param value="{!IF(adjust.Credit__c <> null,adjust.Credit__c,0)}"/>
+                                </apex:outputText>
+                            </td>
+                        </tr>
+                        <apex:variable var="total1" value="{!total1 + IF(adjust.Debit__c <> null,adjust.Debit__c,0)}" />
+                        <apex:variable var="total2" value="{!total2 + IF(adjust.Credit__c <> null,adjust.Credit__c,0)}" />
+                        <apex:variable var="totalDebits" value="{!totalDebits + IF(adjust.Debit__c <> null,adjust.Debit__c,0)}" />
+                        <apex:variable var="totalCredits" value="{!totalCredits + IF(adjust.Credit__c <> null,adjust.Credit__c,0)}" />
+                    </apex:repeat>
+                    <tr>
+                        <td colspan="3" style="text-align:center;vertical-align: top;padding: 6px 0px 6px 0px;font-weight:bold;" >
+                            <i>Adjustment Totals:</i>
+                        </td>
+                        <td style="vertical-align: top; padding: 6px 0px 6px 0px; text-align: right;" >
+                            <apex:outputText value="${0,number,###,##0.00}">
+                                <apex:param value="{!total1}"/>
+                            </apex:outputText>
+                        </td>
+                        <td style="vertical-align: top; padding: 6px 0px 6px 0px; text-align: right;" >
+                            <apex:outputText value="${0,number,###,##0.00}">
+                                <apex:param value="{!total2}"/>
+                            </apex:outputText>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    
+        <apex:repeat value="{!attns}" var="attn">
+            <div style="page-break-before:always;">
+                <div class="headerAux">
+                    <table width="100%" cellspacing="0" cellpadding="0" style="{!IF(Statement__c.Include_invoices__c == 'Yes','','display:none;')}">
+                        <tr>
+                            <td width="50%" class="enterpriseData">
+                                <span style="text-transform:uppercase;">{!$Organization.Name}</span>
+                                <br /><span style="text-transform:uppercase;">{!$Organization.Street}</span>
+                                <br /><span style="text-transform:uppercase;">{!$Organization.City}, {!$Organization.State} {!$Organization.PostalCode}</span>
+                                <br />Phone: {!$Organization.Phone}
+                                <br />Fax: {!$Organization.Fax}
+                            </td>
+                            <td width="50%" class="enterpriseData" style="text-align: right; vertical-align: top;">
+                                <div>
+                                    <span>STATEMENT DATE:</span>&nbsp;
+                                    <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                        <apex:param value="{!Statement__c.Statement_Date__c}" />
+                                    </apex:outputText>
+                                </div>
+                                <div>
+                                    <span>CLOSING DATE:</span>&nbsp;
+                                    <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                        <apex:param value="{!Statement__c.Closing_Date__c}" />
+                                    </apex:outputText>
+                                </div>
+                                <div>
+                                    <span>DUE DATE:</span>&nbsp;
+                                    <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                        <apex:param value="{!Statement__c.Due_Date__c}" />
+                                    </apex:outputText>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                    <table width="100%" cellspacing="0" cellpadding="0" style="{!IF(Statement__c.Include_invoices__c == 'Yes','display:none;','')}">
+                        <tr>
+                            <td style="width:30%;"></td>
+                            <td class="enterpriseData" style="text-align: center;font-size:12px;width:40%;">
+                                <apex:outputText value="{!IF(recordTypeName=='Link Futures','LINK FUTURES','LINK CRUDE RESOURCES')}, LLC" />
+                                <br />306 BROOKS ST.
+                                <br />SUGAR LAND, TX 77478
+                                <br /><span>Phone: (281) 565-5465</span><span style="margin-left:20px;">Fax: (281) 565-5461</span>
+                            </td>
+                            <td style="width:30%;text-align:right;font-size:12px;font-weight:bold;">
+                                <div>
+                                    <span>STATEMENT DATE:</span>&nbsp;
+                                    <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                        <apex:param value="{!Statement__c.Statement_Date__c}" />
+                                    </apex:outputText>
+                                </div>
+                                <div>
+                                    <span>CLOSING DATE:</span>&nbsp;
+                                    <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                        <apex:param value="{!Statement__c.Closing_Date__c}" />
+                                    </apex:outputText>
+                                </div>
+                                <div>
+                                    <span>DUE DATE:</span>&nbsp;
+                                    <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                        <apex:param value="{!Statement__c.Due_Date__c}" />
+                                    </apex:outputText>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="title">
+                    STATEMENT
+                </div>
+                <div class="invoice-number">
+                    <apex:outputText value="INVOICE # {0, date, MMddyy}" rendered="{!IF(Statement__c.Account__r.Include_invoice__c == true,true,false)}">
+                        <apex:param value="{!Statement__c.Closing_Date__c}" />
+                    </apex:outputText>
+                </div>
+            
+                <div class="sub-content">
+                    <table>
+                        <tr>
+                            <td style="vertical-align:top;">
+                                <span style="font-weight:bold;">Attn:</span>
+                            </td>
+                            <td>
+                                <span>{!IF(attn <> null, attn.Name, '')}</span><br/>
+                                <span>
+                                    <apex:outputText value="{!SUBSTITUTE(SUBSTITUTE(JSENCODE(attn.MailingStreet),'\\u003Cbr /\\u003E','<br/>'),'\r\n','<br/>')}" escape="false" />
+                                    <!--<apex:outputText value="{!IF(attn <> null, attn.MailingStreet, '')}" escape="false" />-->
+                                </span><br/>
+                                <span>{!IF(attn <> null, attn.MailingState, '')}, {!IF(attn <> null, attn.MailingCity, '')} {!IF(attn <> null, attn.MailingPostalCode, '')}</span>
+                            </td>
+                        </tr>
+                    </table>
+                    <br/><br/>
+                </div>
+        
+                <div class="content">
+                    <table cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td colspan="6" style="border-bottom: 3px double black; padding: 0px 0px 6px 0px; font-weight: bold;">
+                                <i>Item Type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Transactions (Buy or Sell)</i>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td width="10%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic;">Trx. Date</td>
+                            <td width="10%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic;">Link Ref. #</td>
+                            <td width="14%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic;">EXCHANGE ID:</td>
+                            <td width="46%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic;">Description: </td>
+                            <td width="10%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic; text-align: center;">Debits</td>
+                            <td width="10%" style="padding: 4px 0px 8px 0px; border-bottom: 1px solid black; font-style: italic; text-align: right;">Credits/Payments</td>
+                        </tr>
+                        <apex:repeat value="{!transactionMap[attn.Id]}" var="tran">
+                            <tr>
+                                <td style="vertical-align: top; border-bottom: 1px solid black; padding: 6px 0px 6px 0px;">
+                                    <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                        <apex:param value="{!tran.CloseDate}" />
+                                    </apex:outputText>
+                                </td>
+                                <td style="vertical-align: top; border-bottom: 1px solid black; font-weight: bold; padding: 6px 0px 6px 0px;">
+                                    {!tran.Name}
+                                </td>
+                                <td style="vertical-align: top; border-bottom: 1px solid black; padding: 6px 0px 6px 0px;">
+                                    {!tran.Exchange_ID__c}
+                                </td>
+                                <td style="vertical-align: top; border-bottom: 1px solid black; padding: 6px 0px 6px 0px;">
+                                    {!accountTypeMap[attn.AccountId]},&nbsp;
+                                    {!IF(tran.Type <> null, tran.Type + "/", null)}
+                                    &nbsp;
+                                    <apex:outputText value="{0,number,###,##0}">
+                                        <apex:param value="{!IF(tran.Volume_Method__c == 'BPD',tran.Volume_BBL_Day_New__c,IF(tran.Volume_Method__c == 'Total Quantity',tran.Total_Volume_BBL_New__c,null))}"/>
+                                    </apex:outputText>
+                                    &nbsp;
+                                    {!tran.Volume_Tolerance__c} {!tran.Cost_Per_Unit_formula__c}
+                                </td>
+                                <td style="vertical-align: top; border-bottom: 1px solid black; text-align: right; padding: 6px 0px 6px 0px;">
+                                    <apex:outputText value="${0,number,###,##0}">
+                                        <apex:param value="{!invoiceBalanceDueMap[tran.Id+attn.AccountId]}"/>
+                                    </apex:outputText>
+                                </td>
+                                <td style="vertical-align: top; border-bottom: 1px solid black; padding: 6px 0px 6px 0px;" ></td>
+                            </tr>
+                            <apex:variable var="total5" value="{!total5 + invoiceBalanceDueMap[tran.Id+attn.AccountId]}" />
+                            <apex:variable var="totalDebits" value="{!totalDebits + invoiceBalanceDueMap[tran.Id+attn.AccountId]}" />
+                        </apex:repeat>
+                        <tr>
+                            <td colspan="3" style="text-align:center;vertical-align: top;padding: 6px 0px 6px 0px;font-weight:bold;" >
+                                <i>Transaction Totals:</i>
+                            </td>
+                            <td style="vertical-align: top; padding: 6px 0px 6px 0px; text-align: right;" >
+                                <apex:outputText value="${0,number,###,##0.00}">
+                                    <apex:param value="{!total5}"/>
+                                </apex:outputText>
+                            </td>
+                            <td style="vertical-align: top; padding: 6px 0px 6px 0px; text-align: right;" >
+                                <apex:outputText value="${0,number,###,##0.00}">
+                                    <apex:param value="{!0}"/>
+                                </apex:outputText>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="3" style="text-align:center;vertical-align: top;padding: 6px 0px 6px 0px;font-weight:bold;" >
+                                <i>{!IF(attn <> null, attn.Name, '')}</i>
+                            </td>
+                            <td style="vertical-align: top; padding: 6px 0px 6px 0px; text-align: right;font-weight:bold;" >
+                                <i>
+                                <apex:outputText value="${0,number,###,##0.00}">
+                                    <apex:param value="{!total5}"/>
+                                </apex:outputText>
+                                </i>
+                            </td>
+                            <td style="vertical-align: top; padding: 6px 0px 6px 0px; text-align: right;font-weight:bold;" >
+                                <i>
+                                <apex:outputText value="${0,number,###,##0.00}">
+                                    <apex:param value="{!0}"/>
+                                </apex:outputText>
+                                </i>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </apex:repeat>
+
+    <div style="page-break-before:always;{!IF(Statement__c.Include_invoices__c == 'Yes','display:none;','')}">
+        <div class="headerAux">
+            <!--<table width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td width="50%" class="enterpriseData">
+                        <span style="text-transform:uppercase;">{!$Organization.Name}</span>
+                        <br /><span style="text-transform:uppercase;">{!$Organization.Street}</span>
+                        <br /><span style="text-transform:uppercase;">{!$Organization.City}, {!$Organization.State} {!$Organization.PostalCode}</span>
+                        <br />Phone: {!$Organization.Phone}
+                        <br />Fax: {!$Organization.Fax}
+                    </td>
+                    <td width="50%" class="enterpriseData" style="text-align: right; vertical-align: top;">
+                        <div>
+                            <span>STATEMENT DATE:</span>&nbsp;
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!Statement__c.Statement_Date__c}" />
+                            </apex:outputText>
+                        </div>
+                        <div>
+                            <span>CLOSING DATE:</span>&nbsp;
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!Statement__c.Closing_Date__c}" />
+                            </apex:outputText>
+                        </div>
+                        <div>
+                            <span>DUE DATE:</span>&nbsp;
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!Statement__c.Due_Date__c}" />
+                            </apex:outputText>
+                        </div>
+                    </td>
+                </tr>
+            </table>-->
+            <table width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td style="width:30%;"></td>
+                    <td class="enterpriseData" style="text-align: center;font-size:12px;width:40%;">
+                        <apex:outputText value="{!IF(recordTypeName=='Link Futures','LINK FUTURES','LINK CRUDE RESOURCES')}, LLC" />
+                        <br /><span style="text-transform:uppercase;">{!$Organization.Street}</span>
+                    	<br /><span style="text-transform:uppercase;">{!$Organization.City}, {!$Organization.State} {!$Organization.PostalCode}</span>
+                        <br /><span>Phone: {!$Organization.Phone}</span><span style="margin-left:20px;">Fax: {!$Organization.Fax}</span>
+                    </td>
+                    <td style="width:30%;text-align:right;font-size:12px;font-weight:bold;">
+                        <div>
+                            <span>STATEMENT DATE:</span>&nbsp;
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!Statement__c.Statement_Date__c}" />
+                            </apex:outputText>
+                        </div>
+                        <div>
+                            <span>CLOSING DATE:</span>&nbsp;
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!Statement__c.Closing_Date__c}" />
+                            </apex:outputText>
+                        </div>
+                        <div>
+                            <span>DUE DATE:</span>&nbsp;
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!Statement__c.Due_Date__c}" />
+                            </apex:outputText>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div class="title">
+            STATEMENT
+        </div>
+        <div class="subtitle">
+            {!Statement__c.Account__r.Name}
+        </div>
+        <div class="invoice-number">
+            <apex:outputText value="INVOICE # {0, date, MMddyy}" rendered="{!IF(Statement__c.Account__r.Include_invoice__c == true,true,false)}">
+                <apex:param value="{!Statement__c.Closing_Date__c}" />
+            </apex:outputText>
+        </div>
+    
+        <div style="display: block; width: 100%; text-align: center;">
+            <table width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td style="width:30%">
+                        <div style="text-align: left; margin-top: 24px;">
+                            <div class="tableLayoutFoot">
+                                <b>MAKE CHECKS PAYABLE TO: </b>
+                                <div style="padding-bottom: 3px;">Link Crude Resources, LLC</div>
+                                <b>WIRE INSTRUCTIONS: </b>
+                                <br />Wells Fargo Bank, NA
+                                <br />420 Montgomery
+                                <br />San Fracisco, CA 94104
+                                <br />RTN #. 111900659 (for ACH deposits)
+                                <br />ABA #. 121000248 (for Wire Transfer deposits)
+                                <br />Account #. 10609928379
+                                <br />Account of: Link Crude Resources, LLC
+                                <br /><br />
+                                Account Inquiries:
+                                <br />Lorie Zachary
+                                <br />support@linkcrude.com
+                                <br /><span>Direct:</span> 281-340-6123
+                                <br /><span>Fax: </span>281-565-5461
+                            </div>
+                        </div>
+                    </td>
+                    <td style="width:40%">
+                        <div style="font-weight: bold; text-decoration: underline; text-align: center; font-size: 1.4em; margin-bottom: 22px; margin-top: 24px;">
+                            ACCOUNT SUMMARY
+                        </div>
+                        <div style="display: inline-block;">
+                            <table width="100%" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td width="178"></td>
+                                    <td width="120" style="text-align: right; font-weight: bold; text-decoration: underline;">Activity</td>
+                                    <td width="120" style="text-align: right; font-weight: bold; text-decoration: underline;">Balance</td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Beginning Balance: </td>
+                                    <td style="text-align: right;"></td>
+                                    <td style="text-align: right;">
+                                        {!IF(IF(beginingBalance<>null,beginingBalance,0) <0,'(','')}
+                                        <apex:outputText value="${0,number,###,##0}">
+                                            <apex:param value="{!IF(IF(beginingBalance<>null,beginingBalance,0) < 0,(IF(beginingBalance<>null,beginingBalance,0))*-1,IF(beginingBalance<>null,beginingBalance,0))}"/>
+                                        </apex:outputText>{!IF(IF(beginingBalance<>null,beginingBalance,0) <0,')','')}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Payments Received: </td>
+                                    <td style="text-align: right;">
+                                        (<apex:outputText value="${0,number,###,##0}">
+                                            <apex:param value="{!totalPayments}"/>
+                                        </apex:outputText>)
+                                    </td>
+                                    <td style="text-align: right;">
+                                        {!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments <0,'(','')}
+                                        <apex:outputText value="${0,number,###,##0}">
+                                            <apex:param value="{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments < 0,(IF(beginingBalance<>null,beginingBalance,0) - totalPayments)*-1,IF(beginingBalance<>null,beginingBalance,0) - totalPayments)}"/>
+                                        </apex:outputText>{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments <0,')','')}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Transactions: </td>
+                                    <td style="text-align: right;">
+                                        <apex:outputText value="${0,number,###,##0}">
+                                            <apex:param value="{!total5}"/>
+                                        </apex:outputText>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        {!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5<0,'(','')}
+                                        <apex:outputText value="${0,number,###,##0}">
+                                            <apex:param value="{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 < 0,(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5)*-1,IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5)}"/>
+                                        </apex:outputText>{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5<0,')','')}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Adjustments: </td>
+                                    <td style="text-align: right;">
+                                        {!IF(totalAdjustments<0,'(','')}
+                                        <apex:outputText value="${0,number,###,##0}">
+                                            <apex:param value="{!IF(totalAdjustments < 0, totalAdjustments*-1, totalAdjustments)}"/>
+                                        </apex:outputText>{!IF(totalAdjustments<0,')','')}
+                                    </td>
+                                    <td style="text-align: right;">
+                                        {!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments<0,'(','')}
+                                        <apex:outputText value="${0,number,###,##0}">
+                                            <apex:param value="{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments < 0,(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments)*-1,IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments)}"/>
+                                        </apex:outputText>{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments<0,')','')}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="text-align: left; font-weight: bold; padding: 6px 0px 12px 0px;">Ending Balance: </td>
+                                    <td style="text-align: right;"></td>
+                                    <td style="text-align: right;">
+                                        {!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments<0,'(','')}
+                                        <apex:outputText value="${0,number,###,##0}">
+                                           <apex:param value="{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments < 0,(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments)*-1,IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments)}"/>
+                                        </apex:outputText>{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments<0,')','')}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" style="text-align: left; font-weight: bold; font-size: 14px; border: 2px solid black; border-right: none; padding: 6px 0px 6px 4px;">
+                                        PLEASE PAY THIS AMOUNT
+                                    </td>
+                                    <td style="text-align: right; font-weight: bold; font-size: 16px; border: 2px solid black; border-left: none; padding: 6px 4px 6px 0px;">
+                                        {!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments<0,'(','')}
+                                        <apex:outputText value="${0,number,###,##0}">
+                                            <apex:param value="{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments < 0,(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments)*-1,IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments)}"/>
+                                        </apex:outputText>{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments<0,')','')}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </td>
+                    <td style="width:30%;vertical-align:top;">
+                        <table cellspacing="0" cellpadding="0" width="100%" style="font-size:13px;">
+                            <tr>
+                                <td style="width:33%;font-weight:bold;font-style:italic;">Total Current:</td>
+                                <td style="width:33%;font-weight:bold;font-style:italic;text-decoration:underline;">Debits</td>
+                                <td style="width:33%;font-weight:bold;font-style:italic;text-decoration:underline;">Credits</td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td style="padding-top:5px;">
+                                    <apex:outputText value="${0,number,###,##0.00}">
+                                        <apex:param value="{!totalDebits}"/>
+                                    </apex:outputText>
+                                </td>
+                                <td style="padding-top:5px;">
+                                    <apex:outputText value="${0,number,###,##0.00}">
+                                        <apex:param value="{!totalCredits}"/>
+                                    </apex:outputText>
+                                </td>
+                            </tr>
+                        </table> 
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+                                        
+    <div style="page-break-before:always;{!IF(Statement__c.Include_invoices__c == 'Yes','','display:none;')}">
+        <div class="headerAux">
+            <table width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td width="50%" class="enterpriseData">
+                        <span style="text-transform:uppercase;">{!$Organization.Name}</span>
+                        <br /><span style="text-transform:uppercase;">{!$Organization.Street}</span>
+                        <br /><span style="text-transform:uppercase;">{!$Organization.City}, {!$Organization.State} {!$Organization.PostalCode}</span>
+                        <br />Phone: {!$Organization.Phone}
+                        <br />Fax: {!$Organization.Fax}
+                    </td>
+                    <td width="50%" class="enterpriseData" style="text-align: right; vertical-align: top;">
+                        <div>
+                            <span>STATEMENT DATE:</span>&nbsp;
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!Statement__c.Statement_Date__c}" />
+                            </apex:outputText>
+                        </div>
+                        <div>
+                            <span>CLOSING DATE:</span>&nbsp;
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!Statement__c.Closing_Date__c}" />
+                            </apex:outputText>
+                        </div>
+                        <div>
+                            <span>DUE DATE:</span>&nbsp;
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!Statement__c.Due_Date__c}" />
+                            </apex:outputText>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div class="title">
+            STATEMENT
+        </div>
+        <div class="subtitle">
+            {!Statement__c.Account__r.Name}
+        </div>
+        <div class="invoice-number">
+            <apex:outputText value="INVOICE # {0, date, MMddyy}" rendered="{!IF(Statement__c.Account__r.Include_invoice__c == true,true,false)}">
+                <apex:param value="{!Statement__c.Closing_Date__c}" />
+            </apex:outputText>
+        </div>
+    
+        <div style="display: block; width: 100%; text-align: center;">
+            <div style="font-weight: bold; text-decoration: underline; text-align: center; font-size: 1.4em; margin-bottom: 22px; margin-top: 24px;">
+                ACCOUNT SUMMARY
+            </div>
+            <div style="display: inline-block;">
+                <table width="418" cellspacing="0" cellpadding="0">
+                    <tr>
+                        <td width="178"></td>
+                        <td width="120" style="text-align: right; font-weight: bold; text-decoration: underline;">Activity</td>
+                        <td width="120" style="text-align: right; font-weight: bold; text-decoration: underline;">Balance</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Beginning Balance: </td>
+                        <td style="text-align: right;"></td>
+                        <td style="text-align: right;">
+                            {!IF(IF(beginingBalance<>null,beginingBalance,0) <0,'(','')}
+                            <apex:outputText value="${0,number,###,##0}">
+                                <apex:param value="{!IF(IF(beginingBalance<>null,beginingBalance,0) < 0,(IF(beginingBalance<>null,beginingBalance,0))*-1,IF(beginingBalance<>null,beginingBalance,0))}"/>
+                            </apex:outputText>{!IF(IF(beginingBalance<>null,beginingBalance,0) <0,')','')}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Payments Received: </td>
+                        <td style="text-align: right;">
+                            (<apex:outputText value="${0,number,###,##0}">
+                                <apex:param value="{!totalPayments}"/>
+                            </apex:outputText>)
+                        </td>
+                        <td style="text-align: right;">
+                            {!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments <0,'(','')}
+                            <apex:outputText value="${0,number,###,##0}">
+                                <apex:param value="{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments < 0,(IF(beginingBalance<>null,beginingBalance,0) - totalPayments)*-1,IF(beginingBalance<>null,beginingBalance,0) - totalPayments)}"/>
+                            </apex:outputText>{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments <0,')','')}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Transactions: </td>
+                        <td style="text-align: right;">
+                            <apex:outputText value="${0,number,###,##0}">
+                                <apex:param value="{!total5}"/>
+                            </apex:outputText>
+                        </td>
+                        <td style="text-align: right;">
+                            {!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5<0,'(','')}
+                            <apex:outputText value="${0,number,###,##0}">
+                                <apex:param value="{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 < 0,(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5)*-1,IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5)}"/>
+                            </apex:outputText>{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5<0,')','')}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left; font-weight: bold; padding: 6px 0px 6px 0px;">Adjustments: </td>
+                        <td style="text-align: right;">
+                            {!IF(totalAdjustments<0,'(','')}
+                            <apex:outputText value="${0,number,###,##0}">
+                                <apex:param value="{!IF(totalAdjustments < 0, totalAdjustments*-1, totalAdjustments)}"/>
+                            </apex:outputText>{!IF(totalAdjustments<0,')','')}
+                        </td>
+                        <td style="text-align: right;">
+                            {!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments<0,'(','')}
+                            <apex:outputText value="${0,number,###,##0}">
+                                <apex:param value="{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments < 0,(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments)*-1,IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments)}"/>
+                            </apex:outputText>{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments<0,')','')}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left; font-weight: bold; padding: 6px 0px 12px 0px;">Ending Balance: </td>
+                        <td style="text-align: right;"></td>
+                        <td style="text-align: right;">
+                            {!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments<0,'(','')}
+                            <apex:outputText value="${0,number,###,##0}">
+                               <apex:param value="{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments < 0,(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments)*-1,IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments)}"/>
+                            </apex:outputText>{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments<0,')','')}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="text-align: left; font-weight: bold; font-size: 14px; border: 2px solid black; border-right: none; padding: 6px 0px 6px 4px;">
+                            PLEASE PAY THIS AMOUNT
+                        </td>
+                        <td style="text-align: right; font-weight: bold; font-size: 16px; border: 2px solid black; border-left: none; padding: 6px 4px 6px 0px;">
+                            {!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments<0,'(','')}
+                            <apex:outputText value="${0,number,###,##0}">
+                                <apex:param value="{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments < 0,(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments)*-1,IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments)}"/>
+                            </apex:outputText>{!IF(IF(beginingBalance<>null,beginingBalance,0) - totalPayments + total5 - totalAdjustments<0,')','')}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    
+        <div style="text-align: left; margin-top: 24px;">
+            <div class="tableLayoutFoot">
+                <b>MAKE CHECKS PAYABLE TO: </b>
+                <div style="padding-bottom: 3px;">Link Crude Resources, LLC</div>
+                <b>WIRE INSTRUCTIONS: </b>
+                <br />Wells Fargo Bank, NA
+                <br />420 Montgomery
+                <br />San Fracisco, CA 94104
+                <br />RTN #. 111900659 (for ACH deposits)
+                <br />ABA #. 121000248 (for Wire Transfer deposits)
+                <br />Account #. 10609928379
+                <br />Account of: Link Crude Resources, LLC
+                <br /><br />
+                Account Inquiries:
+                <br />Lorie Zachary
+                <br />support@linkcrude.com
+                <br /><span>Direct:</span> 281-340-6123
+                <br /><span>Fax: </span>281-565-5461
+            </div>
+        </div>
+    </div>
+    
+    <apex:repeat value="{!invoices}" var="invo">
+        <div style="page-break-before:always;">
+            <div class="headerAux2">
+                <table width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                        <td class="enterpriseData" style="text-align: center;font-size:12px;">
+                            <apex:outputText value="{!IF(recordTypeName=='Link Futures','LINK FUTURES','LINK CRUDE RESOURCES')}, LLC" />
+                            <br /><span style="text-transform:uppercase;">{!$Organization.Street}</span>
+                    		<br /><span style="text-transform:uppercase;">{!$Organization.City}, {!$Organization.State} {!$Organization.PostalCode}</span>
+                            <br /><span>Phone: {!$Organization.Phone}</span><span style="margin-left:20px;">Fax: {!$Organization.Fax}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: center;font-size:11px;padding-top:15px;">
+                            <span>INVOICE FOR SERVICES RENDERED</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: center;font-size:11px;padding-top:15px;">
+                            <span>BROKERAGE COMMISSION</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: center;font-size:11px;padding-top:13px;">
+                            <span>DATE: 
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!TODAY()}" />
+                            </apex:outputText>
+                            </span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <br/>
+            <div style="display: block; width: 100%;">
+                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;font-size: 12px;">
+                    <tr>
+                        <td width="8%" style="vertical-align: top; font-size: 11px;">
+                            <b style="font-style: oblique;">TO:</b>
+                        </td>
+                        <td colspan="5" style="font-size: 11px;">
+                            <span style="text-transform:uppercase;">{!invo.Account__r.Name}</span><br/>
+                            <apex:outputText value="{!SUBSTITUTE(SUBSTITUTE(JSENCODE(invo.Account__r.BillingStreet),'\\u003Cbr /\\u003E','<br/>'),'\r\n','<br/>')}" escape="false" /><br/>
+                            <apex:outputText value="{!IF(invo.Account__r.Website <> null,invo.Account__r.Website + '<br/>','')}" escape="false" />
+                            {!invo.Account__r.BillingCity}, {!invo.Account__r.BillingState} {!invo.Account__r.BillingPostalCode}  
+                        </td>
+                    </tr>
+                </table>
+                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;font-size: 12px;">
+                    <tr>
+                        <td style="width:33.3%;padding: 6px 0px 3px 0px;">
+                            <span><b style="font-style: oblique;">ATTN: </b></span>
+                            <span style="padding-left:17px;font-size: 11px;text-transform:uppercase;">
+                                {!attnInvoiceMap[invo.Account__c].Name}
+                            </span>
+                        </td>
+                        <td style="width:28.3%;padding: 6px 0px 3px 0px;">
+                            <span><b style="font-style: oblique;">FAX: </b></span>
+                            <span style="padding-left:5px;font-size: 11px;">
+                                {!attnInvoiceMap[invo.Account__c].Fax}
+                            </span>
+                        </td>
+                        <td style="width:38.3%;padding: 6px 0px 3px 0px;">
+                            <span><b style="font-style: oblique;">EMAIL: </b></span>
+                            <span style="padding-left:5px;font-size: 11px;">
+                                {!attnInvoiceMap[invo.Account__c].Email}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:33.3%;padding: 20px 0px 20px 0px; border-bottom:1px solid #000;">
+                            <span><b style="font-style: oblique;">TRADER: </b></span>
+                            <span style="font-size: 11px;">
+                                {!IF(invo.Role__c=='Seller',invo.Transaction_Number__r.Trader_for_Seller__r.Name,invo.Transaction_Number__r.Trader_for_Buyer__r.Name)}
+                            </span>
+                        </td>
+                        <td style="width:28.3%;padding: 20px 0px 20px 0px;border-bottom:1px solid #000;">
+                            <span><b style="font-style: oblique;">FAX: </b></span>
+                            <span style="padding-left:5px;font-size: 11px;">
+                                {!IF(invo.Role__c=='Seller',invo.Transaction_Number__r.Trader_for_Seller__r.Fax,invo.Transaction_Number__r.Trader_for_Buyer__r.Fax)}
+                            </span>
+                        </td>
+                        <td style="width:38.3%;padding: 20px 0px 20px 0px;border-bottom:1px solid #000;">
+                            <span><b style="font-style: oblique;">EMAIL: </b></span>
+                            <span style="padding-left:5px;font-size: 11px;">
+                                {!IF(invo.Role__c=='Seller',invo.Transaction_Number__r.Trader_for_Seller__r.Email,invo.Transaction_Number__r.Trader_for_Buyer__r.Email)}
+                            </span>
+                        </td>
+                    </tr>
+                </table>
+               
+                <table border="0" cellpadding="0" cellspacing="0" style="margin-top:30px;width:100%;font-size: 12px;">
+                    <tr>
+                        <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                            LINK CRUDE TRANS #:
+                        </td>
+                        <td style="text-align:left;font-weight:bold;padding-top:8px;">
+                            {!invo.Transaction_Number__r.Name}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                            TRANSACTION DATE:
+                        </td>
+                        <td style="text-align:left;padding-top:8px;">
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!invo.Closing_Date__c}" />
+                            </apex:outputText>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                            PIPELINE:
+                        </td>
+                        <td style="text-align:left;padding-top:8px;">
+                            {!invo.Transaction_Number__r.Pipeline_link__c}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                            SELLER:
+                        </td>
+                        <td style="text-align:left;padding-top:8px;">
+                             {!invo.Transaction_Number__r.Seller__r.Name}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                            BUYER:
+                        </td>
+                        <td style="text-align:left;padding-top:8px;">
+                            {!invo.Transaction_Number__r.Account.Name}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                            CRUDE TYPE:
+                        </td>
+                        <td style="text-align:left;padding-top:8px;">
+                            {!invo.Transaction_Number__r.Product_Name__c}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                            DATE OF MOVEMENT:
+                        </td>
+                        <td style="text-align:left;padding-top:8px;">
+                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                <apex:param value="{!invo.Transaction_Number__r.Delivery__c}" />
+                            </apex:outputText>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                            LOCATION:
+                        </td>
+                        <td style="text-align:left;padding-top:8px;">
+                            {!invo.Transaction_Number__r.Location__c}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                            VOLUME:
+                        </td>
+                        <td style="text-align:left;padding-top:8px;">
+                            <apex:outputText value="{0, number, ###,##0.00}">
+                                <apex:param value="{!invo.Transaction_Number__r.Volume_BBL_Day_New__c}"/>
+                            </apex:outputText> BARRELS PER DAY
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;vertical-align:top;">
+                            PRICE:
+                        </td>
+                        <td style="text-align:left;padding-top:8px;">
+                            <!--{!IF(invo.Transaction_Number__r.Price_Type__c <> 'Formula Price','$' + TEXT(invo.Transaction_Number__r.Product_Price__c) + ' USD Per Barrel','')}-->
+                            <apex:outputText value="${0,number,###,##0.00} USD Per Barrel" rendered="{!IF(invo.Transaction_Number__r.Price_Type__c <> 'Formula Price',true,false)}">
+                                <apex:param value="{!IF(invo.Transaction_Number__r.Product_Price__c <> null,invo.Transaction_Number__r.Product_Price__c,0)}"/>
+                            </apex:outputText>
+                            <br/><br/>
+                            {!invo.Transaction_Number__r.Cost_Per_Unit_Formula_Verbiage__c}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                            COMMISSION:
+                        </td>
+                        <td style="text-align:left;padding-top:8px;">
+                            <apex:outputText value="${0,number,###,##0.00} USD Per Barrel">
+                                <apex:param value="{!IF(invo.Role__c=='Seller',IF(commissionMap[invo.Transaction_Number__c].Seller_Commission__c <> null,commissionMap[invo.Transaction_Number__c].Seller_Commission__c,0),IF(commissionMap[invo.Transaction_Number__c].Buyer_Commission__c<>null,commissionMap[invo.Transaction_Number__c].Buyer_Commission__c,0))}"/>
+                            </apex:outputText>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                            PLEASE REMIT:
+                        </td>
+                        <td style="text-align:left;padding-top:8px;">
+                            <!--${!invo.Transaction_Number__r.Cost_Per_Unit__c}-->
+                            <apex:outputText value="${0,number,###,##0.00}">
+                                <apex:param value="{!IF(invo.Balance_Due__c <> null,invo.Balance_Due__c,0)}"/>
+                            </apex:outputText>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width:30%;font-weight:bold;font-style: oblique;padding-top:8px;">
+                            TERMS:
+                        </td>
+                        <td style="text-align:left;padding-top:8px;">
+                            {!invo.Transaction_Number__r.Payment_Terms_Verbiage__c}
+                        </td>
+                    </tr>
+                </table>
+                <br/><br/>
+                <div style="text-align: left;font-family: Arial, Helvetica, sans-serif;font-size:11px;padding-bottom:20px;">
+                    Payment Instructions: <br/>
+                    Wells Fargo Bank, NA <br/>
+                    420 Montgomery <br/>
+                    San Francisco, CA 94104 <br/>
+                    RTN #. 111900659 (for ACH deposits) <br/>
+                    ABA #. 121000248 (for Wire Transfer deposits) <br/>
+                    Account #. 1060928379 <br/>
+                    Account of:&nbsp;<apex:outputText value="{!IF(recordTypeName=='Link Futures','Link Futures','Link Crude Resources')}, LLC" /> <br/>           
+                </div>
+                <div style="text-align: center;font-family: Arial, Helvetica, sans-serif;font-size:11px;padding-bottom:2px;font-style:italic;">
+                    <apex:outputText value="{!IF(recordTypeName=='Link Futures','LINK FUTURES','LINK CRUDE RESOURCES')}, LLC" /> TAX ID # :&nbsp;<apex:outputText value="{!IF(recordTypeName=='Link Futures','46-1646961','57-1139912')}" />
+                </div>
+                <div style="text-align: center;font-family: Arial, Helvetica, sans-serif;font-size:11px;font-style:italic;font-weight:bold;">
+                    PLEASE INCLUDE TRANSACTION NUMBER ON ALL CORRESPONDENCE
+                </div>
+            </div>
+        </div>
+    </apex:repeat>
+</apex:page>
