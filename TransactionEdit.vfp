@@ -1,0 +1,2351 @@
+<apex:page lightningStylesheets="true" standardController="Opportunity" extensions="TransactionCreatorController" cache="false" showHeader="false" sidebar="false" applyBodyTag="false" applyHtmlTag="false">
+<head>
+<apex:includeScript value="{!URLFOR($Resource.Utils, 'js/jquery-3.3.1.min.js')}"  />
+<apex:includeScript value="{!URLFOR($Resource.Utils, 'js/bootstrap.min.js')}"/>
+<apex:includeScript value="{!URLFOR($Resource.Utils, 'js/jquery.autocomplete.js')}"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/3.2.6/jquery.inputmask.bundle.min.js"></script>
+<apex:stylesheet value="{!URLFOR($Resource.Utils, 'css/bootstrap.min.css')}"/>
+
+<style>
+.content{font-size:12px; margin-left: 25px !important;margin-right: 25px !important;}
+.container{font-size:12px;}
+.row{margin-top:10px !important;}
+.dataCol {width:25% !important;}
+body .pbSubsection {padding: 3.5px !important;}
+body .bPageBlock .detailList .labelCol {width:25% !important;}
+body .bPageBlock .detailList .labelCol label {margin-top: 0.3rem;}
+body .dataCol select {margin-bottom:0;}
+label{margin-bottom: .2rem;}
+/* lookup field override */
+.lookupInput
+{
+    display: block !important;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.lookupInput img
+{
+    background-repeat: no-repeat;
+    margin-right: .25em;
+    vertical-align: middle;
+}
+.lookupInput .disabled
+{
+    background-color: #ccc;
+}
+.lookupInput .emptyDependentLookup
+{
+    font-style: italic;
+}
+.lookupInput input[readonly]
+{
+    background-color: #e6e6e6;
+    border: 2px solid #e6e6e6;
+    color: #333;
+    cursor: default;
+}
+.lookupInput a.readOnly
+{
+    float: right;
+}
+.lookupInput span.readOnly
+{
+    display: block;
+    white-space: normal;
+}
+.lookupInput span.totalSummary
+{
+    font-weight: bold;
+}
+.inlineEditRequiredDiv .lookupInput img,.inlineEditDiv .lookupInput img
+{
+    vertical-align: middle;
+}
+.quickCreateModule .lookupInput input {
+    max-width: 155px;
+}
+.lookupIcon {
+    background-image: url(/img/func_icons/util/lookup20.gif);
+    background-position: 0 0;
+    width: 20px;
+    height: 20px;
+    background-position: top left
+}
+.lookupIconOn {
+    background-image: url(/img/func_icons/util/lookup20.gif);
+    background-position: 0 0;
+    width: 20px;
+    height: 20px;
+    background-position: top right
+}
+.lookupInput input{float: left;}
+.lookupInput a{width: 4%;border-left: none;position: absolute;right: 0px;border-bottom: none;}
+   
+/** LOADING **/
+    /* Absolute Center Spinner */
+.loading {
+  position: fixed;
+  z-index: 999;
+  height: 2em;
+  width: 2em;
+  overflow: show;
+  margin: auto;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+}
+
+/* Transparent Overlay */
+.loading:before {
+  content: '';
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.3);
+}
+
+/* :not(:required) hides these rules from IE9 and below */
+.loading:not(:required) {
+  /* hide "loading..." text */
+  font: 0/0 a;
+  color: transparent;
+  text-shadow: none;
+  background-color: transparent;
+  border: 0;
+}
+
+.loading:not(:required):after {
+  content: '';
+  display: block;
+  font-size: 10px;
+  width: 1em;
+  height: 1em;
+  margin-top: -0.5em;
+  -webkit-animation: spinner 1500ms infinite linear;
+  -moz-animation: spinner 1500ms infinite linear;
+  -ms-animation: spinner 1500ms infinite linear;
+  -o-animation: spinner 1500ms infinite linear;
+  animation: spinner 1500ms infinite linear;
+  border-radius: 0.5em;
+  -webkit-box-shadow: rgba(0, 0, 0, 0.75) 1.5em 0 0 0, rgba(0, 0, 0, 0.75) 1.1em 1.1em 0 0, rgba(0, 0, 0, 0.75) 0 1.5em 0 0, rgba(0, 0, 0, 0.75) -1.1em 1.1em 0 0, rgba(0, 0, 0, 0.5) -1.5em 0 0 0, rgba(0, 0, 0, 0.5) -1.1em -1.1em 0 0, rgba(0, 0, 0, 0.75) 0 -1.5em 0 0, rgba(0, 0, 0, 0.75) 1.1em -1.1em 0 0;
+  box-shadow: rgba(0, 0, 0, 0.75) 1.5em 0 0 0, rgba(0, 0, 0, 0.75) 1.1em 1.1em 0 0, rgba(0, 0, 0, 0.75) 0 1.5em 0 0, rgba(0, 0, 0, 0.75) -1.1em 1.1em 0 0, rgba(0, 0, 0, 0.75) -1.5em 0 0 0, rgba(0, 0, 0, 0.75) -1.1em -1.1em 0 0, rgba(0, 0, 0, 0.75) 0 -1.5em 0 0, rgba(0, 0, 0, 0.75) 1.1em -1.1em 0 0;
+}
+
+/* Animation */
+
+@-webkit-keyframes spinner {
+  0% {
+    -webkit-transform: rotate(0deg);
+    -moz-transform: rotate(0deg);
+    -ms-transform: rotate(0deg);
+    -o-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@-moz-keyframes spinner {
+  0% {
+    -webkit-transform: rotate(0deg);
+    -moz-transform: rotate(0deg);
+    -ms-transform: rotate(0deg);
+    -o-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@-o-keyframes spinner {
+  0% {
+    -webkit-transform: rotate(0deg);
+    -moz-transform: rotate(0deg);
+    -ms-transform: rotate(0deg);
+    -o-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@keyframes spinner {
+  0% {
+    -webkit-transform: rotate(0deg);
+    -moz-transform: rotate(0deg);
+    -ms-transform: rotate(0deg);
+    -o-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+    /** END LOADING **/
+
+.autocomplete-suggestions { -webkit-box-sizing: border-box; -moz-box-sizing: border-box; box-sizing: border-box; border: 1px solid #999; background: #FFF; cursor: default; overflow: auto; -webkit-box-shadow: 1px 4px 3px rgba(50, 50, 50, 0.64); -moz-box-shadow: 1px 4px 3px rgba(50, 50, 50, 0.64); box-shadow: 1px 4px 3px rgba(50, 50, 50, 0.64); }
+.autocomplete-suggestion { font-size: 12px;padding: 2px 5px; white-space: nowrap; overflow: hidden; }
+.autocomplete-no-suggestion { padding: 2px 5px;}
+.autocomplete-selected { background: #F0F0F0; }
+.autocomplete-suggestions strong { font-weight: bold; color: #000; }
+.autocomplete-group { padding: 2px 5px; font-weight: bold; font-size: 16px; color: #000; display: block; border-bottom: 1px solid #000; }
+    
+.tableLight {font-size:12px;}
+.tableLight thead th{background-color: rgb(250, 250, 249);text-transform:uppercase;font-weight:bold;color: rgb(81, 79, 77);}
+.tableLight .first {font-weight:bold;color: rgb(81, 79, 77);}
+.bPageTitle {width: 100%;margin: 10px auto;}
+.btnNew {color: #fff !important;background-color: #007bff !important;border-color: #007bff !important;}
+.pbBody{overflow: hidden !important;}
+</style>
+</head>
+    <body>
+        <div class="slds-card__body.slds-card__body--outer">
+            <div class=".slds-card__header.slds-grid" style="margin:20px;">
+                <apex:sectionHeader title="Transaction Master Screen" subtitle="Edit" />
+                <apex:form styleClass="form-horizontal" style="width:100%;margin:0 auto;">
+                    <apex:outputPanel id="messageMain">
+                        <div class="alert alert-danger text-center" role="alert" style="{!IF(message <> '','','display:none;')}">
+                            {!message}
+                        </div>
+                        <div class="alert alert-success text-center" role="alert" style="{!IF(messageSuccess <> '','','display:none;')}">
+                            {!messageSuccess}
+                        </div>
+                    </apex:outputPanel>
+                    <apex:inputHidden id="pricebookExportId" value="{!PricebookExportId}" />
+                    <apex:inputHidden id="pricebookCrudeId" value="{!PricebookCrudeId}" />
+                    <apex:inputHidden id="pricebookFutureId" value="{!PricebookFutureId}" />
+                    <apex:inputHidden id="recordTypeCrudeId" value="{!RecordTypeCrudeId}" />
+                    <apex:inputHidden id="recordTypeFutureId" value="{!RecordTypeFutureId}" />
+                        
+                    <apex:inputHidden id="auxIA" value="{!isAdministrator}"/>
+                    <apex:inputHidden id="auxIR" value="{!isRole}"/>
+                    <apex:inputHidden id="auxRTID" value="{!auxRecordTypeIdRole}"/>
+                    <apex:pageBlock >
+                        <table cellspacing="0" cellpadding="0" width="100%">
+                            <tr>
+                                <td colspan="4" style="text-align:center;">
+                                    <label class="control-label">Record Type</label>
+                                    <!--<apex:inputField value="{!opportunityData.RecordTypeId}" html-tabindex="1" label="Record Type" styleClass="form-control form-control-sm saveTrans populateBuyerCom" style="width: 250px;display: inline-block;" />-->
+                                    <apex:selectList id="recordType" value="{!opportunityData.RecordTypeId}" tabindex="1" size="1" styleClass="form-control form-control-sm saveTrans createTrans" style="width: 250px;display:inline-block;">
+                                        <apex:selectOptions value="{!recordTypeList}" />
+                                    </apex:selectList>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="width:25%;padding:10px;vertical-align:top;">
+                                    <label class="control-label">Transaction</label>
+                                    <!--<apex:inputField value="{!opportunityData.Transaction__c}" html-tabindex="2" label="Transaction" styleClass="form-control form-control-sm changeTransaction saveTrans" style="display:inline-block;" />-->
+                                    <apex:selectList id="transactionType" value="{!opportunityData.Transaction__c}" tabindex="2" size="1" styleClass="form-control form-control-sm changeTransaction saveTrans" style="display:inline-block;">
+                                        <apex:selectOptions value="{!transactionList}" />
+                                    </apex:selectList>
+                                </td>
+                                <td style="width:25%;padding:10px;vertical-align:top;">
+                                    <label class="control-label">Vol (BBL/Day)</label>
+                                    <apex:outputPanel id="DayVolumePanel">
+                                    	<apex:inputField id="opp_volbblday" value="{!opportunityData.Volume_BBL_Day_New__c}" html-tabindex="12" label="Vol (BBL/Day)" styleClass="form-control form-control-sm calculateTotal" style="display:inline-block;" />
+                                	</apex:outputPanel>
+                                </td>
+                                <td style="width:25%;padding:10px;vertical-align:top;">
+                                    <div class="future5">
+                                        <label class="control-label">Pipeline</label>
+                                        <apex:inputText value="{!opportunityData.Pipeline_link__c}" tabindex="8" label="Pipeline" styleClass="form-control form-control-sm autocompletePipeline" style="display:inline-block;width: 100%;" />
+                                    </div>
+                                    <div class="future6" style="display:none;">
+                                        <label class="control-label">Exchange ID</label>
+                                        <apex:inputField value="{!opportunityData.Exchange_ID__c}" html-tabindex="8" label="Exchange ID" style="display:inline-block;width: 100%;" styleClass="saveTrans" />
+                                    </div>
+                                </td>
+                                <td rowspan="3" style="width:25%;padding:10px;vertical-align:top;text-align:center;">
+                                    <div id="botones">
+                                    <!--<apex:commandButton action="{!saveCloseAction}" value="Save Changes" styleClass="btnNew" style="margin: 20px;height: 70px;width: 93%;" />-->
+                                    <a href="javascript:void(0);" class="btn btn-primary btnNew saveButton" tabindex="51" style="margin: 20px;height: 70px;width: 60%;padding-top: 22px;font-size: 14px;">Save Changes</a>
+                                    <a href="javascript:void(0);" class="btn btn-primary btnNew newButton" tabindex="52" style="margin: 20px;height: 70px;width: 60%;padding-top: 22px;font-size: 14px;">New Transaction</a>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Number</label>
+                                    <apex:outputPanel id="recordtype1">
+                                        <apex:inputField value="{!opportunityData.Name}" label="Number" html-tabindex="3" styleClass="form-control form-control-sm saveTrans" style="display:inline-block;" />
+                                    </apex:outputPanel>
+                                </td>
+                                <td rowspan="2" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Volume Method</label>
+                                    <apex:selectList value="{!opportunityData.Volume_Method__c}" tabindex="13" size="3" styleClass="form-control form-control-sm calculateTotal" style="display:inline-block;">
+                                        <apex:selectOptions value="{!methodList}" />
+                                    </apex:selectList>
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Location</label>
+                                    <!--<apex:inputField value="{!opportunityData.Location__c}" label="Location" styleClass="form-control form-control-sm" style="display:inline-block;" />-->
+                                    <apex:inputText value="{!opportunityData.Location__c}" tabindex="9" label="Pipeline" styleClass="form-control form-control-sm autocompleteLocation" style="display:inline-block;width: 100%;" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Date</label>
+                                    <apex:inputField id="closeDate" value="{!opportunityData.CloseDate}" html-tabindex="4" label="Date" styleClass="form-control form-control-sm saveTrans" style="display:inline-block;width: 100%;" />
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Delivery</label>
+                                    <!--<apex:inputField value="{!opportunityData.Delivery__c}" label="Delivery" styleClass="form-control form-control-sm" style="display:inline-block;width: 100%;" />-->
+                                    <apex:inputText value="{!delivery}" label="Delivery" tabindex="10" styleClass="form-control form-control-sm autocompleteDelivery" style="display:inline-block;width: 100%;" />
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Type</label>
+                                    <!--<apex:inputField value="{!opportunityData.Type}" label="Type" styleClass="form-control form-control-sm" style="display:inline-block;" />-->
+                                    <apex:inputText id="typeT" value="{!opportunityData.Type}" tabindex="5" label="Type" styleClass="form-control form-control-sm autocompleteType populateBuyerCom" style="display:inline-block;width: 100%;" onblur="upEvent(this);" />
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Tol. Vol (BBL)</label>
+                                    <apex:outputPanel id="TotalVolumePanel">
+                                        <apex:inputField id="totalVolume" value="{!opportunityData.Total_Volume_BBL_New__c}" html-tabindex="14" label="Tol. Vol (BBL)" styleClass="form-control form-control-sm calculateTotal" style="display:inline-block;width: 100%;" />
+                                    </apex:outputPanel>
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <div class="stripe1" style="{!IF(isStripeMaster,'','display:none;')}">
+                                        <label class="control-label">Strip Start Date</label>
+                                        <apex:inputField id="startStrip" value="{!opportunityData.Start_Date__c}" html-tabindex="10" label="Date" styleClass="form-control form-control-sm saveTrans" style="display:inline-block;width: 100%;" />
+                                    </div>
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <div class="stripe2" style="{!IF(isStripeMaster,'','display:none;')}">
+                                        <label class="control-label">Strip End Date</label>
+                                        <apex:inputField id="endStrip" value="{!opportunityData.End_Date__c}" html-tabindex="10" label="Date" styleClass="form-control form-control-sm saveTrans" style="display:inline-block;width: 100%;" />
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr style="{!IF(opportunityData.Type == 'EXPORT','','display:none;')}" class="export1">
+                            	<td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Tolerance Clause</label>
+                                    <apex:inputText id="opp_tolerance" value="{!opportunityData.Tolerance__c}" tabindex="6" styleClass="form-control form-control-sm saveTrans" style="display:inline-block;width: 100%;" />
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Party Option</label>
+                                    <apex:inputField id="opp_party" value="{!opportunityData.Party_Option__c}" html-tabindex="15" styleClass="form-control form-control-sm saveTrans" style="display:inline-block;width: 100%;" />
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Delivery Window Start</label>
+                                    <apex:inputField id="opp_dwstart" value="{!opportunityData.Delivery_Window_Start__c}" html-tabindex="10" styleClass="form-control form-control-sm saveTrans" style="display:inline-block;width: 100%;" />
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Delivery Window End</label>
+                                    <apex:inputField id="opp_dwend" value="{!opportunityData.Delivery_Window_End__c}" html-tabindex="10" styleClass="form-control form-control-sm saveTrans" style="display:inline-block;width: 100%;" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Grade</label><br/>
+                                    <div class="future1" style="{!IF(opportunityData.Type <> 'EXPORT',IF(recordTypeName == 'Link Futures Opportunities','display:none;',''),'display:none;')}">
+                                        <!--<apex:inputField value="{!opportunityData.Grade_Crude__c}" html-tabindex="6" label="Grade" styleClass="form-control form-control-sm saveTrans" />-->
+                                        <apex:inputText value="{!gradeCrude}" tabindex="6" label="Grade" styleClass="form-control form-control-sm autocompleteGradeCrude" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="gradeCrudeHidden" value="{!opportunityData.Grade_Crude__c}" />
+                                    </div>
+                                    <div class="future2" style="{!IF(opportunityData.Type <> 'EXPORT',IF(recordTypeName == 'Link Crude Opportunities','display:none;',''),'display:none;')}">
+                                    	<!--<apex:inputField value="{!opportunityData.Grade_Future__c}" html-tabindex="6" label="Grade" styleClass="form-control form-control-sm saveTrans" />-->
+                                        <apex:inputText value="{!gradeFuture}" tabindex="6" label="Grade" styleClass="form-control form-control-sm autocompleteGradeFuture" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="gradeFutureHidden" value="{!opportunityData.Grade_Future__c}" />
+                                    </div>
+                                    <div class="export1" style="{!IF(opportunityData.Type == 'EXPORT','','display:none;')}">
+                                        <apex:inputText value="{!gradeExport}" tabindex="6" label="Grade" styleClass="form-control form-control-sm autocompleteGradeExport" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="gradeExportHidden" value="{!opportunityData.Grade_Export__c}" />
+                                    </div>
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <div class="future3">
+                                        <label class="control-label">Region</label>
+                                        <apex:inputText id="iRegion" value="{!opportunityData.Region__c}" tabindex="15" label="Region" styleClass="form-control form-control-sm autocompleteRegion populateBuyerCom" style="display:inline-block;width: 100%;" />
+                                    </div>
+                                    <div class="future4" style="display:none;">
+                                        <label class="control-label">Volume Tolerance</label>
+                                        <apex:inputField value="{!opportunityData.Volume_Tolerance__c}" label="Volume Tolerance" style="display:inline-block;" styleClass="form-control form-control-sm saveTrans" />
+                                    </div>
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Cost Per Unit</label>
+                                    <apex:inputField id="costperunit" value="{!opportunityData.Cost_Per_Unit__c}" html-tabindex="11" label="Grade" styleClass="form-control form-control-sm decimal saveTrans" />
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <div class="row">
+                                        <div class="col-md-2">
+                                            <label class="control-label">Revised</label> <br/>
+                                            <apex:inputField value="{!opportunityData.Revised__c}" label="Revised" style="display:inline-block;" />
+                                        </div>
+                                       	<div class="col-md-2">
+                                            <label class="control-label">Void</label> <br/>
+                                            <apex:inputField id="opp_void" value="{!opportunityData.Void__c}" label="Revised" style="display:inline-block;" />
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Price Type</label><br/>
+                                    <apex:inputText id="priceType" value="{!opportunityData.Price_Type__c}" tabindex="7" label="Price Type" styleClass="form-control form-control-sm autocompletePriceType" />
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Cost Per Unit Formula</label>
+                                    <apex:inputText id="costPerUnitFormula" value="{!opportunityData.Cost_Per_Unit_formula__c}" disabled="{!IF(opportunityData.Price_Type__c == 'Formula Price',false,true)}" tabindex="16" label="Cost Per Unit Formula" styleClass="form-control form-control-sm autocompleteCostPerUnitFormula" style="display:inline-block;width: 100%;" />
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="4" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Cost Per Unit Formula Verbiage</label><br/>
+                                    <apex:inputField id="costperunitformulaverbiage" value="{!opportunityData.Cost_Per_Unit_Formula_Verbiage__c}" label="Cost Per Unit Formula Verbiage" styleClass="form-control form-control-sm saveTrans" />
+                                </td>
+                            </tr>
+                        </table>
+                    </apex:pageBlock>
+                    <apex:pageBlock >
+                        <table cellspacing="0" cellpadding="0" width="100%" class="tableLight table table-sm">
+                            <thead>
+                                <tr>
+                                    <th style="width:10%;">Names</th>
+                                    <th style="width:20%;">Client</th>
+                                    <th style="width:20%;">Trader/Attn</th>
+                                    <th style="width:20%;">Confirmation To, Via</th>
+                                    <th style="width:20%;">Invoice To</th>
+                                    <th style="width:10%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            	<tr>
+                                	<td style="font-weight:bold;">Seller</td>
+                                    <td>
+                                    	<apex:inputText id="seller" value="{!sellerName}" tabindex="17" label="Seller" styleClass="form-control form-control-sm autocompleteSeller" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="sellerHidden" value="{!opportunityData.Seller__c}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText id="traderSeller" value="{!traderSellerName}" tabindex="18" label="Trader Seller" styleClass="form-control form-control-sm autocompleteTraderSeller" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="traderSellerHidden" value="{!opportunityData.Trader_for_Seller__c}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText id="confirmSeller" value="{!confirmSellerName}" tabindex="19" label="Confirmation Seller" styleClass="form-control form-control-sm autocompleteConfirmSeller" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="confirmSellerHidden" value="{!opportunityData.Confirmation_Seller__c}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText id="invoiceSeller" value="{!invoiceSellerName}" tabindex="20" label="Invoice Seller" styleClass="form-control form-control-sm autocompleteInvoiceSeller" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="invoiceSellerHidden" value="{!opportunityData.Invoice_Seller__c}" />
+                                    </td>
+                                    <td>
+                                    	<!--<apex:commandButton action="{!saveCloseAction}" value="Apply to Selected Transactions" styleClass="btn btn-primary" />-->
+                                        <apex:outputPanel id="invoiceRender3">
+                                            <div class="url1" style="{!IF(opportunityData.Id <> null,'','display:none;')}">
+                                                <a href="{!urlInvoiceSeller}" target="_blank" class="btn btn-primary btn-sm">Confirmation</a> 
+                                            </div>
+                                        </apex:outputPanel>
+                                    </td>
+                                </tr>
+                                <tr>
+                                	<td style="font-weight:bold;">Buyer</td>
+                                    <td>
+                                    	<apex:inputText id="buyer" value="{!buyerName}" tabindex="21" label="Buyer" styleClass="form-control form-control-sm autocompleteBuyer" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="buyerHidden" value="{!opportunityData.AccountId}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText id="traderBuyer" value="{!traderBuyerName}" tabindex="22" label="Trader Buyer" styleClass="form-control form-control-sm autocompleteTraderBuyer" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="traderBuyerHidden" value="{!opportunityData.Trader_for_Buyer__c}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText id="confirmBuyer" value="{!confirmBuyerName}" tabindex="23" label="Confirmation Buyer" styleClass="form-control form-control-sm autocompleteConfirmBuyer" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="confirmBuyerHidden" value="{!opportunityData.Confirmation_Buyer__c}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText id="invoiceBuyer" value="{!invoiceBuyerName}" tabindex="24" label="Invoice Buyer" styleClass="form-control form-control-sm autocompleteInvoiceBuyer" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="invoiceBuyerHidden" value="{!opportunityData.Invoice_Buyer__c}" />
+                                    </td>
+                                    <td>
+                                    	<!--<apex:commandButton action="{!saveCloseAction}" value="Apply to Selected Transactions" styleClass="btn btn-primary" />-->
+                                        <apex:outputPanel id="invoiceRender4">
+                                            <div class="url2" style="{!IF(opportunityData.Id <> null,'','display:none;')}">
+                                            	<a href="{!urlInvoiceBuyer}" target="_blank" class="btn btn-primary btn-sm">Confirmation</a>
+                                            </div>
+                                        </apex:outputPanel>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </apex:pageBlock>
+                    <apex:pageBlock >
+                        <table cellspacing="0" cellpadding="0" width="100%" class="tableLight table table-sm">
+                            <thead>
+                                <tr>
+                                    <th style="width:10%;">Billing</th>
+                                    <th style="width:30%;">Rate ($/BBL)</th>
+                                    <th style="width:30%;">Commission</th>
+                                    <th style="width:30%;">Invoice Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            	<tr>
+                                	<td style="font-weight:bold;">Seller</td>
+                                    <td><apex:inputText id="rateSeller" value="{!rateSeller}" tabindex="25" label="Rate Seller" styleClass="form-control form-control-sm rateSeller saveTrans" style="display:inline-block;width: 100%;" /></td>
+                                    <td><apex:inputText id="commissionSeller" value="{!commissionSeller}" tabindex="26" label="Commission Seller" styleClass="form-control form-control-sm saveTrans" style="display:inline-block;width: 100%;" /></td>
+                                    <td>
+                                        <apex:outputPanel id="invoiceRender1">
+                                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                                <apex:param value="{!dateInvoiceSeller}" />
+                                            </apex:outputText>
+                                        </apex:outputPanel>
+                                    </td>
+                                </tr>
+                                <tr>
+                                	<td style="font-weight:bold;">Buyer</td>
+                                    <td><apex:inputText id="rateBuyer" value="{!rateBuyer}" tabindex="27" label="Rate Buyer" styleClass="form-control form-control-sm rateBuyer saveTrans" style="display:inline-block;width: 100%;" /></td>
+                                    <td><apex:inputText id="commissionBuyer" value="{!commissionBuyer}" tabindex="28" label="Commission Buyer" styleClass="form-control form-control-sm saveTrans" style="display:inline-block;width: 100%;" /></td>
+                                    <td>
+                                        <apex:outputPanel id="invoiceRender2">
+                                            <apex:outputText value="{0, date, MM'/'dd'/'yyyy}">
+                                                <apex:param value="{!dateInvoiceBuyer}" />
+                                            </apex:outputText>
+                                        </apex:outputPanel>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </apex:pageBlock>
+                    <apex:pageBlock >
+                        <apex:variable value="{!0}" var="totalseller"/>
+                        <apex:variable value="{!0}" var="totalbuyer"/>
+                        <table cellspacing="0" cellpadding="0" width="100%" class="tableLight table table-sm">
+                            <thead>
+                                <tr>
+                                    <th style="width:6%;">Commission Split</th>
+                                    <th style="width:15%;">Broker #1</th>
+                                    <th style="width:7%;">Split</th>
+                                    <th style="width:15%;">Broker #2</th>
+                                    <th style="width:7%;">Split</th>
+                                    <th style="width:15%;">Broker #3</th>
+                                    <th style="width:7%;">Split</th>
+                                    <th style="width:15%;">Broker #4</th>
+                                    <th style="width:7%;">Split</th>
+                                    <th style="width:6%;">Total Split</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            	<tr>
+                                	<td style="font-weight:bold;">Seller</td>
+                                    <td>
+                                    	<apex:inputText id="sbroker1" value="{!sBroker1Name}" tabindex="29" label="Broker 1" styleClass="form-control form-control-sm action-split-seller autocompleteBroker" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="sbroker1Hidden" value="{!sBroker1}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText value="{!sSplit1}" tabindex="30" label="Split 1" styleClass="form-control form-control-sm number-valid action-split-seller comm-split-seller sbroker1 saveTrans" style="display:inline-block;width: 100%;" />
+                                    	<apex:variable var="totalseller" value="{!totalseller + sSplit1}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText id="sbroker2" value="{!sBroker2Name}" tabindex="31" label="Broker 2" styleClass="form-control form-control-sm action-split-seller autocompleteBroker" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="sbroker2Hidden" value="{!sBroker2}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText value="{!sSplit2}" tabindex="32" label="Split 2" styleClass="form-control form-control-sm number-valid action-split-seller comm-split-seller sbroker2 saveTrans" style="display:inline-block;width: 100%;" />
+                                    	<apex:variable var="totalseller" value="{!totalseller + sSplit2}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText id="sbroker3" value="{!sBroker3Name}" tabindex="33" label="Broker 3" styleClass="form-control form-control-sm action-split-seller autocompleteBroker" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="sbroker3Hidden" value="{!sBroker3}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText value="{!sSplit3}" tabindex="34" label="Split 3" styleClass="form-control form-control-sm number-valid action-split-seller comm-split-seller sbroker3 saveTrans" style="display:inline-block;width: 100%;" />
+                                    	<apex:variable var="totalseller" value="{!totalseller + sSplit3}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText id="sbroker4" value="{!sBroker4Name}" tabindex="35" label="Broker 4" styleClass="form-control form-control-sm action-split-seller autocompleteBroker" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="sbroker4Hidden" value="{!sBroker4}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText value="{!sSplit4}" tabindex="36" label="Split 4" styleClass="form-control form-control-sm number-valid action-split-seller comm-split-seller sbroker4 saveTrans" style="display:inline-block;width: 100%;" />
+                                    	<apex:variable var="totalseller" value="{!totalseller + sSplit4}" />
+                                    </td>
+                                    <td style="padding-top: 9px;padding-left: 15px;font-size: 15px;">
+                                        <span class="total-split-seller">{!totalseller}</span>   
+                                    </td>
+                                </tr>
+                                <tr>
+                                	<td style="font-weight:bold;">Buyer</td>
+                                    <td>
+                                    	<apex:inputText id="bbroker1" value="{!bBroker1Name}" tabindex="37" label="Broker 1" styleClass="form-control form-control-sm action-split-buyer autocompleteBroker" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="bbroker1Hidden" value="{!bBroker1}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText value="{!bSplit1}" tabindex="38" label="Split 1" styleClass="form-control form-control-sm number-valid action-split-buyer comm-split-buyer bbroker1 saveTrans" style="display:inline-block;width: 100%;" />
+                                    	<apex:variable var="totalbuyer" value="{!totalbuyer + bSplit1}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText id="bbroker2" value="{!bBroker2Name}" tabindex="39" label="Broker 2" styleClass="form-control form-control-sm action-split-buyer autocompleteBroker" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="bbroker2Hidden" value="{!bBroker2}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText value="{!bSplit2}" tabindex="40" label="Split 2" styleClass="form-control form-control-sm number-valid action-split-buyer comm-split-buyer bbroker2 saveTrans" style="display:inline-block;width: 100%;" />
+                                    	<apex:variable var="totalbuyer" value="{!totalbuyer + bSplit2}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText id="bbroker3" value="{!bBroker3Name}" tabindex="41" label="Broker 3" styleClass="form-control form-control-sm action-split-buyer autocompleteBroker" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="bbroker3Hidden" value="{!bBroker3}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText value="{!bSplit3}" tabindex="42" label="Split 3" styleClass="form-control form-control-sm number-valid action-split-buyer comm-split-buyer bbroker3 saveTrans" style="display:inline-block;width: 100%;" />
+                                    	<apex:variable var="totalbuyer" value="{!totalbuyer + bSplit3}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText id="bbroker4" value="{!bBroker4Name}" tabindex="43" label="Broker 4" styleClass="form-control form-control-sm action-split-buyer autocompleteBroker" style="display:inline-block;width: 100%;" />
+                                        <apex:inputHidden id="bbroker4Hidden" value="{!bBroker4}" />
+                                    </td>
+                                    <td>
+                                    	<apex:inputText value="{!bSplit4}" tabindex="44" label="Split 4" styleClass="form-control form-control-sm number-valid action-split-buyer comm-split-buyer bbroker4 saveTrans" style="display:inline-block;width: 100%;" />
+                                    	<apex:variable var="totalbuyer" value="{!totalbuyer + bSplit4}" />
+                                    </td>
+                                    <td style="padding-top: 9px;padding-left: 15px;font-size: 15px;">
+                                        <span class="total-split-buyer">{!totalbuyer}</span>   
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </apex:pageBlock>
+                    <apex:pageBlock >
+                        <table cellspacing="0" cellpadding="0" width="100%">
+                            <tr>
+                                <td style="width:30%;padding:10px;vertical-align:top;">
+                                    <label class="control-label">Payment Terms</label>
+                                    <apex:inputText id="paymentTerms" value="{!paymentTermName}" tabindex="45" label="Payment Terms" styleClass="form-control form-control-sm autocompleteTerms1" style="display:inline-block;width: 100%;" />
+                                    <apex:inputHidden id="paymentTermsID" value="{!opportunityData.Payment_Terms_Lookup__c}" />
+                                </td>
+                                <td colspan="3" style="width:70%;padding:10px;vertical-align:top;">
+                                    <label class="control-label">Payment Terms</label>
+                                    <apex:inputTextarea rows="4" id="paymentTermsVerbiage" style="width:100%;" value="{!opportunityData.Payment_Terms_Verbiage__c}" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Contract Terms</label>
+                                    <apex:inputText id="contractTerms" value="{!contractTermName}" tabindex="46" label="Contract Terms" styleClass="form-control form-control-sm autocompleteTerms2" style="display:inline-block;width: 100%;" />
+                                    <apex:inputHidden id="contractTermsID" value="{!opportunityData.Contract_Terms_Lookup__c}" />
+                                </td>
+                                <td colspan="3" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Contract Terms</label>
+                                    <apex:inputTextarea rows="4" id="contractTermsVerbiage" style="width:100%;" value="{!opportunityData.Contract_Terms_Verbiage__c}" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Commission Terms</label>
+                                    <apex:inputText id="commissionTerms" value="{!commissionTermName}" tabindex="47" label="Commission Terms" styleClass="form-control form-control-sm autocompleteTerms3" style="display:inline-block;width: 100%;" />
+                                    <apex:inputHidden id="commissionTermsID" value="{!opportunityData.Commission_Terms_Lookup__c}" />
+                                </td>
+                                <td colspan="3" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Commission Terms</label>
+                                    <apex:inputTextarea rows="4" id="commissionTermsVerbiage" style="width:100%;" value="{!opportunityData.Commission_Terms_Verbiage__c}" />
+                                </td>
+                            </tr>
+                            <tr class="terms-export" style="{!IF(opportunityData.Type == 'EXPORT','','display:none;')}">
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Cancellation Terms</label>
+                                    <apex:inputText id="cancellationTerms" value="{!cancellationTermName}" tabindex="47" styleClass="form-control form-control-sm autocompleteTerms4" style="display:inline-block;width: 100%;" />
+                                    <apex:inputHidden id="cancellationTermsID" value="{!opportunityData.Cancellation__c}" />
+                                </td>
+                                <td colspan="3" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Cancellation Terms</label>
+                                    <apex:inputTextarea rows="4" id="cancellationTermsVerbiage" style="width:100%;" value="{!opportunityData.Cancellation_Verbiage__c}" />
+                                </td>
+                            </tr>
+                            <tr class="terms-export" style="{!IF(opportunityData.Type == 'EXPORT','','display:none;')}">
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Crude oil specifications Terms</label>
+                                    <apex:inputText id="crudeOilTerms" value="{!crudeOilTermName}" tabindex="47" styleClass="form-control form-control-sm autocompleteTerms5" style="display:inline-block;width: 100%;" />
+                                    <apex:inputHidden id="crudeOilTermsID" value="{!opportunityData.Crude_oil_specifications__c}" />
+                                </td>
+                                <td colspan="3" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Crude oil specifications Terms</label>
+                                    <apex:inputTextarea rows="4" id="crudeOilTermsVerbiage" style="width:100%;" value="{!opportunityData.Crude_oil_specifications_Verbiage__c}" />
+                                </td>
+                            </tr>
+                            <tr class="terms-export" style="{!IF(opportunityData.Type == 'EXPORT','','display:none;')}">
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Receipt/Delivery Window Terms</label>
+                                    <apex:inputText id="receiptWindowTerms" value="{!receiptWindowTermName}" tabindex="47" styleClass="form-control form-control-sm autocompleteTerms6" style="display:inline-block;width: 100%;" />
+                                    <apex:inputHidden id="receiptWindowTermsID" value="{!opportunityData.Receipt_Delivery_Window_Terms__c}" />
+                                </td>
+                                <td colspan="3" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Receipt/Delivery Window Terms</label>
+                                    <apex:inputTextarea rows="4" id="receiptWindowTermsVerbiage" style="width:100%;" value="{!opportunityData.Receipt_Delivery_Window_Terms_Verbiage__c}" />
+                                </td>
+                            </tr>
+                            <tr class="terms-export" style="{!IF(opportunityData.Type == 'EXPORT','','display:none;')}">
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Receipt/Delivery Terms</label>
+                                    <apex:inputText id="receiptTerms" value="{!receiptTermName}" tabindex="47" styleClass="form-control form-control-sm autocompleteTerms7" style="display:inline-block;width: 100%;" />
+                                    <apex:inputHidden id="receiptTermsID" value="{!opportunityData.Receipt_Delivery_Terms__c}" />
+                                </td>
+                                <td colspan="3" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Receipt/Delivery Terms</label>
+                                    <apex:inputTextarea rows="4" id="receiptTermsVerbiage" style="width:100%;" value="{!opportunityData.Receipt_Delivery_Terms_Verbiage__c}" />
+                                </td>
+                            </tr>
+                            <tr class="terms-export" style="{!IF(opportunityData.Type == 'EXPORT','','display:none;')}">
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Title and Risk Transfer Terms</label>
+                                    <apex:inputText id="titleTerms" value="{!titleTermName}" tabindex="47" styleClass="form-control form-control-sm autocompleteTerms8" style="display:inline-block;width: 100%;" />
+                                    <apex:inputHidden id="titleTermsID" value="{!opportunityData.Title_and_Risk_Transfer_Terms__c}" />
+                                </td>
+                                <td colspan="3" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Title and Risk Transfer Terms</label>
+                                    <apex:inputTextarea rows="4" id="titleTermsVerbiage" style="width:100%;" value="{!opportunityData.Title_and_Risk_Transfer_Verbiage__c}" />
+                                </td>
+                            </tr>
+                            <tr class="terms-export" style="{!IF(opportunityData.Type == 'EXPORT','','display:none;')}">
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Measurement Terms</label>
+                                    <apex:inputText id="measurementTerms" value="{!measurementTermName}" tabindex="47" styleClass="form-control form-control-sm autocompleteTerms9" style="display:inline-block;width: 100%;" />
+                                    <apex:inputHidden id="measurementTermsID" value="{!opportunityData.Measurement_Terms__c}" />
+                                </td>
+                                <td colspan="3" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Measurement Terms</label>
+                                    <apex:inputTextarea rows="4" id="measurementTermsVerbiage" style="width:100%;" value="{!opportunityData.Measurement_Terms_Verbiage__c}" />
+                                </td>
+                            </tr>
+                            <tr class="terms-export" style="{!IF(opportunityData.Type == 'EXPORT','','display:none;')}">
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Allowed Laytime Terms</label>
+                                    <apex:inputText id="allowedTerms" value="{!allowedTermName}" tabindex="47" styleClass="form-control form-control-sm autocompleteTerms10" style="display:inline-block;width: 100%;" />
+                                    <apex:inputHidden id="allowedTermsID" value="{!opportunityData.Allowed_Laytime_Terms__c}" />
+                                </td>
+                                <td colspan="3" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Allowed Laytime Terms</label>
+                                    <apex:inputTextarea rows="4" id="allowedTermsVerbiage" style="width:100%;" value="{!opportunityData.Allowed_Laytime_Terms_Verbiage__c}" />
+                                </td>
+                            </tr>
+                            <tr class="terms-export" style="{!IF(opportunityData.Type == 'EXPORT','','display:none;')}">
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Demurrage Rate Terms</label>
+                                    <apex:inputText id="demurrageTerms" value="{!demurrageTermName}" tabindex="47" styleClass="form-control form-control-sm autocompleteTerms11" style="display:inline-block;width: 100%;" />
+                                    <apex:inputHidden id="demurrageTermsID" value="{!opportunityData.Demurrage_Rate_Terms__c}" />
+                                </td>
+                                <td colspan="3" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Demurrage Rate Terms</label>
+                                    <apex:inputTextarea rows="4" id="demurrageTermsVerbiage" style="width:100%;" value="{!opportunityData.Demurrage_Rate_Terms_Verbiage__c}" />
+                                </td>
+                            </tr>
+                            <tr class="terms-export" style="{!IF(opportunityData.Type == 'EXPORT','','display:none;')}">
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Public Terminal Terms</label>
+                                    <apex:inputText id="publicTerms" value="{!publicTermName}" tabindex="47" styleClass="form-control form-control-sm autocompleteTerms12" style="display:inline-block;width: 100%;" />
+                                    <apex:inputHidden id="publicTermsID" value="{!opportunityData.Public_Terminal_Terms__c}" />
+                                </td>
+                                <td colspan="3" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Public Terminal Terms</label>
+                                    <apex:inputTextarea rows="4" id="publicTermsVerbiage" style="width:100%;" value="{!opportunityData.Public_Terminal_Terms_Verbiage__c}" />
+                                </td>
+                            </tr>
+                            <tr class="terms-export" style="{!IF(opportunityData.Type == 'EXPORT','','display:none;')}">
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">GTC's Terms</label>
+                                    <apex:inputText id="gtcTerms" value="{!gtcTermName}" tabindex="47" styleClass="form-control form-control-sm autocompleteTerms13" style="display:inline-block;width: 100%;" />
+                                    <apex:inputHidden id="gtcTermsID" value="{!opportunityData.GTC_s_Terms__c}" />
+                                </td>
+                                <td colspan="3" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">GTC's Terms</label>
+                                    <apex:inputTextarea rows="4" id="gtcTermsVerbiage" style="width:100%;" value="{!opportunityData.GTC_s_Terms_Verbiage__c}" />
+                                </td>
+                            </tr>
+                            <tr class="terms-export" style="{!IF(opportunityData.Type == 'EXPORT','','display:none;')}">
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Special Provisions Terms</label>
+                                    <apex:inputText id="specialTerms" value="{!specialTermName}" tabindex="47" styleClass="form-control form-control-sm autocompleteTerms14" style="display:inline-block;width: 100%;" />
+                                    <apex:inputHidden id="specialTermsID" value="{!opportunityData.Special_Provisions_Terms__c}" />
+                                </td>
+                                <td colspan="3" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Special Provisions Terms</label>
+                                    <apex:inputTextarea rows="4" id="specialTermsVerbiage" style="width:100%;" value="{!opportunityData.Special_Provisions_Terms_Verbiage__c}" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="4" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Additional Terms</label>
+                                    <apex:inputTextarea rows="3" id="additionalTerms" style="width:100%;" value="{!opportunityData.Additional_Terms_Verbiage__c}" styleClass="saveTrans" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td rowspan="2" style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Who will write</label><br/>
+                                    <apex:selectList value="{!whoWillWrite}" tabindex="48" styleClass="saveTrans" style="width: 100%;">
+                                        <apex:selectOptions value="{!options1}" />
+                                    </apex:selectList>
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Seller Broker #1 Approval</label>
+                                    <apex:inputField value="{!opportunityData.Seller_Broker_1_approval__c}" label="Seller Broker #1 Approval" style="display:inline-block;" styleClass="saveTrans" />
+                                </td>
+                                <td style="padding:10px;vertical-align:top;">
+                                    <label class="control-label">Buyer Broker #1 Approval</label>
+                                    <apex:inputField value="{!opportunityData.Buyer_Broker_1_approval__c}" label="Buyer Broker #1 Approval" style="display:inline-block;" styleClass="saveTrans" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: center;">
+                                    <div id="botones2">
+                                	<!--<apex:commandButton action="{!saveCloseAction}" value="Save Changes" styleClass="btnNew" style="width:200px;" />-->
+                                    <a href="javascript:void(0);" class="btn btn-primary btnNew saveButton" tabindex="49" style="width:200px;font-size:14px;">Save Changes</a>
+                                    </div>
+                                </td>
+                                <td style="text-align: center;">
+                                    <div id="botones3">
+                                    <a href="javascript:void(0);" class="btn btn-primary btnNew newButton" tabindex="50" style="width:200px;font-size:14px;">New Transaction</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </apex:pageBlock>
+                    <apex:outputPanel id="valuesPanel">
+                    	<script>
+                        var regions = {!regionsJson};
+                        var types_z = {!typesJson};
+                        var pipelines = {!pipelineJson};
+                        var locations = {!locationJson};
+                        var deliveries = {!deliveryJson};
+                        var priceTypes = {!priceTypeJson};
+                        var costPerUnitFormulas = {!costPerUnitFormulaJson};
+                        console.log('HERE: ' + costPerUnitFormulas);
+                        $('.autocompleteRegion').autocomplete({
+                            lookup: regions,
+                            autoSelectFirst: true,
+                            onSelect: function (suggestion) {
+                                //saveTransJs();
+                            }
+                        });
+                        $('.autocompleteType').autocomplete({
+                            lookup: types_z,
+                            autoSelectFirst: true,
+                            onSelect: function (suggestion) {
+                                if(suggestion.value == 'EXPORT'){
+                                    $('.terms-export').show();
+                                    $('.future1').hide();
+                                    $('.future2').hide();
+                                    $('.export1').show();
+                                }else{
+                                    $('input[id$=opp_tolerance]').val('');
+                                    $('select[id$=opp_party]').val('');
+                                    $('input[id$=opp_dwstart]').val('');
+                                    $('input[id$=opp_dwend]').val('');
+                                    $('.export1').hide();
+                                    $('.terms-export').hide();
+                                    var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+                                    var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+                                    var textRecordType = $('select[id$=recordType]').val();
+                                    console.log(textRecordType);
+                                    if(textRecordType == recordTypeCrudeId){
+                                        $('.future1').show();
+                                        $('.future2').hide();
+                                    }else{
+                                        $('.future1').hide();
+                                        $('.future2').show();
+                                    }
+                                }
+                                saveTransJs();
+                            }
+                        });
+                        $('.autocompletePipeline').autocomplete({
+                            lookup: pipelines,
+                            autoSelectFirst: true,
+                            onSelect: function (suggestion) {
+                                //saveTransJs();
+                            }
+                        });
+                        $('.autocompleteLocation').autocomplete({
+                            lookup: locations,
+                            autoSelectFirst: true,
+                            onSelect: function (suggestion) {
+                                //saveTransJs();
+                            }
+                        });
+                        $('.autocompleteDelivery').autocomplete({
+                            lookup: deliveries,
+                            autoSelectFirst: true,
+                            onSelect: function (suggestion) {
+                                //saveTransJs();
+                            }
+                        });
+                        $('.autocompletePriceType').autocomplete({
+                            lookup: priceTypes,
+                            autoSelectFirst: true,
+                            onSelect: function (suggestion) {
+                                console.log(suggestion.value);
+                                if(suggestion.value == 'Formula Price'){
+                                    $('.autocompleteCostPerUnitFormula').removeAttr('disabled');
+                                }else{
+                                    $('input[id$=costPerUnitFormula]').val('');
+                                    $('textarea[id$=costperunitformulaverbiage]').val('');
+                                    $('.autocompleteCostPerUnitFormula').attr('disabled',true);
+                                }
+                                //saveTransJs();
+                            }
+                        });
+                        $('.autocompleteCostPerUnitFormula').autocomplete({
+                            lookup: costPerUnitFormulas,
+                            autoSelectFirst: true,
+                            onSelect: function (suggestion) {
+                                var costperunitverbiage = suggestion.data;
+                                var costperunit = $('input[id$=costperunit]').val() == '' ? 0 : $('input[id$=costperunit]').val();
+                                costperunit = parseFloat(costperunit).toFixed(2) || 0;
+                                console.log('costperunit 1: ' + costperunit);
+                                if(costperunit < 0){
+                                    costperunit = costperunit*-1
+                                    console.log('costperunit 2: ' + costperunit);
+                                    costperunit = parseFloat(costperunit).toFixed(2) || 0;
+                                    console.log('costperunit 3: ' + costperunit);
+                                    costperunitverbiage = costperunitverbiage.replace('[COST_PER_UNIT]',costperunit);
+                                    costperunitverbiage = costperunitverbiage.replace('[PLUS/MINUS]','MINUS');
+                                }else{
+                                    costperunitverbiage = costperunitverbiage.replace('[COST_PER_UNIT]',costperunit);
+                                    costperunitverbiage = costperunitverbiage.replace('[PLUS/MINUS]','PLUS');
+                                }
+                                console.log('costPerUnitFormulas: ' + JSON.stringify(costPerUnitFormulas));
+                                console.log('costPerUnitFormulas: ' + suggestion.value);
+                                $('textarea[id$=costperunitformulaverbiage]').val(costperunitverbiage);
+                                //saveTransJs();
+                            }
+                        });
+                        </script>
+                    </apex:outputPanel>
+                    <!-- Action Functions-->
+                    <apex:actionFunction action="{!saveTrans}" name="saveTransJs" reRender="messageMain, invoiceRender1, invoiceRender2, stripe1, stripe2, invoiceRender3, invoiceRender4, TotalVolumePanel,recordtype1,valuesPanel" />
+                    <apex:actionFunction action="{!createTransaction}" name="createTransJs" reRender="messageMain, invoiceRender1, invoiceRender2, stripe1, stripe2, recordtype1, invoiceRender3, invoiceRender4, valuesPanel" />
+                    <apex:actionFunction action="{!saveAction}" name="saveButtonJs" status="loading" reRender="messageMain, invoiceRender1, invoiceRender2, stripe1, stripe2, invoiceRender3, invoiceRender4, TotalVolumePanel,recordtype1" />
+                    <apex:actionFunction action="{!newTransaction}" name="newButtonJs" />
+    				<apex:actionFunction action="{!calculateTotal}" name="calculateTotalJs" reRender="TotalVolumePanel,DayVolumePanel" />
+                    <apex:actionStatus id="loading" onstart="loading(true)" onstop="loading(false)" />
+                </apex:form>
+            </div>
+        </div>
+    </body>
+<script>
+function loading(val) {
+    if (val) {
+        document.getElementById('contentLoading').style.display = 'block';
+        document.getElementById('contentLoaded').style.display = 'none';
+    }
+    else {
+        document.getElementById('contentLoading').style.display = 'none';
+        document.getElementById('contentLoaded').style.display = 'block';
+    }
+}
+function upEvent(val){
+    if($(val).val() == 'EXPORT'){
+        $('.terms-export').show();
+        $('.future1').hide();
+        $('.future2').hide();
+        $('.export1').show();
+    }else{
+        $('input[id$=opp_tolerance]').val('');
+        $('select[id$=opp_party]').val('');
+        $('input[id$=opp_dwstart]').val('');
+        $('input[id$=opp_dwend]').val('');
+        $('.export1').hide();
+        $('.terms-export').hide();
+        var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+        var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+        var textRecordType = $('select[id$=recordType]').val();
+        console.log(textRecordType);
+        if(textRecordType == recordTypeCrudeId){
+            $('.future1').show();
+            $('.future2').hide();
+        }else{
+            $('.future1').hide();
+            $('.future2').show();
+        }
+    }
+    //saveTransJs();
+}
+$(document).ready(function(){
+    $('input,select').keypress(function(event) { return event.keyCode != 13; });
+    //$('a').removeAttr("tabindex");    
+    $(".decimal").inputmask('decimal', {
+        rightAlign: true
+    });
+    $(".number-valid").inputmask('Regex', {regex: "^[1-9][0-9]?$|[1-9](\\.\\d{1,2})?$|[1-9][0-9](\\.\\d{1,3})?$|^100$"});
+
+    Init();
+    function Init(){
+        //verify roles
+        console.log($('input[id$=auxIA]').val());
+        console.log($('input[id$=auxIR]').val());
+        if($('select[id$=recordType]').val() != ''){
+            $('select[id$=recordType]').attr("disabled", true);    
+        }else{
+        	$('select[id$=recordType]').val($('input[id$=auxRTID]').val());
+        }
+        if($('input[id$=auxIA]').val() == 'false' && $('input[id$=auxIR]').val() == 'false'){
+            alert('You are not an administrator and you do not have a known role assigned.');
+            $('div[id$=botones]').hide();
+            $('div[id$=botones2]').hide();
+            $('div[id$=botones3]').hide();
+            $('select[id$=recordType]').attr("disabled", true); 
+        } else if($('input[id$=auxIA]').val() == 'false'){
+            $('select[id$=recordType]').attr("disabled", true); 
+            if($('select[id$=recordType]').val()!=$('input[id$=auxRTID]').val()){
+                alert('You cannot edit this record.');
+                $('div[id$=botones]').hide();
+                $('div[id$=botones2]').hide();
+                $('div[id$=botones3]').hide();
+            }
+        }
+        
+        if($('input[id$=priceType]').val() == 'Fixed Price'){
+            $('input[id$=costPerUnitFormula]').attr("disabled", true);    
+        }
+        var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+        var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+        var textRecordType = $('select[id$=recordType]').val();
+        $('select[id$=transactionType]').focus();
+        console.log(textRecordType);
+        if($('input[id$=typeT]').val() == 'EXPORT'){
+            $('.terms-export').show();
+            $('.future1').hide();
+            $('.future2').hide();
+            $('.export1').show();
+        }else{
+            if(textRecordType == recordTypeCrudeId){
+                $('.future1').show();
+                $('.future2').hide();
+                $('.future3').show();
+                $('.future4').hide();
+                $('.future5').show();
+                $('.future6').hide();
+            }else{
+                $('.future1').hide();
+                $('.future2').show();
+                $('.future3').hide();
+                $('.future4').show();
+                $('.future5').hide();
+                $('.future6').show();
+            }
+        }
+    }
+
+    $('body').off('blur','.saveTrans');
+    $('body').on('blur','.saveTrans', function(e){
+        //saveTransJs();
+    });
+    
+    $('body').off('blur','.populateBuyerCom');
+    $('body').on('blur','.populateBuyerCom', function(e){
+        console.log('b1');
+        var textRecordType = $('select[id$=recordType]').val();
+        var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+        var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+        //if($('input[id$=typeT]').val() != 'EXCHANGE' && $('select[id$=transactionType]').val() != 'Master (Strip Master)'){
+        if(($('input[id$=typeT]').val() == 'OUTRIGHT' && $('input[id$=iRegion]').val() == 'Canadian' && textRecordType == recordTypeCrudeId) || 
+           ($('select[id$=transactionType]').val() != 'Master (Strip Master)' && textRecordType == recordTypeFutureId)){
+            console.log('b2');
+            var rate = $('input[id$=rateBuyer]').val();
+            var totalVolume = parseFloat($('input[id$=totalVolume]').val().replace(/,/g,'')) || 0;
+            var rate = parseFloat(rate) || 0;
+            var commission = rate * totalVolume;
+            $('input[id$=commissionBuyer]').val(commission);
+        }else{
+             $('input[id$=commissionBuyer]').val(0);
+        }
+    });
+    
+    $('body').off('blur','.calculateTotal');
+    $('body').on('blur','.calculateTotal', function(e){
+        calculateTotalJs();
+        if($('select[id$=transactionType]').val() != 'Master (Strip Master)'){
+            var rate = $('input[id$=rateSeller]').val();
+            var totalVolume = parseFloat($('input[id$=totalVolume]').val().replace(/,/g,'')) || 0;
+            var rate = parseFloat(rate) || 0;
+            var commission = rate * totalVolume;
+            $('input[id$=commissionSeller]').val(commission);
+        }
+        var textRecordType = $('select[id$=recordType]').val();
+        var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+        var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+        console.log('b1');
+        //if($('input[id$=typeT]').val() != 'EXCHANGE' && $('select[id$=transactionType]').val() != 'Master (Strip Master)'){
+        if(($('input[id$=typeT]').val() == 'OUTRIGHT' && $('input[id$=iRegion]').val() == 'Canadian' && textRecordType == recordTypeCrudeId)
+          || ($('select[id$=transactionType]').val() != 'Master (Strip Master)' && textRecordType == recordTypeFutureId)){
+            console.log('b2');
+            var rate = $('input[id$=rateBuyer]').val();
+            var totalVolume = parseFloat($('input[id$=totalVolume]').val().replace(/,/g,'')) || 0;
+            var rate = parseFloat(rate) || 0;
+            var commission = rate * totalVolume;
+            $('input[id$=commissionBuyer]').val(commission);
+        }else{
+             $('input[id$=commissionBuyer]').val(0);
+        }
+    });
+    
+    $('body').off('click','.saveButton');
+    $('body').on('click','.saveButton', function(e){
+        if($('input[id$=opp_void]').prop('checked')){
+            $('input[id$=totalVolume]').val('');
+            $('input[id$=opp_volbblday]').val('');
+            $('input[id$=costperunit]').val('');
+            $('input[id$=rateSeller]').val(0);
+            $('input[id$=commissionSeller]').val(0);
+            $('input[id$=rateBuyer]').val(0);
+            $('.action-split-seller').val(0);
+            $('.action-split-buyer').val(0);
+        }
+        saveButtonJs();
+    });
+    $('body').off('click','.newButton');
+    $('body').on('click','.newButton', function(e){
+        newButtonJs();
+    });
+
+    //SELLER
+    $('.autocompleteSeller').autocomplete({
+        lookup: function (query, done) {
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchAccount}',query,
+                function(result, event){
+                    if (event.status) {
+                        console.log("result: " + result);
+                        var t1 = result;
+                        console.log("t1: " + t1);
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        console.log("results: " + results);
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=sellerHidden]').val(suggestion.data);
+            $('input[id$=rateSeller]').val(suggestion.other);
+            if($('select[id$=transactionType]').val() != 'Master (Strip Master)'){
+                var totalVolume = parseFloat($('input[id$=totalVolume]').val().replace(/,/g,'')) || 0;
+                var rate = parseFloat(suggestion.other) || 0;
+                var commission = parseFloat(Math.round(rate * totalVolume *100)/100).toFixed(2);
+                $('input[id$=commissionSeller]').val(commission);
+            }
+            var accountID = suggestion.data;
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.selectContacts}',accountID,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var arrResult = JSON.parse(results);
+                        console.log('results: ' +arrResult);
+                        console.log('count: ' +arrResult.length);
+                        if(arrResult.length > 0){
+                            if(arrResult[0].type_z == 'Confirmation'){
+                                $('input[id$=confirmSellerHidden]').val(arrResult[0].data);
+                                $('input[id$=confirmSeller]').val(arrResult[0].value);
+                            }
+                            if(arrResult[0].type_z == 'Invoice'){
+                                $('input[id$=invoiceSellerHidden]').val(arrResult[0].data);
+                                $('input[id$=invoiceSeller]').val(arrResult[0].value);
+                            }
+                        }
+                        if(arrResult.length == 2){
+                            if(arrResult[1].type_z == 'Invoice'){
+                                $('input[id$=invoiceSellerHidden]').val(arrResult[1].data);
+                                $('input[id$=invoiceSeller]').val(arrResult[1].value);
+                            }
+                        }
+                        //saveTransJs();
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        }
+    });
+    
+    $('.autocompleteTraderSeller').autocomplete({
+        lookup: function (query, done) {
+            var accountID = $('input[id$=sellerHidden]').val();
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTrader}',query,accountID,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=traderSellerHidden]').val(suggestion.data);
+            var relationID = suggestion.data2;
+            var accountID = $('input[id$=sellerHidden]');
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.selectContacts2}',relationID, accountID,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var arrResult = JSON.parse(results);
+                        console.log('results: ' +arrResult);
+                        console.log('count: ' +arrResult.length);
+                        if(arrResult.length > 0){
+                            if(arrResult[0].type_z == 'Confirmation'){
+                                $('input[id$=confirmSellerHidden]').val(arrResult[0].data);
+                                $('input[id$=confirmSeller]').val(arrResult[0].value);
+                            }
+                            if(arrResult[0].type_z == 'Invoice'){
+                                $('input[id$=invoiceSellerHidden]').val(arrResult[0].data);
+                                $('input[id$=invoiceSeller]').val(arrResult[0].value);
+                            }
+                        }
+                        if(arrResult.length == 2){
+                            if(arrResult[1].type_z == 'Invoice'){
+                                $('input[id$=invoiceSellerHidden]').val(arrResult[1].data);
+                                $('input[id$=invoiceSeller]').val(arrResult[1].value);
+                            }
+                        }
+                        //saveTransJs();
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+            //saveTransJs();
+        }
+    });
+    
+    $('.autocompleteConfirmSeller').autocomplete({
+        lookup: function (query, done) {
+            var accountID = $('input[id$=sellerHidden]').val();
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchContacts}',query,accountID,'Confirmation',
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=confirmSellerHidden]').val(suggestion.data);
+            //saveTransJs();
+        }
+    });
+    
+    $('.autocompleteInvoiceSeller').autocomplete({
+        lookup: function (query, done) {
+            var accountID = $('input[id$=sellerHidden]').val();
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchContacts}',query,accountID,'Invoice',
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=invoiceSellerHidden]').val(suggestion.data);
+            //saveTransJs();
+        }
+    });
+    
+    //BUYER
+    $('.autocompleteBuyer').autocomplete({
+        lookup: function (query, done) {
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchAccount}',query,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=buyerHidden]').val(suggestion.data);
+            console.log('1: ' + $('input[id$=typeT]').val() + '-' + $('input[id$=iRegion]').val());
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            $('input[id$=rateBuyer]').val(suggestion.other);
+            //if($('input[id$=typeT]').val() != 'EXCHANGE' && $('select[id$=transactionType]').val() != 'Master (Strip Master)'){
+            if(($('input[id$=typeT]').val() == 'OUTRIGHT' && $('input[id$=iRegion]').val() == 'Canadian' && textRecordType == recordTypeCrudeId)
+              || ($('select[id$=transactionType]').val() != 'Master (Strip Master)' && textRecordType == recordTypeFutureId)){
+                console.log('11');
+                $('input[id$=rateBuyer]').val(suggestion.other);
+                var totalVolume = parseFloat($('input[id$=totalVolume]').val().replace(/,/g,'')) || 0;
+                var rate = parseFloat(suggestion.other) || 0;
+                var commission = parseFloat(Math.round(rate * totalVolume *100)/100).toFixed(2);
+                $('input[id$=commissionBuyer]').val(commission);
+            }
+            var accountID = suggestion.data;
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.selectContacts}',accountID,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var arrResult = JSON.parse(results);
+                        console.log('results: ' +arrResult);
+                        console.log('count: ' +arrResult.length);
+                        if(arrResult.length > 0){
+                            if(arrResult[0].type_z == 'Confirmation'){
+                                $('input[id$=confirmBuyerHidden]').val(arrResult[0].data);
+                                $('input[id$=confirmBuyer]').val(arrResult[0].value);
+                            }
+                            if(arrResult[0].type_z == 'Invoice'){
+                                $('input[id$=invoiceBuyerHidden]').val(arrResult[0].data);
+                                $('input[id$=invoiceBuyer]').val(arrResult[0].value);
+                            }
+                        }
+                        if(arrResult.length == 2){
+                            if(arrResult[1].type_z == 'Invoice'){
+                                $('input[id$=invoiceBuyerHidden]').val(arrResult[1].data);
+                                $('input[id$=invoiceBuyer]').val(arrResult[1].value);
+                            }
+                        }
+                        //saveTransJs();
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        }
+    });
+    
+    $('.autocompleteTraderBuyer').autocomplete({
+        lookup: function (query, done) {
+            var accountID = $('input[id$=buyerHidden]').val();
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTrader}',query,accountID,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=traderBuyerHidden]').val(suggestion.data);
+            var relationID = suggestion.data2;
+            var accountID = $('input[id$=buyerHidden]');
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.selectContacts2}',relationID, accountID,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var arrResult = JSON.parse(results);
+                        console.log('results: ' +arrResult);
+                        console.log('count: ' +arrResult.length);
+                        if(arrResult.length > 0){
+                            if(arrResult[0].type_z == 'Confirmation'){
+                                $('input[id$=confirmBuyerHidden]').val(arrResult[0].data);
+                                $('input[id$=confirmBuyer]').val(arrResult[0].value);
+                            }
+                            if(arrResult[0].type_z == 'Invoice'){
+                                $('input[id$=invoiceBuyerHidden]').val(arrResult[0].data);
+                                $('input[id$=invoiceBuyer]').val(arrResult[0].value);
+                            }
+                        }
+                        if(arrResult.length == 2){
+                            if(arrResult[1].type_z == 'Invoice'){
+                                $('input[id$=invoiceBuyerHidden]').val(arrResult[1].data);
+                                $('input[id$=invoiceBuyer]').val(arrResult[1].value);
+                            }
+                        }
+                        //saveTransJs();
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+            //saveTransJs();
+        }
+    });
+
+    $('.autocompleteConfirmBuyer').autocomplete({
+        lookup: function (query, done) {
+            var accountID = $('input[id$=buyerHidden]').val();
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchContacts}',query,accountID,'Confirmation',
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=confirmBuyerHidden]').val(suggestion.data);
+            //saveTransJs();
+        }
+    });
+    
+    $('.autocompleteInvoiceBuyer').autocomplete({
+        lookup: function (query, done) {
+            var accountID = $('input[id$=buyerHidden]').val();
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchContacts}',query,accountID,'Invoice',
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=invoiceBuyerHidden]').val(suggestion.data);
+            //saveTransJs();
+        }
+    });
+    
+    //GRADE
+    $('.autocompleteGradeCrude').autocomplete({        
+        lookup: function (query, done) {
+            var pricebook2ID = $('input[id$=pricebookCrudeId]').val();
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchProduct}',query,'Crude',pricebook2ID,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=gradeCrudeHidden]').val(suggestion.data);
+            saveTransJs();
+        }
+    });
+    $('.autocompleteGradeFuture').autocomplete({
+        lookup: function (query, done) {
+            var pricebook2ID = $('input[id$=pricebookFutureId]').val();
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchProduct}',query,'Future',pricebook2ID,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=gradeFutureHidden]').val(suggestion.data);
+            saveTransJs();
+        }
+    });
+    
+    $('.autocompleteGradeExport').autocomplete({
+        lookup: function (query, done) {
+            var pricebook2ID = $('input[id$=pricebookExportId]').val();
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchProduct}',query,'Export',pricebook2ID,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=gradeExportHidden]').val(suggestion.data);
+            saveTransJs();
+        }
+    });
+    
+    //BROKERS
+    $('.autocompleteBroker').autocomplete({
+        lookup: function (query, done) {
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchBrokers}',query,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            //$('input[id$=confirmBuyerHidden]').val(suggestion.data);
+            $(this).siblings().val(suggestion.data);
+            if($(this).hasClass('action-split-seller')) calculateSplitSeller();
+            if($(this).hasClass('action-split-buyer')) calculateSplitBuyer();
+            //saveTransJs();
+        }
+    });
+    
+    //TERMS
+    $('.autocompleteTerms1').autocomplete({
+        lookup: function (query, done) {
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            console.log('Record: ' +textRecordType);
+            var recordTypeVal = '';
+            if(textRecordType == recordTypeCrudeId){
+                recordTypeVal = 'Crude';
+            }else if(textRecordType == recordTypeFutureId){
+                recordTypeVal = 'Future';
+            }
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTerms}',query,'Payment Term',recordTypeVal,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/&#39;/g,"'").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=paymentTermsID]').val(suggestion.data);
+            $('textarea[id$=paymentTermsVerbiage]').text(suggestion.verbiage);
+            //saveTransJs();
+        }
+    });
+    $('.autocompleteTerms2').autocomplete({
+        lookup: function (query, done) {
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            console.log('Record: ' +textRecordType);
+            var recordTypeVal = '';
+            if(textRecordType == recordTypeCrudeId){
+                recordTypeVal = 'Crude';
+            }else if(textRecordType == recordTypeFutureId){
+                recordTypeVal = 'Future';
+            }
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTerms}',query,'Contract Term',recordTypeVal,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/&#39;/g,"'").replace(/(&amp\;)/g,"&");
+                        console.log('HERE: ' + results);
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=contractTermsID]').val(suggestion.data);
+            $('textarea[id$=contractTermsVerbiage]').text(suggestion.verbiage);
+            //saveTransJs();
+        }
+    });
+    $('.autocompleteTerms3').autocomplete({
+        lookup: function (query, done) {
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            console.log('Record: ' +textRecordType);
+            var recordTypeVal = '';
+            if(textRecordType == recordTypeCrudeId){
+                recordTypeVal = 'Crude';
+            }else if(textRecordType == recordTypeFutureId){
+                recordTypeVal = 'Future';
+            }
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTerms}',query,'Commission Term',recordTypeVal,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/&#39;/g,"'").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=commissionTermsID]').val(suggestion.data);
+            $('textarea[id$=commissionTermsVerbiage]').text(suggestion.verbiage);
+            //saveTransJs();
+        }
+    });
+    
+    $('.autocompleteTerms4').autocomplete({
+        lookup: function (query, done) {
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            var recordTypeVal = '';
+            if(textRecordType == recordTypeCrudeId){
+                recordTypeVal = 'Crude';
+            }else if(textRecordType == recordTypeFutureId){
+                recordTypeVal = 'Future';
+            }
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTerms}',query,'Cancellation',recordTypeVal,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/&#39;/g,"'").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=cancellationTermsID]').val(suggestion.data);
+            $('textarea[id$=cancellationTermsVerbiage]').text(suggestion.verbiage);
+            //saveTransJs();
+        }
+    });
+    
+    $('.autocompleteTerms5').autocomplete({
+        lookup: function (query, done) {
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            var recordTypeVal = '';
+            if(textRecordType == recordTypeCrudeId){
+                recordTypeVal = 'Crude';
+            }else if(textRecordType == recordTypeFutureId){
+                recordTypeVal = 'Future';
+            }
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTerms}',query,'Crude Oil Specifications',recordTypeVal,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/&#39;/g,"'").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=crudeOilTermsID]').val(suggestion.data);
+            $('textarea[id$=crudeOilTermsVerbiage]').text(suggestion.verbiage);
+            //saveTransJs();
+        }
+    });
+    
+    $('.autocompleteTerms6').autocomplete({
+        lookup: function (query, done) {
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            var recordTypeVal = '';
+            if(textRecordType == recordTypeCrudeId){
+                recordTypeVal = 'Crude';
+            }else if(textRecordType == recordTypeFutureId){
+                recordTypeVal = 'Future';
+            }
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTerms}',query,'Receipt/Delivery Window',recordTypeVal,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/&#39;/g,"'").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=receiptWindowTermsID]').val(suggestion.data);
+            $('textarea[id$=receiptWindowTermsVerbiage]').text(suggestion.verbiage);
+            //saveTransJs();
+        }
+    });
+    
+    $('.autocompleteTerms7').autocomplete({
+        lookup: function (query, done) {
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            var recordTypeVal = '';
+            if(textRecordType == recordTypeCrudeId){
+                recordTypeVal = 'Crude';
+            }else if(textRecordType == recordTypeFutureId){
+                recordTypeVal = 'Future';
+            }
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTerms}',query,'Receipt/Delivery',recordTypeVal,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/&#39;/g,"'").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=receiptTermsID]').val(suggestion.data);
+            $('textarea[id$=receiptTermsVerbiage]').text(suggestion.verbiage);
+            //saveTransJs();
+        }
+    });
+    
+    $('.autocompleteTerms8').autocomplete({
+        lookup: function (query, done) {
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            var recordTypeVal = '';
+            if(textRecordType == recordTypeCrudeId){
+                recordTypeVal = 'Crude';
+            }else if(textRecordType == recordTypeFutureId){
+                recordTypeVal = 'Future';
+            }
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTerms}',query,'Title and Risk Transfer',recordTypeVal,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/&#39;/g,"'").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=titleTermsID]').val(suggestion.data);
+            $('textarea[id$=titleTermsVerbiage]').text(suggestion.verbiage);
+            //saveTransJs();
+        }
+    });
+    
+    $('.autocompleteTerms9').autocomplete({
+        lookup: function (query, done) {
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            var recordTypeVal = '';
+            if(textRecordType == recordTypeCrudeId){
+                recordTypeVal = 'Crude';
+            }else if(textRecordType == recordTypeFutureId){
+                recordTypeVal = 'Future';
+            }
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTerms}',query,'Measurement',recordTypeVal,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/&#39;/g,"'").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=measurementTermsID]').val(suggestion.data);
+            $('textarea[id$=measurementTermsVerbiage]').text(suggestion.verbiage);
+            //saveTransJs();
+        }
+    });
+    
+    $('.autocompleteTerms10').autocomplete({
+        lookup: function (query, done) {
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            var recordTypeVal = '';
+            if(textRecordType == recordTypeCrudeId){
+                recordTypeVal = 'Crude';
+            }else if(textRecordType == recordTypeFutureId){
+                recordTypeVal = 'Future';
+            }
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTerms}',query,'Allowed Laytime',recordTypeVal,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/&#39;/g,"'").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=allowedTermsID]').val(suggestion.data);
+            $('textarea[id$=allowedTermsVerbiage]').text(suggestion.verbiage);
+            //saveTransJs();
+        }
+    });
+    
+    $('.autocompleteTerms11').autocomplete({
+        lookup: function (query, done) {
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            var recordTypeVal = '';
+            if(textRecordType == recordTypeCrudeId){
+                recordTypeVal = 'Crude';
+            }else if(textRecordType == recordTypeFutureId){
+                recordTypeVal = 'Future';
+            }
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTerms}',query,'Demurrage Rate',recordTypeVal,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/&#39;/g,"'").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=demurrageTermsID]').val(suggestion.data);
+            $('textarea[id$=demurrageTermsVerbiage]').text(suggestion.verbiage);
+            //saveTransJs();
+        }
+    });
+    
+    $('.autocompleteTerms12').autocomplete({
+        lookup: function (query, done) {
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            var recordTypeVal = '';
+            if(textRecordType == recordTypeCrudeId){
+                recordTypeVal = 'Crude';
+            }else if(textRecordType == recordTypeFutureId){
+                recordTypeVal = 'Future';
+            }
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTerms}',query,'Public Terminal',recordTypeVal,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/&#39;/g,"'").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=publicTermsID]').val(suggestion.data);
+            $('textarea[id$=publicTermsVerbiage]').text(suggestion.verbiage);
+            //saveTransJs();
+        }
+    });
+    
+    $('.autocompleteTerms13').autocomplete({
+        lookup: function (query, done) {
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            var recordTypeVal = '';
+            if(textRecordType == recordTypeCrudeId){
+                recordTypeVal = 'Crude';
+            }else if(textRecordType == recordTypeFutureId){
+                recordTypeVal = 'Future';
+            }
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTerms}',query,"GTC's",recordTypeVal,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/&#39;/g,"'").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=gtcTermsID]').val(suggestion.data);
+            $('textarea[id$=gtcTermsVerbiage]').text(suggestion.verbiage);
+            //saveTransJs();
+        }
+    });
+    
+    $('.autocompleteTerms14').autocomplete({
+        lookup: function (query, done) {
+            var textRecordType = $('select[id$=recordType]').val();
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            var recordTypeVal = '';
+            if(textRecordType == recordTypeCrudeId){
+                recordTypeVal = 'Crude';
+            }else if(textRecordType == recordTypeFutureId){
+                recordTypeVal = 'Future';
+            }
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.TransactionCreatorController.searchTerms}',query,'Special Provisions',recordTypeVal,
+                function(result, event){
+                    if (event.status) {
+                        var t1 = result;
+                        var results = t1.replace(/(&quot\;)/g,"\"").replace(/&#39;/g,"'").replace(/(&amp\;)/g,"&");
+                        var resultAuto = {
+                            suggestions: JSON.parse(results)
+                        };
+                        done(resultAuto);
+                    } else if (event.type === 'exception') {
+                        alert('exception');
+                    } else {
+                        alert('other');
+                    }
+                }, 
+                {escape: true}
+            );
+        },
+        onSelect: function (suggestion) {
+            $('input[id$=specialTermsID]').val(suggestion.data);
+            $('textarea[id$=specialTermsVerbiage]').text(suggestion.verbiage);
+            //saveTransJs();
+        }
+    });
+    
+    $('body').off('keyup','.rateBuyer');
+    $('body').on('keyup','.rateBuyer', function(e){
+        var textRecordType = $('select[id$=recordType]').val();
+        var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+        var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+        //if($('input[id$=typeT]').val() != 'EXCHANGE' && $('select[id$=transactionType]').val() != 'Master (Strip Master)'){
+        if(($('input[id$=typeT]').val() == 'OUTRIGHT' && $('input[id$=iRegion]').val() == 'Canadian' && textRecordType == recordTypeCrudeId)
+          || ($('select[id$=transactionType]').val() != 'Master (Strip Master)' && textRecordType == recordTypeFutureId)){
+            var rate = $('input[id$=rateBuyer]').val();
+            var totalVolume = parseFloat($('input[id$=totalVolume]').val().replace(/,/g,'')) || 0;
+            var rate = parseFloat(rate) || 0;
+            var commission = rate * totalVolume;
+            $('input[id$=commissionBuyer]').val(commission);
+        }else{
+             $('input[id$=commissionBuyer]').val(0);
+        }
+    });
+    
+    $('body').off('keyup','.rateSeller');
+    $('body').on('keyup','.rateSeller', function(e){
+        if($('select[id$=transactionType]').val() != 'Master (Strip Master)'){
+            var rate = $('input[id$=rateSeller]').val();
+            var totalVolume = parseFloat($('input[id$=totalVolume]').val().replace(/,/g,'')) || 0;
+            var rate = parseFloat(rate) || 0;
+            var commission = rate * totalVolume;
+            $('input[id$=commissionSeller]').val(commission);
+        }
+    });
+    
+    $('body').off('blur','.action-split-seller');
+    $('body').on('blur','.action-split-seller', function(e){
+        calculateSplitSeller();
+    });
+    
+    $('body').off('blur','.action-split-buyer');
+    $('body').on('blur','.action-split-buyer', function(e){
+        calculateSplitBuyer();
+    });
+    
+    function calculateSplitSeller(){       
+        var totalenter = 0;
+        console.log('enter');
+        $('.comm-split-seller').each(function(){
+            if($(this).hasClass('sbroker1')){
+                if($('input[id$=sbroker1]').val().trim() != ''){
+                    totalenter = totalenter + (parseFloat($(this).val()) || 0);
+                }else{
+                    $('input[id$=sbroker1Hidden]').val('');
+                }
+            }
+            if($(this).hasClass('sbroker2')){
+                if($('input[id$=sbroker2]').val().trim() != ''){
+                    if($(this).val() != ''){
+                        totalenter = totalenter + (parseFloat($(this).val()) || 0);
+                    }else{
+                        $(this).val(100 - totalenter);
+                    }
+                }else{
+                    $('input[id$=sbroker2Hidden]').val('');
+                    //if($('input[id$=sbroker1]').val().trim() != '') $('.sbroker1').val(100);
+                }
+            }
+            if($(this).hasClass('sbroker3')){
+                if($('input[id$=sbroker3]').val().trim() != ''){
+                    if($(this).val() != ''){
+                        totalenter = totalenter + (parseFloat($(this).val()) || 0);
+                    }else{
+                        $(this).val(100 - totalenter);
+                    }
+                }else{
+                    $('input[id$=sbroker3Hidden]').val('');
+                    //if($('input[id$=sbroker2]').val().trim() != '') $('.sbroker2').val(100 - (parseFloat($('.sbroker1').val()) || 0));
+                }
+            }
+            if($(this).hasClass('sbroker4')){
+                if($('input[id$=sbroker4]').val().trim() != ''){
+                    if($(this).val() != ''){
+                        totalenter = totalenter + (parseFloat($(this).val()) || 0);
+                    }else{
+                        $(this).val(100 - totalenter);
+                    }
+                }else{
+                    $('input[id$=sbroker4Hidden]').val('');
+                    //if($('input[id$=sbroker3]').val().trim() != '') $('.sbroker3').val(100 - (parseFloat($('.sbroker1').val()) || 0) - (parseFloat($('.sbroker2').val()) || 0));
+                }
+            }
+        });
+        
+		var total = (parseFloat($('.sbroker1').val()) || 0) + (parseFloat($('.sbroker2').val()) || 0) + (parseFloat($('.sbroker3').val()) || 0) + (parseFloat($('.sbroker4').val()) || 0);
+        $('.total-split-seller').html(total.toFixed(2));
+    }
+    
+    function calculateSplitBuyer(){       
+        var totalenter = 0;
+        $('.comm-split-buyer').each(function(){
+            if($(this).hasClass('bbroker1')){
+                if($('input[id$=bbroker1]').val().trim() != ''){
+                    totalenter = totalenter + (parseFloat($(this).val()) || 0);
+                }else{
+                    $('input[id$=bbroker1Hidden]').val('');
+                }
+            }
+            if($(this).hasClass('bbroker2')){
+                if($('input[id$=bbroker2]').val().trim() != ''){
+                    if($(this).val() != ''){
+                        totalenter = totalenter + (parseFloat($(this).val()) || 0);
+                    }else{
+                        $(this).val(100 - totalenter);
+                    }
+                }else{
+                    $('input[id$=bbroker2Hidden]').val('');
+                    //if($('input[id$=bbroker1]').val().trim() != '') $('.bbroker1').val(100);
+                }
+            }
+            if($(this).hasClass('bbroker3')){
+                if($('input[id$=bbroker3]').val().trim() != ''){
+                    if($(this).val() != ''){
+                        totalenter = totalenter + (parseFloat($(this).val()) || 0);
+                    }else{
+                        $(this).val(100 - totalenter);
+                    }
+                }else{
+                    $('input[id$=bbroker3Hidden]').val('');
+                    //if($('input[id$=bbroker2]').val().trim() != '') $('.bbroker2').val(100 - (parseFloat($('.bbroker1').val()) || 0));
+                }
+            }
+            if($(this).hasClass('bbroker4')){
+                if($('input[id$=bbroker4]').val().trim() != ''){
+                    if($(this).val() != ''){
+                        totalenter = totalenter + (parseFloat($(this).val()) || 0);
+                    }else{
+                        $(this).val(100 - totalenter);
+                    }
+                }else{
+                    $('input[id$=bbroker4Hidden]').val('');
+                    //if($('input[id$=bbroker3]').val().trim() != '') $('.bbroker3').val(100 - (parseFloat($('.bbroker1').val()) || 0) - (parseFloat($('.bbroker2').val()) || 0));
+                }
+            }
+        });
+        
+        var total = (parseFloat($('.bbroker1').val()) || 0) + (parseFloat($('.bbroker2').val()) || 0) + (parseFloat($('.bbroker3').val()) || 0) + (parseFloat($('.bbroker4').val()) || 0);
+        $('.total-split-buyer').html(total.toFixed(2));
+    }
+    
+    $('body').off('change','.autocompletePriceType');
+    $('body').on('change','.autocompletePriceType', function(e){
+        console.log($(this).val());
+        if($(this).val() == 'Formula Price'){
+            $('.autocompleteCostPerUnitFormula').removeAttr('disabled');
+            $('.autocompleteCostPerUnitFormula').focus();
+        }else{
+            $('.autocompleteCostPerUnitFormula').attr('disabled',true);
+        }
+    });
+    
+    $('body').off('change','.changeTransaction');
+    $('body').on('change','.changeTransaction', function(e){
+        console.log($(this).val());
+        if($(this).val() == 'Master (Strip Master)'){
+            $('.stripe1').show();
+            $('.stripe2').show();
+        }else{
+            $('input[id$=startStrip]').val('');
+            $('input[id$=endStrip]').val('');
+            $('.stripe1').hide();
+            $('.stripe2').hide();
+        }
+    });
+    
+    $('body').off('change','.createTrans');
+    $('body').on('change','.createTrans', function(e){
+        console.log($(this).val());
+        if($(this).val() != ''){
+            var recordTypeCrudeId = $('input[id$=recordTypeCrudeId]').val();
+            var recordTypeFutureId = $('input[id$=recordTypeFutureId]').val();
+            var textRecordType = $(this).val();
+            $(this).attr("disabled", true);
+            createTransJs();
+            $('select[id$=transactionType]').focus();
+            console.log(textRecordType);
+            if(textRecordType == recordTypeCrudeId){
+                $('.future1').show();
+                $('.future2').hide();
+                $('.future3').show();
+                $('.future4').hide();
+                $('.future5').show();
+                $('.future6').hide();
+            }else{
+                $('.future1').hide();
+                $('.future2').show();
+                $('.future3').hide();
+                $('.future4').show();
+                $('.future5').hide();
+                $('.future6').show();
+            }
+            $('.url1').show();
+            $('.url2').show();
+        }
+    });
+});
+</script>
+</apex:page>
