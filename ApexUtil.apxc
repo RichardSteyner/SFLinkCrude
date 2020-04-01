@@ -1,1 +1,12 @@
-
+public with sharing class ApexUtil {
+    public static boolean isRingCentralTrigger = false;
+    public static boolean isUpdateOpp = false;
+    public static boolean isUpdateComm = false;
+    public static boolean OpportunityTrigger_Is_Enabled = true;
+    public static boolean OpportunityUnlock_Is_Enabled = true;
+    public static boolean OpportunityProductTrigger_Is_Enabled = true;
+    public static boolean InvoiceTrigger_Is_Enabled = true;
+    //public static boolean CommissionTrigger_Is_Enabled = true;
+    public static boolean StatementTrigger_Is_Enabled = true;
+    public static boolean PaymentTrigger_Is_Enabled = true;
+}
