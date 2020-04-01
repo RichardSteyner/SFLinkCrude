@@ -1,0 +1,364 @@
+<apex:page standardController="Opportunity" extensions="LC_ConfirmationController" renderAs="pdf" showHeader="false" sidebar="false" standardStylesheets="false" applyBodyTag="false" applyHtmlTag="false">
+    <head>
+        <style  type="text/css" media="print">
+
+            @page {
+                font-family: Arial, Helvetica, sans-serif;
+                @top-center {
+                    content: element(header);
+                }
+            
+                @bottom-center {
+                    content: element(footer);
+                }
+                padding-top: 90px;
+                margin-bottom: 150px;
+            }
+            
+            div.header {
+                padding: 10px;
+                margin-top: 45px;
+                position: running(header);
+            }
+            
+            div.footer {
+                display: block;
+                padding: 5px;
+                position: running(footer);
+            }
+            
+            .pagenumber:before {
+                content: counter(page);
+            }
+            
+            .pagecount:before {
+                content: counter(pages);
+            }
+
+            body{
+                font-size: 14px;
+            }
+
+            .content table{
+                width: 100%;
+            }
+
+            /* Header */
+            .header{
+                padding: 10px 0px 10px 0px;
+            }
+
+            .enterpriseData{
+                font-weight: bold;
+                font-size: 14px;
+            }
+
+            .enterpriseData span{
+                width: 165px;
+                display: inline-block;
+            }
+
+            /* Title */
+            .title{
+                font-weight: bold;
+                font-size: 20px;
+                text-align: center;
+                padding: 14px 0px 5px 0px;
+            }
+            .subtitle{
+                font-weight: bold;
+                font-size: 18px;
+                text-align: center;
+                padding: 2px 0px 6px 0px;
+            }
+
+            .content{
+                margin-top: 15px;
+            }
+
+            .tableLayoutFoot{
+                width: 325px;
+                margin-top: 90px;
+                padding: 10px;
+            }
+
+            #contentDetail tr td{
+                padding: 2px 0px 2px 0px;
+                vertical-align: top;
+                font-size: 13px;
+            }
+            
+            .right {
+                text-align: right;
+            }
+            
+            .left {
+                text-align: left;
+            }
+            
+            .centered {
+                text-align: center;
+            }
+            
+            .bottom {
+                margin-top: 185px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header" style="font-family: Arial, Helvetica, sans-serif;">
+            <table width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td class="enterpriseData" style="text-align: center;">
+                        LINK CRUDE RESOURCES, LLC
+                        <br /><span style="text-transform:uppercase;">{!$Organization.Street}</span>
+                        <br /><span style="text-transform:uppercase;">{!$Organization.City}, {!$Organization.State} {!$Organization.PostalCode}</span>
+                        <br /><i>TRANSACTION CONFIRMATION</i>
+                        <br /><span style="font-weight:bold;font-style:italic;font-size:20px;padding:3px;{!IF(opp.Revised__c,'','display:none;')}">REVISED</span>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="footer">
+            <div style="font-weight: bold; text-align: center;font-family: Arial, Helvetica, sans-serif;">
+                <i>PLEASE ADVISE THIS OFFICE OF ANY DISCREPANCIES WITHIN 24 HOURS
+                    <br />PHONE: (281) 565-LINK (5465)</i>
+            </div>
+            <div class="left" style="font-family: Arial, Helvetica, sans-serif;">
+                REGARDS, <br />
+                LINK CRUDE RESOURCES, LLC
+            </div>
+            <br/>
+            <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-family: Arial, Helvetica, sans-serif;">
+                <tr>
+                    <td width="50%" style="text-align: left;">
+                        <b>{!newFormatedDate}</b>
+                    </td>
+                    <td width="50%" style="font-weight:bold;text-align: right;">
+                        Page <span class="pagenumber"/> of <span class="pagecount"/>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    
+        <div class="content" style="font-family: Arial, Helvetica, sans-serif;">
+            
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;font-size: 13px;">
+                <tr>
+                    <td width="8%" style="vertical-align: top; font-size: 14px;">
+                        <b style="{!IF(type_z=='seller',IF(opp.Seller__r.Name <> null,'','display:none;'),IF(opp.Account.Name <> null,'','display:none;'))}">TO:</b>
+                    </td>
+                    <td colspan="5" style="font-weight: bold; font-size: 14px;">
+                        {!IF(type_z=='seller',opp.Seller__r.Name,opp.Account.Name)}
+                        <br/><apex:outputText value="{!SUBSTITUTE(SUBSTITUTE(JSENCODE(IF(type_z=='seller',opp.Seller__r.ShippingStreet,opp.Account.ShippingStreet)),'\\u003Cbr /\\u003E','<br/>'),'\r\n','<br/>')}" escape="false" rendered="{!IF(opp.Account.ShippingStreet <> null,'','display:none;')}" />
+                        <br />
+                        {!IF(type_z=='seller',IF(opp.Seller__r.ShippingCity <> null,opp.Seller__r.ShippingCity + ',',''),IF(opp.Account.ShippingCity <> null,opp.Account.ShippingCity + ',',''))} 
+                        {!IF(type_z=='seller',opp.Seller__r.ShippingState,opp.Account.ShippingState)} 
+                        {!IF(type_z=='seller',opp.Seller__r.ShippingPostalCode,opp.Account.ShippingPostalCode)}
+                    </td>
+                </tr>
+            </table>
+            <table border="0" cellpadding="0" cellspacing="0" style="width:100%;font-size: 13px;">
+                <tr>
+                    <td style="width:33.3%;padding: 6px 0px 3px 0px;">
+                        <span style="{!IF(type_z=='seller',IF(sellerContactAttn.Contact <> null,'','display:none;'),IF(buyerContactAttn.Contact <> null,'','display:none;'))}"><b>ATTN: </b></span>
+                        <span style="padding-left:15px;text-transform:uppercase;{!IF(type_z=='seller',IF(sellerContactAttn.Contact <> null,'','display:none;'),IF(buyerContactAttn.Contact <> null,'','display:none;'))}">
+                            {!IF(type_z=='seller',sellerContactAttn.Contact.FirstName + " " +sellerContactAttn.Contact.LastName,buyerContactAttn.Contact.FirstName + " " + buyerContactAttn.Contact.LastName)}
+                        </span>
+                    </td>
+                    <td style="width:33.3%;padding: 6px 0px 3px 0px;">
+                        <span style="{!IF(type_z=='seller',IF(sellerContactAttn.Contact.Email <> null,'','display:none;'),IF(buyerContactAttn.Contact.Email <> null,'','display:none'))}"><b>Email: </b></span>
+                        <span style="padding-left:5px;{!IF(type_z=='seller',IF(sellerContactAttn.Contact.Email <> null,'','display:none;'),IF(buyerContactAttn.Contact.Email <> null,'','display:none'))}">
+                            {!IF(type_z=='seller',sellerContactAttn.Contact.Email,buyerContactAttn.Contact.Email)}
+                        </span>
+                    </td>
+                    <td style="width:33.3%;padding: 6px 0px 3px 0px;">
+                        <!--<span><b>Fax: </b></span>
+                        <span style="padding-left:5px;">{!IF(type_z=='seller',sellerContactAttn.Contact.Fax,buyerContactAttn.Contact.Fax)}</span>-->
+                    </td>
+                </tr>
+                <tr style="{!IF(type_z=='seller',IF(sellerContactAttn.Contact.Send_By__c <> null,'','display:none;'),IF(buyerContactAttn.Contact.Send_By__c <> null,'','display:none;'))}">
+                    <td colspan="3" style="padding: 4px 0px 4px 0px; font-size: 10px;">
+                        <span><b>Send By: </b></span>
+                        <span style="padding-left:5px;">{!IF(type_z=='seller',sellerContactAttn.Contact.Send_By__c,buyerContactAttn.Contact.Send_By__c)}</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="padding: 22px 0px 16px 0px; font-style: italic; font-size: 12px;">
+                        LINK CRUDE RESOURCES, LLC, ACTING AS BROKER ONLY, IS PLEASED TO CONFIRM THE FOLLOWING TRANSACTION:
+                    </td>
+                </tr>
+            </table>
+            
+            <table id="contentDetail" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td style="border-top: 1px solid black; padding-top: 7px;">
+                        <b>Transaction Date: </b>
+                    </td>
+                    <td style="border-top: 1px solid black; padding-top: 7px;" colspan="5">{!closeDate}</td>
+                </tr>
+                <tr style="{!IF(opp.Type <> null,'','display:none;')}">
+                    <td><b>Transaction Type: </b></td>
+                    <td colspan="5">{!opp.Type}</td>
+                </tr>
+                <tr>
+                    <td style="padding-bottom: 7px;">
+                        <b>Transaction #: </b>
+                    </td>
+                    <td style="padding-bottom: 7px;" colspan="5">
+                        {!opp.Name}
+                    </td>
+                </tr>
+                <tr style="{!IF(opp.Seller__c <> null,'','display:none;')}">
+                    <td style="border-top: 1px solid black; padding-top: 7px;"><b>Seller: </b></td>
+                    <td style="border-top: 1px solid black; padding-top: 7px;text-transform:uppercase;" colspan="5">{!opp.Seller__r.Name}</td>
+                </tr>
+                <tr>
+                    <td width="18%" style="padding-bottom: 7px;"><b style="{!IF(sellerContact.Contact <> null,'','display:none;')}">Seller Attn:</b></td>
+                    <td style="padding-bottom: 7px;text-transform:uppercase;">
+                        <span style="{!IF(sellerContact.Contact <> null,'','display:none;')}">{!sellerContact.Contact.FirstName + " " + sellerContact.Contact.LastName}</span>
+                    </td>
+                    <td style="padding-bottom: 7px;"><b style="{!IF(sellerContact.Contact.Email <> null,'','display:none;')}">Email:</b></td>
+                    <td style="padding-bottom: 7px;"><span style="{!IF(sellerContact.Contact.Email <> null,'','display:none;')}">{!sellerContact.Contact.Email}</span></td>
+                    <td style="padding-bottom: 7px;"><!--<b>Fax:</b>--></td>
+                    <td width="16%" style="padding-bottom: 7px;"><!--{!sellerContact.Contact.Fax}--></td>
+                </tr>
+                <tr style="{!IF(opp.Account.Name <> null,'','display:none;')}">
+                    <td style="border-top: 1px solid black; padding-top: 7px;"><b>Buyer: </b></td>
+                    <td style="border-top: 1px solid black; padding-top: 7px;text-transform:uppercase;" colspan="5">{!opp.Account.Name}</td>
+                </tr>
+                <tr>
+                    <td style="border-bottom: 1px solid black; padding-bottom: 7px;"><b style="{!IF(buyerContact.Contact <> null,'','display:none;')}">Buyer Attn:</b></td>
+                    <td style="border-bottom: 1px solid black; padding-bottom: 7px;text-transform:uppercase;">
+                        <span style="{!IF(buyerContact.Contact <> null,'','display:none;')}">{!buyerContact.Contact.FirstName + " " + buyerContact.Contact.LastName}</span>
+                    </td>
+                    <td style="border-bottom: 1px solid black; padding-bottom: 7px;"><b style="{!IF(buyerContact.Contact.Email <> null,'','display:none;')}">Email:</b></td>
+                    <td style="border-bottom: 1px solid black; padding-bottom: 7px;"><span style="{!IF(buyerContact.Contact.Email <> null,'','display:none;')}">{!buyerContact.Contact.Email}</span></td>
+                    <td style="border-bottom: 1px solid black; padding-bottom: 7px;"><!--<b>Fax:</b>--></td>
+                    <td style="border-bottom: 1px solid black; padding-bottom: 7px;"><!--{!buyerContact.Contact.Fax}--></td>
+                </tr>
+                <tr style="{!IF(olis.size > 0,'','display:none;')}">
+                    <td style="padding-top: 7px; font-weight: bold;">Crude Type: </td>
+                    <apex:repeat value="{!olis}" var="oli">
+                        <td style="text-transform:uppercase;">{!oli.Product2.Name}</td> 
+                    </apex:repeat>
+                    <!--<td style="border-top: 1px solid black; padding-top: 7px;" colspan="5">DOMESTIC SWEET</td>-->
+                </tr>
+                <tr>
+                    <td style="font-weight: bold;">Volume: </td>
+                    <td colspan="5" style="text-transform:uppercase;">
+                        <apex:outputText value="{0, number, ###,###.00}">
+                            <apex:param value="{!opp.Total_Volume_BBL_New__c}"/>
+                        </apex:outputText> Total Barrels&nbsp;
+                        {!IF(opp.Volume_Method__c == 'BPD','(','')}
+                        <apex:outputText value="{0,number,###,###.00}" rendered="{!IF(opp.Volume_Method__c == 'BPD',true,false)}">
+                            <apex:param value="{!opp.Volume_BBL_Day_New__c}"/>
+                        </apex:outputText>
+                        {!IF(opp.Volume_Method__c == 'BPD','BBL/DAY)','')}
+                        {!IF(AND(opp.Transaction__c == 'Master (Strip Master)',opp.Volume_Method__c == 'Total Quantity', monthsBetweenDates>0),'(','')}
+                        <apex:outputText value="{0,number,###,###.00}" rendered="{!IF(AND(opp.Transaction__c == 'Master (Strip Master)',opp.Volume_Method__c == 'Total Quantity', monthsBetweenDates>0),true,false)}">
+                            <apex:param value="{!opp.Total_Volume_BBL_New__c/monthsBetweenDates}"/>
+                        </apex:outputText>
+                        {!IF(AND(opp.Transaction__c == 'Master (Strip Master)',opp.Volume_Method__c == 'Total Quantity', monthsBetweenDates>0),'BARRELS PER MONTH)','')}
+                    </td>
+                </tr>
+                <tr style="{!IF(opp.Pipeline_link__c <> null,'','display:none')}">
+                    <td style="font-weight: bold;">Pipeline: </td>
+                    <td colspan="5" style="text-transform:uppercase;">{!opp.Pipeline_link__c}</td>
+                </tr>
+                <tr style="{!IF(opp.Location__c <> null,'','display:none')}">
+                    <td style="font-weight: bold;">F.O.B.: </td>
+                    <td colspan="5" style="text-transform:uppercase;">{!opp.Location__c}</td>
+                </tr>
+                <tr style="{!IF(AND(delivery <> '',delivery <> null),'','display:none;')}">
+                    <td style="font-weight: bold;">Delivery: </td>
+                    <td colspan="5" style="text-transform:uppercase;">
+                        {!delivery}
+                        <!--<apex:outputText value="{0, date, MMMM ' '  yyyy}" style="{!IF(opp.Delivery__c == null,'display:none;','')}">
+                            <apex:param value="{!opp.Delivery__c}" /> 
+                        </apex:outputText>
+                        <apex:outputText value="{!opp.Delivery_Date_Text__c}" style="{!IF(AND(opp.Delivery__c == null,opp.Delivery_Date_Text__c <> null),'','display:none;')}" />-->
+                    </td>
+                </tr>
+                <tr style="{!IF(opp.Price_Type__c == 'Fixed Price',IF(opp.Cost_Per_Unit__c <> null,'','display:none;'),IF(opp.Cost_Per_Unit_Formula_Verbiage__c <> null,'','display:none;'))}">
+                    <td style="padding-bottom: 7px; font-weight: bold;">Price US$/BBL: </td>
+                    <td colspan="5" style="padding-bottom: 7px;text-transform:uppercase;">
+                        <!--{!IF(AND(opp.Cost_Per_Unit__c <> null,VALUE(opp.Cost_Per_Unit__c) < 0), 'MINUS ' + TEXT(ABS(VALUE(opp.Cost_Per_Unit__c))), IF(AND(opp.Cost_Per_Unit__c <> null,VALUE(opp.Cost_Per_Unit__c) > 0), 'PLUS ' + TEXT(ABS(VALUE(opp.Cost_Per_Unit__c))),opp.Cost_Per_Unit__c))}
+                        <br/>-->
+                        {!IF(opp.Price_Type__c == 'Fixed Price',opp.Cost_Per_Unit__c,opp.Cost_Per_Unit_Formula_Verbiage__c)}
+                    </td>
+                </tr>
+                <tr style="{!IF(opp.Contract_Terms_Verbiage__c <> NULL,'','display:none;')}">
+                    <td style="border-top: 1px solid black; padding-top: 10px; font-weight: bold;">Contract Terms: </td>
+                    <td style="border-top: 1px solid black; padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Contract_Terms_Verbiage__c}</td>
+                </tr>
+                <tr style="{!IF(opp.Payment_Terms_Verbiage__c <> NULL,'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">Payment Terms: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Payment_Terms_Verbiage__c}</td>
+                </tr>
+                <tr style="{!IF(opp.Commission_Terms_Verbiage__c <> NULL,'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">Commission <br />Terms: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Commission_Terms_Verbiage__c}</td>
+                </tr>
+                <tr style="{!IF(opp.Master_Agreement__c <> NULL,'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">Additional Terms: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Master_Agreement__c}</td>
+                </tr>
+                <tr style="{!IF(opp.Additional_Terms_Verbiage__c <> NULL,'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">Additional Terms Verbiage: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Additional_Terms_Verbiage__c}</td>
+                </tr>
+                <tr style="{!IF(AND(opp.Type=='EXPORT',opp.Cancellation_Verbiage__c <> NULL),'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">Cancellation Terms: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Cancellation_Verbiage__c}</td>
+                </tr>
+                <tr style="{!IF(AND(opp.Type=='EXPORT',opp.Crude_oil_specifications_Verbiage__c <> NULL),'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">Crude oil specifications: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Crude_oil_specifications_Verbiage__c}</td>
+                </tr>
+                <tr style="{!IF(AND(opp.Type=='EXPORT',opp.Receipt_Delivery_Window_Terms_Verbiage__c <> NULL),'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">Receipt/Delivery Window Terms: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Receipt_Delivery_Window_Terms_Verbiage__c}</td>
+                </tr>
+                <tr style="{!IF(AND(opp.Type=='EXPORT',opp.Receipt_Delivery_Terms_Verbiage__c <> NULL),'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">Receipt/Delivery Terms: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Receipt_Delivery_Terms_Verbiage__c}</td>
+                </tr>
+                <tr style="{!IF(AND(opp.Type=='EXPORT',opp.Title_and_Risk_Transfer_Verbiage__c <> NULL),'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">Title and Risk Transfer Terms: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Title_and_Risk_Transfer_Verbiage__c}</td>
+                </tr>
+                <tr style="{!IF(AND(opp.Type=='EXPORT',opp.Measurement_Terms_Verbiage__c <> NULL),'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">Measurement Terms: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Measurement_Terms_Verbiage__c}</td>
+                </tr>
+                <tr style="{!IF(AND(opp.Type=='EXPORT',opp.Allowed_Laytime_Terms_Verbiage__c <> NULL),'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">Allowed Laytime Terms: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Allowed_Laytime_Terms_Verbiage__c}</td>
+                </tr>
+                <tr style="{!IF(AND(opp.Type=='EXPORT',opp.Demurrage_Rate_Terms_Verbiage__c <> NULL),'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">Demurrage Rate Terms: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Demurrage_Rate_Terms_Verbiage__c}</td>
+                </tr>
+                <tr style="{!IF(AND(opp.Type=='EXPORT',opp.Public_Terminal_Terms_Verbiage__c <> NULL),'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">Public Terminal Terms: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Public_Terminal_Terms_Verbiage__c}</td>
+                </tr>
+                <tr style="{!IF(AND(opp.Type=='EXPORT',opp.GTC_s_Terms_Verbiage__c <> NULL),'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">GTC's Terms: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.GTC_s_Terms_Verbiage__c}</td>
+                </tr>
+                <tr style="{!IF(AND(opp.Type=='EXPORT',opp.Special_Provisions_Terms_Verbiage__c <> NULL),'','display:none;')}">
+                    <td style="padding-top: 10px;font-weight: bold;">Special Provisions Terms: </td>
+                    <td style="padding-top: 10px;text-transform:uppercase;" colspan="5">{!opp.Special_Provisions_Terms_Verbiage__c}</td>
+                </tr>
+            </table>
+    
+        </div>
+    
+    <!--<div class="bottom">
+        
+    </div>-->
+    </body>
+</apex:page>
