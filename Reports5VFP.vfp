@@ -1,0 +1,505 @@
+<apex:page lightningStylesheets="true" controller="ReportsController" cache="false" showHeader="false" sidebar="false" applyBodyTag="false" applyHtmlTag="false">
+    <head>
+        <apex:includeScript value="{!URLFOR($Resource.Utils, 'js/jquery-3.3.1.min.js')}"  />
+        <meta charset="utf-8" />
+        <meta http-equiv="x-ua-compatible" content="ie=edge" />
+        <title>Salesforce Lightning Design System Trailhead Module</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <!-- Import the Design System style sheet -->
+        <apex:slds />
+        <style>
+            .hide-on-screen {display:none;}
+            .noPrint,.yesPrint {display:block;}
+            
+            @media print {
+            .noPrint {display:none;}
+            .hide-on-screen {display:block;}
+            }
+            .slds-template_iframe{background: none !important;}
+            /** LOADING **/
+            /* Absolute Center Spinner */
+            .loading {
+            position: fixed;
+            z-index: 999;
+            height: 2em;
+            width: 2em;
+            overflow: show;
+            margin: auto;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            }
+            
+            /* Transparent Overlay */
+            .loading:before {
+            content: '';
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.3);
+            }
+            
+            /* :not(:required) hides these rules from IE9 and below */
+            .loading:not(:required) {
+            /* hide "loading..." text */
+            font: 0/0 a;
+            color: transparent;
+            text-shadow: none;
+            background-color: transparent;
+            border: 0;
+            }
+            
+            .loading:not(:required):after {
+            content: '';
+            display: block;
+            font-size: 10px;
+            width: 1em;
+            height: 1em;
+            margin-top: -0.5em;
+            -webkit-animation: spinner 1500ms infinite linear;
+            -moz-animation: spinner 1500ms infinite linear;
+            -ms-animation: spinner 1500ms infinite linear;
+            -o-animation: spinner 1500ms infinite linear;
+            animation: spinner 1500ms infinite linear;
+            border-radius: 0.5em;
+            -webkit-box-shadow: rgba(0, 0, 0, 0.75) 1.5em 0 0 0, rgba(0, 0, 0, 0.75) 1.1em 1.1em 0 0, rgba(0, 0, 0, 0.75) 0 1.5em 0 0, rgba(0, 0, 0, 0.75) -1.1em 1.1em 0 0, rgba(0, 0, 0, 0.5) -1.5em 0 0 0, rgba(0, 0, 0, 0.5) -1.1em -1.1em 0 0, rgba(0, 0, 0, 0.75) 0 -1.5em 0 0, rgba(0, 0, 0, 0.75) 1.1em -1.1em 0 0;
+            box-shadow: rgba(0, 0, 0, 0.75) 1.5em 0 0 0, rgba(0, 0, 0, 0.75) 1.1em 1.1em 0 0, rgba(0, 0, 0, 0.75) 0 1.5em 0 0, rgba(0, 0, 0, 0.75) -1.1em 1.1em 0 0, rgba(0, 0, 0, 0.75) -1.5em 0 0 0, rgba(0, 0, 0, 0.75) -1.1em -1.1em 0 0, rgba(0, 0, 0, 0.75) 0 -1.5em 0 0, rgba(0, 0, 0, 0.75) 1.1em -1.1em 0 0;
+            }
+            
+            /* Animation */
+            
+            @-webkit-keyframes spinner {
+            0% {
+            -webkit-transform: rotate(0deg);
+            -moz-transform: rotate(0deg);
+            -ms-transform: rotate(0deg);
+            -o-transform: rotate(0deg);
+            transform: rotate(0deg);
+            }
+            100% {
+            -webkit-transform: rotate(360deg);
+            -moz-transform: rotate(360deg);
+            -ms-transform: rotate(360deg);
+            -o-transform: rotate(360deg);
+            transform: rotate(360deg);
+            }
+            }
+            @-moz-keyframes spinner {
+            0% {
+            -webkit-transform: rotate(0deg);
+            -moz-transform: rotate(0deg);
+            -ms-transform: rotate(0deg);
+            -o-transform: rotate(0deg);
+            transform: rotate(0deg);
+            }
+            100% {
+            -webkit-transform: rotate(360deg);
+            -moz-transform: rotate(360deg);
+            -ms-transform: rotate(360deg);
+            -o-transform: rotate(360deg);
+            transform: rotate(360deg);
+            }
+            }
+            @-o-keyframes spinner {
+            0% {
+            -webkit-transform: rotate(0deg);
+            -moz-transform: rotate(0deg);
+            -ms-transform: rotate(0deg);
+            -o-transform: rotate(0deg);
+            transform: rotate(0deg);
+            }
+            100% {
+            -webkit-transform: rotate(360deg);
+            -moz-transform: rotate(360deg);
+            -ms-transform: rotate(360deg);
+            -o-transform: rotate(360deg);
+            transform: rotate(360deg);
+            }
+            }
+            @keyframes spinner {
+            0% {
+            -webkit-transform: rotate(0deg);
+            -moz-transform: rotate(0deg);
+            -ms-transform: rotate(0deg);
+            -o-transform: rotate(0deg);
+            transform: rotate(0deg);
+            }
+            100% {
+            -webkit-transform: rotate(360deg);
+            -moz-transform: rotate(360deg);
+            -ms-transform: rotate(360deg);
+            -o-transform: rotate(360deg);
+            transform: rotate(360deg);
+            }
+            }
+            /** END LOADING **/
+        </style>
+    </head>
+    <body>
+        <apex:form >
+            <!-- REQUIRED SLDS WRAPPER -->
+            <div class="slds-scope" style="margin:20px;">
+                <!-- HEADER -->
+                <div class="slds-page-header noPrint">
+                    <div class="slds-page-header__row">
+                        <div class="slds-page-header__col-title">
+                            <div class="slds-media">
+                                <div class="slds-media__figure">
+                                    <span class="slds-icon_container slds-icon-standard-opportunity" title="opportunity">
+                                        <!--<svg class="slds-icon slds-page-header__icon" aria-hidden="true">
+                                            <use xlink:href="/assets/icons/standard-sprite/svg/symbols.svg#opportunity" xmlns:xlink="http://www.w3.org/1999/xlink" />
+                                        </svg>-->
+                                        <span class="slds-assistive-text">Broker Share Projection Summary</span>
+                                    </span>
+                                </div>
+                                <div class="slds-media__body">
+                                    <div class="slds-page-header__name">
+                                        <div class="slds-page-header__name-title">
+                                            <h1>
+                                                <span class="slds-page-header__title slds-truncate" title="New Reports">Broker Share Projection Summary</span>
+                                            </h1>
+                                        </div>
+                                    </div>
+                                    <p class="slds-page-header__name-meta"></p>
+                                    <p style="margin-top:5px;">
+                                        Shows commission to be paid to a broker based on invoice date. Select which type of data you want to see Link Crude or Link Future. 
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="slds-page-header__row">
+                        <div class="slds-page-header__col-title" style="margin-left: 12px;margin-top:10px;">
+                            <div class="slds-media">
+                                <apex:inputHidden id="auxIA" value="{!isAdministrator}"></apex:inputHidden>
+                                <apex:inputHidden id="auxIR" value="{!isRole}"></apex:inputHidden>
+                                <div class="slds-form-element" style="{!IF(isAdministrator,'','display:none;')}">
+                                    <label class="slds-form-element__label" for="text-input-id-1">Record Type</label>
+                                    <div class="slds-form-element__control">
+                                        <apex:selectList id="recordType" size="1" value="{!recordTypeId}">
+                                            <apex:selectOptions value="{!recordTypeList}" />
+                                        </apex:selectList>
+                                    </div>
+                                    <div class="slds-form-element__help" id="form-error-04" style="display:none;">This field is required</div>
+                                </div>             
+                                <div class="slds-form-element" style="margin-left: 10px;padding-top: 28px;">
+                                    <!--<label class="slds-form-element__label" for="text-input-id-1">Exclude Deactivated Brokers</label>-->
+                                    <div class="slds-form-element__control">
+                                        <apex:inputField value="{!helperData.Lock__c}" /> Exclude Deactivated Brokers
+                                    </div>
+                                </div>
+                                <div class="slds-form-element" style="margin-left: 10px;" id="botones">
+                                    <a href="javascript:void(0);" class="slds-button slds-button_brand search5" style="margin-top: 24px;">Search</a>
+                                    <a href="javascript:void(0);" onclick="window.print();" class="slds-button slds-button_brand print" style="margin-top: 24px;">Print to PDF</a>
+                                    <a href="javascript:void(0);" onclick="fnExcelReport();" class="slds-button slds-button_brand" style="margin-top: 24px;">Export to Excel</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- END HEADER -->
+                <!-- TABLE -->
+                <div class="hide-on-screen" style="text-align:center;margin-bottom:15px;">
+                    <span style="font-weight:bold;text-transform:uppercase;">Broker Share Projection Summary</span>
+                </div>
+                <div class="yesPrint">
+                    <apex:outputPanel id="resultPanel">
+                        <apex:variable value="{!0}" var="totalMinus90"/>
+                        <apex:variable value="{!0}" var="totalMinus60"/>
+                        <apex:variable value="{!0}" var="totalMinus30"/>
+                        <apex:variable value="{!0}" var="totalCurrent"/>
+                        <apex:variable value="{!0}" var="totalPlus1"/>
+                        <apex:variable value="{!0}" var="totalPlus2"/>
+                        <apex:variable value="{!0}" var="totalPlus3"/>
+                        <apex:variable value="{!0}" var="totalPlus4"/>
+                        <apex:variable value="{!0}" var="totalPlus5"/>
+                        <apex:variable value="{!0}" var="totalPlus6"/>
+                        <table id="tableExcel" class="slds-table slds-table_cell-buffer slds-table_bordered" style="{!IF(brokerMapSize > 0,'','display:none')}">
+                            <thead>
+                                <tr class="slds-line-height_reset">
+                                    <th style="width:12%;" class="" scope="col">
+                                        <div class="slds-truncate" title="Broker">NAME</div>
+                                    </th>
+                                    <th style="width:8%;" class="" scope="col">
+                                        <div class="slds-truncate" title="90-">- 90</div>
+                                    </th>
+                                    <th style="width:8%;" class="" scope="col">
+                                        <div class="slds-truncate" title="60-">- 60</div>
+                                    </th>
+                                    <th style="width:8%;" class="" scope="col">
+                                        <div class="slds-truncate" title="30-">- 30</div>
+                                    </th>
+                                    <th style="width:8%;" class="" scope="col">
+                                        <div class="slds-truncate" title="30-">Current</div>
+                                    </th>
+                                    <th style="width:8%;" class="" scope="col">
+                                        <div class="slds-truncate" title="30-">+ 1</div>
+                                    </th>
+                                    <th style="width:8%;" class="" scope="col">
+                                        <div class="slds-truncate" title="30-">+ 2</div>
+                                    </th>
+                                    <th style="width:8%;" class="" scope="col">
+                                        <div class="slds-truncate" title="30-">+ 3</div>
+                                    </th>
+                                    <th style="width:8%;" class="" scope="col">
+                                        <div class="slds-truncate" title="30-">+ 4</div>
+                                    </th>
+                                    <th style="width:8%;" class="" scope="col">
+                                        <div class="slds-truncate" title="30-">+ 5</div>
+                                    </th>
+                                    <th style="width:8%;" class="" scope="col">
+                                        <div class="slds-truncate" title="30-">6 or More</div>
+                                    </th>
+                                    <th style="width:8%;" class="" scope="col">
+                                        <div class="slds-truncate" title="30-">TOTAL</div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <apex:repeat value="{!sortList}" var="key">
+                                    <tr class="slds-hint-parent">
+                                        <td>
+											{!brokerMap[RIGHT(key,18)]}
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">
+                                                <apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!minus90Map[RIGHT(key,18)]}"/>
+                                                </apex:outputText>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">
+                                                <apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!minus60Map[RIGHT(key,18)]}"/>
+                                                </apex:outputText>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">
+                                                <apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!minus30Map[RIGHT(key,18)]}"/>
+                                                </apex:outputText>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">
+                                                <apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!currentMap[RIGHT(key,18)]}"/>
+                                                </apex:outputText>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">
+                                                <apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!plus1Map[RIGHT(key,18)]}"/>
+                                                </apex:outputText>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">
+                                                <apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!plus2Map[RIGHT(key,18)]}"/>
+                                                </apex:outputText>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">
+                                                <apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!plus3Map[RIGHT(key,18)]}"/>
+                                                </apex:outputText>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">
+                                                <apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!plus4Map[RIGHT(key,18)]}"/>
+                                                </apex:outputText>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">
+                                                <apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!plus5Map[RIGHT(key,18)]}"/>
+                                                </apex:outputText>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">
+                                                <apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!plus6orMoreMap[RIGHT(key,18)]}"/>
+                                                </apex:outputText>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="slds-truncate">
+                                                <apex:outputText value="${0,number,###,##0.00}">
+                                                    <apex:param value="{!minus90Map[RIGHT(key,18)] + minus60Map[RIGHT(key,18)] + minus30Map[RIGHT(key,18)] + currentMap[RIGHT(key,18)] + plus1Map[RIGHT(key,18)] + plus2Map[RIGHT(key,18)] + plus3Map[RIGHT(key,18)]+ plus4Map[RIGHT(key,18)] + plus5Map[RIGHT(key,18)] + plus6orMoreMap[RIGHT(key,18)]}"/>
+                                                </apex:outputText>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <apex:variable var="totalMinus90" value="{!totalMinus90 + minus90Map[RIGHT(key,18)]}" />
+                                    <apex:variable var="totalMinus60" value="{!totalMinus60 + minus60Map[RIGHT(key,18)]}" />
+                                    <apex:variable var="totalMinus30" value="{!totalMinus30 + minus30Map[RIGHT(key,18)]}" />
+                                    <apex:variable var="totalCurrent" value="{!totalCurrent + currentMap[RIGHT(key,18)]}" />
+                                    <apex:variable var="totalPlus1" value="{!totalPlus1 + plus1Map[RIGHT(key,18)]}" />
+                                    <apex:variable var="totalPlus2" value="{!totalPlus2 + plus2Map[RIGHT(key,18)]}" />
+                                    <apex:variable var="totalPlus3" value="{!totalPlus3 + plus3Map[RIGHT(key,18)]}" />
+                                    <apex:variable var="totalPlus4" value="{!totalPlus4 + plus4Map[RIGHT(key,18)]}" />
+                                    <apex:variable var="totalPlus5" value="{!totalPlus5 + plus5Map[RIGHT(key,18)]}" />
+                                    <apex:variable var="totalPlus6" value="{!totalPlus6 + plus6orMoreMap[RIGHT(key,18)]}" />
+                                </apex:repeat>
+                            </tbody>
+                            <tfooter>
+                                <tr class="slds-line-height_reset">
+                                    <th style="font-weight:700;background-color: rgb(250, 250, 249);color: rgb(81, 79, 77);">
+                                        TOTAL
+                                    </th>
+                                    <th style="font-weight:700;background-color: rgb(250, 250, 249);color: rgb(81, 79, 77);">
+                                        <apex:outputText value="${0,number,###,##0.00}">
+                                            <apex:param value="{!totalMinus90}"/>
+                                        </apex:outputText>
+                                    </th>
+                                    <th style="font-weight:700;background-color: rgb(250, 250, 249);color: rgb(81, 79, 77);">
+                                        <apex:outputText value="${0,number,###,##0.00}">
+                                            <apex:param value="{!totalMinus60}"/>
+                                        </apex:outputText>
+                                    </th>
+                                    <th style="font-weight:700;background-color: rgb(250, 250, 249);color: rgb(81, 79, 77);">
+                                        <apex:outputText value="${0,number,###,##0.00}">
+                                            <apex:param value="{!totalMinus30}"/>
+                                        </apex:outputText>
+                                    </th>
+                                    <th style="font-weight:700;background-color: rgb(250, 250, 249);color: rgb(81, 79, 77);">
+                                        <apex:outputText value="${0,number,###,##0.00}">
+                                            <apex:param value="{!totalCurrent}"/>
+                                        </apex:outputText>
+                                    </th>
+                                    <th style="font-weight:700;background-color: rgb(250, 250, 249);color: rgb(81, 79, 77);">
+                                        <apex:outputText value="${0,number,###,##0.00}">
+                                            <apex:param value="{!totalPlus1}"/>
+                                        </apex:outputText>
+                                    </th>
+                                    <th style="font-weight:700;background-color: rgb(250, 250, 249);color: rgb(81, 79, 77);">
+                                        <apex:outputText value="${0,number,###,##0.00}">
+                                            <apex:param value="{!totalPlus2}"/>
+                                        </apex:outputText>
+                                    </th>
+                                    <th style="font-weight:700;background-color: rgb(250, 250, 249);color: rgb(81, 79, 77);">
+                                        <apex:outputText value="${0,number,###,##0.00}">
+                                            <apex:param value="{!totalPlus3}"/>
+                                        </apex:outputText>
+                                    </th>
+                                    <th style="font-weight:700;background-color: rgb(250, 250, 249);color: rgb(81, 79, 77);">
+                                        <apex:outputText value="${0,number,###,##0.00}">
+                                            <apex:param value="{!totalPlus4}"/>
+                                        </apex:outputText>
+                                    </th>
+                                    <th style="font-weight:700;background-color: rgb(250, 250, 249);color: rgb(81, 79, 77);">
+                                        <apex:outputText value="${0,number,###,##0.00}">
+                                            <apex:param value="{!totalPlus5}"/>
+                                        </apex:outputText>
+                                    </th>
+                                    <th style="font-weight:700;background-color: rgb(250, 250, 249);color: rgb(81, 79, 77);">
+                                        <apex:outputText value="${0,number,###,##0.00}">
+                                            <apex:param value="{!totalPlus6}"/>
+                                        </apex:outputText>
+                                    </th>
+                                    <th style="font-weight:700;background-color: rgb(250, 250, 249);color: rgb(81, 79, 77);">
+                                        <apex:outputText value="${0,number,###,##0.00}">
+                                            <apex:param value="{!totalMinus90 + totalMinus60 + totalMinus30 + totalCurrent + totalPlus1 + totalPlus2 + totalPlus3 + totalPlus4 + totalPlus5 + totalPlus6}"/>
+                                        </apex:outputText>
+                                    </th>
+                                </tr>
+                            </tfooter>
+                        </table>
+                        
+                        <!--Alert-->
+                        <div style="{!IF(brokerMapSize > 0,'display:none','')}" class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_info" role="alert">
+                            <h2>No results.</h2>
+                        </div>
+                        <!--End Alert-->
+                    </apex:outputPanel>
+                </div>
+            </div>
+            <div id="contentLoading" class="loading" style="display:none;"></div>
+            <!-- / REQUIRED SLDS WRAPPER -->
+            <apex:actionFunction action="{!search5}" name="search5Js" status="loading" reRender="resultPanel" />
+            <apex:actionStatus id="loading" onstart="loading(true)" onstop="loading(false)" />
+        </apex:form>
+    </body>
+    <script>
+    console.log($('input[id$=auxIA]').val());
+    console.log($('input[id$=auxIR]').val());
+    if($('input[id$=auxIA]').val() == 'false' && $('input[id$=auxIR]').val() == 'false'){
+    	alert('You are not an administrator and you do not have a known role assigned.');
+        $('div[id$=botones]').hide();
+   	}
+    function loading(val) {
+        if (val) {
+            document.getElementById('contentLoading').style.display = 'block';
+            document.getElementById('contentLoaded').style.display = 'none';
+        }
+        else {
+            document.getElementById('contentLoading').style.display = 'none';
+            document.getElementById('contentLoaded').style.display = 'block';
+        }
+    }
+    function fnExcelReport()
+    {
+        var tab_text="<table><tr>";
+        var textRange; var j=0;
+        tab = document.getElementById('tableExcel');
+        
+        for(j = 0 ; j < tab.rows.length ; j++) 
+        {     
+            tab_text=tab_text+tab.rows[j].innerHTML+"</tr>";
+        }
+        
+        tab_text=tab_text+"</table>";
+        tab_text= tab_text.replace(/<A[^>]*>|<\/A>/g, "");
+        tab_text= tab_text.replace(/<img[^>]*>/gi,"");
+        tab_text= tab_text.replace(/<input[^>]*>|<\/input>/gi, "");
+        
+        var ua = window.navigator.userAgent;
+        var msie = ua.indexOf("MSIE "); 
+        
+        var sa;
+        if (msie > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./))
+        {
+            txtArea1.document.open("txt/html","replace");
+            txtArea1.document.write(tab_text);
+            txtArea1.document.close();
+            txtArea1.focus(); 
+            sa=txtArea1.document.execCommand("SaveAs",true,"Export.xls");
+        }  
+        else
+        {
+            sa = window.open('data:application/vnd.ms-excel,' + encodeURIComponent(tab_text));
+        }
+        
+        return (sa);
+    }
+    $(document).ready(function(){
+        $('input,select').keypress(function(event) { return event.keyCode != 13; });
+        $('body').off('click','.search5');
+        $('body').on('click','.search5', function(e){
+            var saveBoolean = true;
+            if($('select[id$=recordType]').val() == ''){
+                saveBoolean = false;
+                $('select[id$=recordType]').parents('.slds-form-element').addClass('slds-has-error');
+                $('div[id$=form-error-04]').show();
+            }else{
+                $('select[id$=reportType]').parents('.slds-form-element').removeClass('slds-has-error');
+                $('div[id$=form-error-04]').hide();
+            }
+            if(saveBoolean) search5Js();
+        });
+    });
+    </script>
+</apex:page>
